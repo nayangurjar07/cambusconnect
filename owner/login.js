@@ -232,8 +232,45 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('userEmail', email);
 
             // =============================================================================
-            // STEP D: ROLE-BASED REDIRECT
+            // STEP D: ROLE-BASED REDIRECT WITH SUBDOMAIN ENFORCEMENT
             // =============================================================================
+            const performRedirect = (role, defaultRelativePath) => {
+                const hostname = window.location.hostname.toLowerCase();
+                const isProduction = hostname.includes('cambusconnect.in') && !hostname.includes('localhost') && !hostname.startsWith('127.');
+                
+                let expectedHost = hostname;
+                if (isProduction) {
+                    if (role === 'owner') {
+                        expectedHost = 'cambusconnect.in';
+                    } else if (tenantInfo.tenantKey === 'localhost' || tenantInfo.tenantKey === 'iist.cambusconnect.in') {
+                        expectedHost = 'iist.cambusconnect.in';
+                    } else if (tenantInfo.tenantKey === '127.0.0.1' || tenantInfo.tenantKey === 'medicaps.cambusconnect.in') {
+                        expectedHost = 'medicaps.cambusconnect.in';
+                    }
+                }
+
+                if (hostname === expectedHost) {
+                    console.log(`→ Redirecting locally on same domain: ${defaultRelativePath}`);
+                    window.location.href = defaultRelativePath;
+                } else {
+                    console.log(`📡 Redirecting across domains to https://${expectedHost} with session transfer`);
+                    
+                    const sessionData = {};
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        sessionData[key] = localStorage.getItem(key);
+                    }
+                    const encodedSession = btoa(JSON.stringify(sessionData));
+                    
+                    let cleanPath = defaultRelativePath;
+                    if (cleanPath.startsWith('../')) {
+                        cleanPath = cleanPath.substring(3);
+                    }
+                    
+                    window.location.href = `https://${expectedHost}/${cleanPath}?session_transfer=${encodedSession}`;
+                }
+            };
+
             if (userData.role === 'owner') {
                 // ========== OWNER LOGIN ==========
                 console.log("\n👑 OWNER LOGIN SUCCESSFUL");
@@ -248,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 console.log("→ Redirecting to owner panel in 0.5s...");
                 setTimeout(() => {
-                    window.location.href = 'owner.html';
+                    performRedirect('owner', 'owner.html');
                 }, 500);
 
             } else if (userData.role === 'admin') {
@@ -266,12 +303,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 console.log("→ Redirecting to admin panel in 0.5s...");
                 setTimeout(() => {
-                    window.location.href = '../admin/admin.html';
+                    performRedirect('admin', '../admin/admin.html');
                 }, 500);
 
             } else if (userData.role === 'driver') {
                 // ========== DRIVER LOGIN ==========
-                console.log("\n🚛 DRIVER LOGIN SUCCESSFUL");
+                console.log("\n%c🚛 DRIVER LOGIN SUCCESSFUL", "color: orange; font-weight: bold;");
                 localStorage.setItem('userRole', 'driver');
                 localStorage.setItem('driverName', userData.name || 'Driver');
 
@@ -283,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 console.log("→ Redirecting to driver panel in 0.5s...");
                 setTimeout(() => {
-                    window.location.href = '../driver/driverhome.html';
+                    performRedirect('driver', '../driver/driverhome.html');
                 }, 500);
 
             } else {
@@ -302,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 console.log("→ Redirecting to student home in 0.5s...");
                 setTimeout(() => {
-                    window.location.href = '../student/home.html';
+                    performRedirect('student', '../student/home.html');
                 }, 500);
             }
 

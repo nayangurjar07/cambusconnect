@@ -2,6 +2,30 @@
 // This script must be loaded on EVERY page to enforce authentication
 
 document.addEventListener('DOMContentLoaded', () => {
+    // -------------------------------------------------------------------------
+    // A. Cross-Subdomain Session Transfer Receiver
+    // -------------------------------------------------------------------------
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionTransfer = urlParams.get('session_transfer');
+    if (sessionTransfer) {
+        try {
+            const data = JSON.parse(atob(sessionTransfer));
+            console.log("📡 Session transfer detected. Restoring credentials...");
+            for (const key in data) {
+                if (data[key] !== null && data[key] !== undefined) {
+                    localStorage.setItem(key, typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key]);
+                }
+            }
+            // Clean up the URL search params so the base64 token isn't visible
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            window.location.reload();
+            return;
+        } catch (e) {
+            console.error("❌ Session transfer failed:", e);
+        }
+    }
+
     const isLoggedIn = localStorage.getItem('isLoggedIn');
     const userRole = localStorage.getItem('userRole');
     const instituteId = localStorage.getItem('instituteId');
@@ -30,6 +54,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const isAdminPage = path.includes('/admin/');
     const isDriverPage = path.includes('/driver/');
     const isStudentPage = path.includes('/student/');
+
+    // -------------------------------------------------------------------------
+    // B. Subdomain Enforcement Check (Production Only)
+    // -------------------------------------------------------------------------
+    const hostname = window.location.hostname.toLowerCase();
+    const isProduction = hostname.includes('cambusconnect.in') && !hostname.includes('localhost') && !hostname.startsWith('127.');
+
+    if (isLoggedIn === 'true' && isProduction) {
+        let expectedHost = 'cambusconnect.in';
+        if (userRole !== 'owner' && instituteId) {
+            if (instituteId.includes('medicaps')) {
+                expectedHost = 'medicaps.cambusconnect.in';
+            } else if (instituteId.includes('indoreinstitute') || instituteId.includes('iist')) {
+                expectedHost = 'iist.cambusconnect.in';
+            }
+        }
+
+        if (hostname !== expectedHost) {
+            console.log(`⚠️ Domain mismatch! On: ${hostname}, Expected: ${expectedHost}. Redirecting...`);
+            
+            // Package active session for transfer
+            const sessionData = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                sessionData[key] = localStorage.getItem(key);
+            }
+            const encodedSession = btoa(JSON.stringify(sessionData));
+            
+            // Redirect to correct domain with session token
+            let targetPath = path;
+            // Ensure proper path prefixing
+            if (targetPath.startsWith('/')) {
+                targetPath = targetPath.substring(1);
+            }
+            window.location.href = `https://${expectedHost}/${targetPath}?session_transfer=${encodedSession}`;
+            return;
+        }
+    }
 
     // RULE 1: If NOT logged in (or missing tenant ID) and trying to access protected page -> Redirect to login
     if ((isLoggedIn !== 'true' || !instituteId) && !isPublicPage) {
