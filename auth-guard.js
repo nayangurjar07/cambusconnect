@@ -18,8 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // Clean up the URL search params so the base64 token isn't visible
             const cleanUrl = window.location.origin + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-            window.location.reload();
+            window.location.href = cleanUrl;
             return;
         } catch (e) {
             console.error("❌ Session transfer failed:", e);
@@ -63,7 +62,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (isLoggedIn === 'true' && isProduction) {
         let expectedHost = 'cambusconnect.in';
-        if (userRole !== 'owner' && instituteId) {
+        if (userRole === 'owner') {
+            // Treat cambusconnect.in and www.cambusconnect.in as equivalent to avoid DNS/Vercel redirect loops
+            const isOwnerHost = hostname === 'cambusconnect.in' || hostname === 'www.cambusconnect.in';
+            if (isOwnerHost) {
+                expectedHost = hostname;
+            }
+        } else if (instituteId) {
             if (instituteId.includes('medicaps')) {
                 expectedHost = 'medicaps.cambusconnect.in';
             } else if (instituteId.includes('indoreinstitute') || instituteId.includes('iist')) {
