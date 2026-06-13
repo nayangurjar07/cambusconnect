@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Driver Console | Cambus Connect</title>
+    
+    <!-- Auth Guard checks login status immediately -->
+    <script src="../auth-guard.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    
+    <!-- Firebase ESM Configuration -->
+    <script type="importmap">
+      {
+        "imports": {
+          "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
+          "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
+        }
+      }
+    </script>
+    <script type="module" src="../firebase-init.js"></script>
+    <script type="module" src="../app.js"></script>
+
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9ff;
+        }
+        .pulse-ring {
+            animation: pulse-animation 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-animation {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.15); opacity: 0.6; }
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+              "primary": "var(--primary-color, #0037b0)",
+              "secondary": "var(--secondary-color, #9d4300)",
+              "background": "var(--bg-color, #f8f9ff)",
+              "on-surface": "var(--text-color, #0b1c30)",
+            }
+          }
+        }
+      }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-sans min-h-screen flex flex-col pb-8">
+    <!-- Top Bar Header -->
+    <header class="bg-white/95 backdrop-blur shadow-sm h-16 flex items-center justify-between px-6 sticky top-0 z-50 border-b border-gray-100">
+        <div class="flex items-center space-x-3">
+            <span class="material-symbols-outlined text-primary text-[28px] font-bold">directions_bus</span>
+            <div>
+                <h1 class="text-base font-black tracking-tight text-primary">Cambus Connect</h1>
+                <p class="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Driver Portal</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="text-right hidden sm:block">
+                <p id="driver-name-display" class="text-xs font-bold text-gray-800">Loading...</p>
+                <p class="text-[10px] text-gray-500 font-medium">On Duty</p>
+            </div>
+            <button onclick="localStorage.clear(); window.location.href='../owner/login.html';" class="p-2 hover:bg-red-50 text-red-600 rounded-full transition-all active:scale-95 duration-100 flex items-center justify-center border border-red-100">
+                <span class="material-symbols-outlined text-[20px]">logout</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container (Mobile-Optimized Layout) -->
+    <main class="flex-1 w-full max-w-lg mx-auto px-4 py-6 space-y-6">
+        
+        <!-- Welcome Greeting & Header -->
+        <section class="flex items-center justify-between">
+            <div>
+                <h2 id="greeting-title" class="text-xl font-bold text-gray-900">Hello, Driver!</h2>
+                <p class="text-xs text-gray-500 font-semibold mt-0.5">Please start your shift to stream route coordinates.</p>
+            </div>
+            <span id="gps-status-badge" class="px-3 py-1.5 bg-gray-100 text-gray-600 text-[10px] font-extrabold uppercase rounded-full flex items-center gap-1">
+                <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                GPS INACTIVE
+            </span>
+        </section>
+
+        <!-- Dynamic Live Shift Tracking Console Card -->
+        <section class="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 relative overflow-hidden space-y-6">
+            <!-- Background Decorative Shape -->
+            <div class="absolute -right-10 -top-10 w-32 h-32 bg-primary/5 rounded-full blur-2xl pointer-events-none"></div>
+
+            <!-- Assigned Telemetry details -->
+            <div class="flex items-start gap-4">
+                <div class="w-14 h-14 bg-gradient-to-br from-primary to-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-primary/20">
+                    <span id="bus-number-display">--</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assigned Bus & Route</p>
+                    <h3 id="bus-route-display" class="font-extrabold text-gray-800 text-base leading-tight mt-0.5">Loading route details...</h3>
+                    <p class="text-xs text-gray-500 font-semibold mt-1 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-xs">local_taxi</span>
+                        Vehicle ID: <span id="vehicle-id-display" class="font-mono text-gray-600">Loading...</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Big Shift Toggle Button -->
+            <div>
+                <button id="btn-toggle-shift" class="w-full py-4 bg-primary text-white font-extrabold rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-all flex items-center justify-center gap-2 text-base active:scale-98 duration-100">
+                    <span class="material-symbols-outlined">play_arrow</span>
+                    <span>Start Shift & GPS Tracking</span>
+                </button>
+            </div>
+
+            <!-- Real-time Location Stats (Visible when active) -->
+            <div id="telemetry-box" class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 text-center">
+                <div class="p-3 bg-gray-50 rounded-xl">
+                    <p class="text-[9px] font-bold text-gray-400 uppercase">Latitude</p>
+                    <p id="lat-display" class="font-mono text-sm font-bold text-gray-700 mt-0.5">--</p>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-xl">
+                    <p class="text-[9px] font-bold text-gray-400 uppercase">Longitude</p>
+                    <p id="lng-display" class="font-mono text-sm font-bold text-gray-700 mt-0.5">--</p>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-xl">
+                    <p class="text-[9px] font-bold text-gray-400 uppercase">Accuracy</p>
+                    <p id="accuracy-display" class="text-xs font-bold text-gray-700 mt-0.5">--</p>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-xl">
+                    <p class="text-[9px] font-bold text-gray-400 uppercase">Shift Duration</p>
+                    <p id="duration-display" class="text-xs font-bold text-primary mt-0.5">00:00:00</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Route Consolidation & Merge Announcement Card -->
+        <section class="bg-white rounded-3xl p-6 shadow-lg border border-gray-100 space-y-4">
+            <div class="flex items-center gap-2.5 pb-3 border-b border-gray-50">
+                <span class="material-symbols-outlined text-amber-600">campaign</span>
+                <div>
+                    <h3 class="font-bold text-gray-800 text-sm">Broadcast Route Alert</h3>
+                    <p class="text-[10px] text-gray-400 font-semibold">Notify assigned students about schedule/route merges</p>
+                </div>
+            </div>
+
+            <form id="form-driver-alert" class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5">Alert Type *</label>
+                    <select id="driver-alert-type" class="w-full px-3.5 py-2 border border-gray-200 focus:border-primary bg-white text-xs rounded-xl outline-none transition-all">
+                        <option value="delay">⚠️ Route Delay / Traffic</option>
+                        <option value="alert" selected>🚨 Route Consolidation / Merge</option>
+                        <option value="crowd">👥 Heavy Rush / Extra Bus</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5">Alert Message *</label>
+                    <textarea id="driver-alert-message" required rows="3" class="w-full px-3.5 py-2 border border-gray-200 focus:border-primary text-xs rounded-xl outline-none resize-none transition-all" placeholder="Enter notification message for student transit feeds..."></textarea>
+                </div>
+
+                <button type="submit" id="btn-send-alert" class="w-full py-3 bg-amber-600 text-white text-xs font-bold rounded-xl shadow-md shadow-amber-600/20 hover:bg-amber-700 transition-all flex items-center justify-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">send</span>
+                    Send Alert to Route Students
+                </button>
+            </form>
+        </section>
+
+        <!-- Recent Logs Section -->
+        <section class="bg-white rounded-3xl p-6 shadow-md border border-gray-100 space-y-3">
+            <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-[18px]">history</span>
+                My Shifts Today
+            </h3>
+            <div id="driver-history-list" class="space-y-2.5 max-h-48 overflow-y-auto custom-scrollbar text-xs">
+                <!-- Populated dynamically by driverhome.js -->
+                <p class="text-center text-gray-400 py-4">No shift logs recorded today.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Scripts -->
+    <script src="../db-helper.js"></script>
+    <script src="../main.js"></script>
+    <script src="driverhome.js"></script>
+</body>
+</html>

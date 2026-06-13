@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /live_bus_routes/{routeId} {
+      allow read: if request.auth != null && 
+                  get(/$(database)/documents/valid_passes/$(request.auth.token.email)).data.hasValidPass == true;
+    }
+    match /valid_passes/{email} {
+      allow read: if request.auth != null && request.auth.token.email == email;
+      allow write: if false; // Strict administrative block
+    }
+  }
+}

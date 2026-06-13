@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Admin Dashboard | Cambus Connect</title>
+    
+    <!-- Auth Guard check -->
+    <script src="../auth-guard.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Firebase ESM Configuration -->
+    <script type="importmap">
+      {
+        "imports": {
+          "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
+          "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
+        }
+      }
+    </script>
+    <script type="module" src="../firebase-init.js"></script>
+    <script type="module" src="../app.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8f9ff; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c4c5d7;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #747686;
+        }
+        /* Style for modal transitions */
+        .modal-active {
+            display: flex !important;
+        }
+        /* Custom highlight for active tab */
+        .tab-active {
+            background-color: #0037b0 !important;
+            color: #ffffff !important;
+        }
+        .tab-active span {
+            color: #ffffff !important;
+        }
+    </style>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+              "primary-container": "var(--primary-color, #1d4ed8)",
+              "error": "#ba1a1a",
+              "tertiary": "#004f35",
+              "on-tertiary-container": "#60eeb1",
+              "error-container": "#ffdad6",
+              "on-primary-fixed-variant": "#0039b5",
+              "outline": "#747686",
+              "outline-variant": "#c4c5d7",
+              "on-background": "var(--text-color, #0b1c30)",
+              "primary": "var(--primary-color, #0037b0)",
+              "inverse-primary": "#b7c4ff",
+              "secondary-fixed-dim": "#ffb690",
+              "secondary": "var(--secondary-color, #9d4300)",
+              "on-secondary": "#ffffff",
+              "on-primary-container": "#cad3ff",
+              "on-surface-variant": "#434655",
+              "on-secondary-fixed-variant": "#783200",
+              "tertiary-fixed-dim": "#4edea3",
+              "on-primary-fixed": "#001551",
+              "on-tertiary-fixed": "#002113",
+              "on-secondary-fixed": "#341100",
+              "surface-tint": "#2151da",
+              "primary-fixed": "#dce1ff",
+              "on-error": "#ffffff",
+              "surface": "#f8f9ff",
+              "surface-container-high": "#dce9ff",
+              "secondary-fixed": "#ffdbca",
+              "on-surface": "var(--text-color, #0b1c30)",
+              "secondary-container": "#fd761a",
+              "surface-variant": "#d3e4fe",
+              "tertiary-fixed": "#6ffbbe",
+              "surface-dim": "#cbdbf5",
+              "inverse-surface": "#213145",
+              "inverse-on-surface": "#eaf1ff",
+              "background": "var(--bg-color, #f8f9ff)",
+              "surface-bright": "#f8f9ff",
+              "on-secondary-container": "#5c2400",
+              "surface-container": "#e5eeff",
+              "on-primary": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "surface-container-highest": "#d3e4fe",
+              "surface-container-low": "#eff4ff",
+              "primary-fixed-dim": "#b7c4ff",
+              "on-tertiary": "#ffffff",
+              "tertiary-container": "#006a48",
+              "on-tertiary-fixed-variant": "#005236",
+              "on-error-container": "#93000a"
+            },
+            "borderRadius": {
+              "DEFAULT": "0.25rem",
+              "lg": "0.5rem",
+              "xl": "0.75rem",
+              "full": "9999px"
+            },
+            "spacing": {
+              "xl": "48px",
+              "margin-desktop": "32px",
+              "margin-mobile": "16px",
+              "base": "4px",
+              "xs": "4px",
+              "gutter": "16px",
+              "sm": "8px",
+              "md": "16px",
+              "lg": "24px"
+            },
+            "fontFamily": {
+              "headline-md": ["Inter"],
+              "label-sm": ["Inter"],
+              "label-md": ["Inter"],
+              "body-lg": ["Inter"],
+              "headline-lg-mobile": ["Inter"],
+              "body-md": ["Inter"],
+              "mono-data": ["Inter"],
+              "headline-lg": ["Inter"]
+            },
+            "fontSize": {
+              "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+              "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+              "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+              "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+              "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+              "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+              "mono-data": ["16px", { "lineHeight": "24px", "fontWeight": "700" }],
+              "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-surface">
+    <!-- Enhanced Sidebar -->
+    <aside class="h-screen w-64 fixed left-0 top-0 bg-surface border-r border-outline-variant shadow-sm z-50 flex flex-col p-md gap-sm">
+        <div class="mb-6 px-sm">
+            <h1 id="sidebar-default-logo" class="text-headline-md font-headline-md font-black text-primary">Cambus Connect</h1>
+            <h1 id="sidebar-college-title" class="text-headline-md font-headline-md font-black text-primary hidden"></h1>
+            <p class="text-label-sm text-on-surface-variant font-medium">Administrator Control</p>
+        </div>
+        
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100 mb-4">
+            <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Signed in as</p>
+            <p id="admin-name-display" class="text-sm font-bold text-slate-800">Administrator</p>
+        </div>
+
+        <nav class="flex-grow space-y-base overflow-y-auto custom-scrollbar">
+            <!-- Buses Tab -->
+            <button id="tab-buses" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">directions_bus</span>
+                <span class="font-label-md text-label-md">Bus Fleet</span>
+            </button>
+            <!-- Students Tab -->
+            <button id="tab-students" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">groups</span>
+                <span class="font-label-md text-label-md">Students</span>
+            </button>
+            <!-- Staff Directory Tab -->
+            <button id="tab-staff" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">badge</span>
+                <span class="font-label-md text-label-md">Staff Directory</span>
+            </button>
+            <!-- Live Tracking Tab -->
+            <button id="tab-tracking" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">explore</span>
+                <span class="font-label-md text-label-md">Live Tracking</span>
+            </button>
+            <!-- Notifications Tab -->
+            <button id="tab-notifications" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">notifications</span>
+                <span class="font-label-md text-label-md">Notifications</span>
+            </button>
+            <!-- Lost & Found Tab -->
+            <button id="tab-lost-found" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">inventory_2</span>
+                <span class="font-label-md text-label-md">Lost & Found</span>
+            </button>
+            <!-- Support Tab -->
+            <button id="tab-support" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left relative">
+                <span class="material-symbols-outlined">support_agent</span>
+                <span class="font-label-md text-label-md">Support Desk</span>
+                <span id="pending-badge" class="hidden ml-auto px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">0</span>
+            </button>
+            <!-- Driver Activity Tab -->
+            <button id="tab-driver-activity" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left relative">
+                <span class="material-symbols-outlined">history</span>
+                <span class="font-label-md text-label-md">Driver Activity</span>
+                <span id="active-drivers-badge" class="hidden ml-auto px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full">0</span>
+            </button>
+            <!-- GPS Settings Tab -->
+            <button id="tab-tracking-settings" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">settings_input_antenna</span>
+                <span class="font-label-md text-label-md">GPS Settings</span>
+            </button>
+        </nav>
+        
+        <div class="mt-auto pt-4 border-t border-outline-variant">
+            <button id="logout-btn" class="w-full py-3 bg-error-container text-error rounded-xl font-bold flex items-center justify-center space-x-2 hover:bg-error hover:text-white transition-all">
+                <span class="material-symbols-outlined">logout</span>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- TopAppBar -->
+    <header class="flex justify-between items-center h-16 px-margin-desktop ml-64 bg-surface/80 backdrop-blur-md sticky top-0 z-40 border-b border-outline-variant">
+        <h2 class="text-headline-md font-headline-md font-black text-primary" id="admin-page-title">Admin Management</h2>
+        <div class="flex items-center gap-lg">
+            <div class="flex items-center gap-md">
+                <a href="admin-track.html" class="flex items-center gap-xs px-4 py-2 bg-primary text-on-primary rounded-lg font-label-md hover:bg-primary-container transition-all text-sm font-semibold">
+                    <span class="material-symbols-outlined text-[18px]">explore</span>
+                    <span>Fleet Map View</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="ml-64 p-margin-desktop min-h-screen">
+        
+        <!-- ==================== VIEW: BUS FLEET ==================== -->
+        <div id="view-buses" class="view-container space-y-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Bus Fleet</h2>
+                    <p class="font-body-md text-on-surface-variant mt-1">Configure buses, driver rosters, and assigned routes</p>
+                </div>
+                <button id="add-bus-btn" class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all">
+                    <span class="material-symbols-outlined">add_circle</span>
+                    <span>Add New Bus</span>
+                </button>
+            </div>
+            
+            <div id="admin-buses-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Loaded dynamically by admin.js -->
+                <div class="col-span-full space-y-4">
+                    <div class="h-32 bg-slate-200 rounded-2xl shimmer"></div>
+                    <div class="h-32 bg-slate-200 rounded-2xl shimmer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: STUDENTS ==================== -->
+        <div id="view-students" class="view-container hidden space-y-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Student Directory</h2>
+                    <p class="font-body-md text-on-surface-variant mt-1">Register student accounts and modify transit pass validity</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="import-students-btn" class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all">
+                        <span class="material-symbols-outlined">upload_file</span>
+                        <span>Import CSV</span>
+                    </button>
+                    <button id="add-student-btn" class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all">
+                        <span class="material-symbols-outlined">person_add</span>
+                        <span>Register Student</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Filter -->
+            <div class="flex flex-col sm:flex-row items-center gap-4 bg-surface-container-low border border-outline-variant p-4 rounded-xl shadow-sm">
+                <div class="relative w-full sm:flex-1">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+                    <input type="text" id="search-student" placeholder="Search by name, ID, or enrollment number..." class="w-full pl-10 pr-4 py-3 bg-surface border-2 border-outline-variant focus:border-primary rounded-xl outline-none transition-all font-body-md text-body-md">
+                </div>
+                <div class="px-5 py-3 bg-primary-container text-on-primary-container rounded-xl font-bold text-sm shrink-0">
+                    Total: <span id="student-count">0</span> Registered
+                </div>
+            </div>
+
+            <!-- Directory Table -->
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-surface-container-low border-b border-outline-variant">
+                            <tr>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Student Name</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Email Address</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Enrollment ID</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Assigned Bus</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Pass Valid Until</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-table-body" class="divide-y divide-outline-variant bg-white">
+                            <!-- Populated by admin.js -->
+                            <tr>
+                                <td colspan="6" class="px-6 py-12 text-center text-on-surface-variant">Loading student directory...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: STAFF DIRECTORY ==================== -->
+        <div id="view-staff" class="view-container hidden space-y-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Staff Directory</h2>
+                    <p class="font-body-md text-on-surface-variant mt-1">Register staff members and assign drivers/conductors to buses</p>
+                </div>
+                <button id="add-staff-btn" class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all">
+                    <span class="material-symbols-outlined">person_add</span>
+                    <span>Register Staff</span>
+                </button>
+            </div>
+
+            <!-- Staff Directory Table -->
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-surface-container-low border-b border-outline-variant">
+                            <tr>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Staff Name</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Email Address</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Phone</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Role</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Assigned Bus</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staff-table-body" class="divide-y divide-outline-variant bg-white">
+                            <tr>
+                                <td colspan="6" class="px-6 py-12 text-center text-on-surface-variant">Loading staff directory...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: NOTIFICATIONS ==================== -->
+        <div id="view-notifications" class="view-container hidden space-y-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Notification Center</h2>
+                    <p class="font-body-md text-on-surface-variant mt-1">Broadcast real-time transit alerts, delay warnings, or announcements</p>
+                </div>
+                <button id="add-notification-btn" class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all">
+                    <span class="material-symbols-outlined">campaign</span>
+                    <span>Send Announcement</span>
+                </button>
+            </div>
+            
+            <div id="notifications-list" class="space-y-4">
+                <!-- Loaded dynamically by admin.js -->
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: LOST & FOUND ==================== -->
+        <div id="view-lost-found" class="view-container hidden space-y-lg">
+            <div>
+                <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Lost & Found Reports</h2>
+                <p class="font-body-md text-on-surface-variant mt-1">Resolve student belongings reported lost in vehicles</p>
+            </div>
+            
+            <div id="lost-found-list" class="space-y-4">
+                <!-- Loaded dynamically by admin.js -->
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: LIVE TRACKING ==================== -->
+        <div id="view-live-tracking" class="view-container hidden space-y-lg">
+            <div>
+                <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Live Fleet Monitor</h2>
+                <p class="font-body-md text-on-surface-variant mt-1">GPS fleet telemetry overview</p>
+            </div>
+
+            <!-- Static Map placeholder (refer back to admin-track.html for Google Map integration) -->
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-md">
+                <div id="map-container" class="w-full h-[380px] bg-slate-100 flex items-center justify-center relative">
+                    <div class="text-center p-md">
+                        <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <span class="material-symbols-outlined text-white text-[32px]">map</span>
+                        </div>
+                        <p class="text-slate-800 font-bold text-lg mb-2">Fleet Overview Map</p>
+                        <p class="text-sm text-slate-500 mb-4">Click "Fleet Map View" at the top right to open full interactive Google Maps.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="tracking-buses-list">
+                <!-- Loaded dynamically by admin.js -->
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: SUPPORT QUERIES ==================== -->
+        <div id="view-support" class="view-container hidden space-y-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Support Center</h2>
+                    <p class="font-body-md text-on-surface-variant mt-1">Resolve student tickets, complaints, and requests</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="total-queries" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-xl text-sm font-bold">0 Queries</span>
+                    <button id="refresh-queries-btn" class="p-2.5 bg-surface hover:bg-surface-container-high rounded-xl border border-outline-variant transition-colors flex items-center justify-center">
+                        <span class="material-symbols-outlined text-primary">sync</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
+                <!-- Filter Tabs -->
+                <div class="flex border-b border-outline-variant overflow-x-auto bg-surface-container-low">
+                    <button class="filter-tab px-6 py-4 text-sm font-bold border-b-2 border-primary text-primary whitespace-nowrap transition-all" data-status="all">All Queries</button>
+                    <button class="filter-tab px-6 py-4 text-sm font-bold border-b-2 border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high whitespace-nowrap transition-all" data-status="Pending">Pending Only</button>
+                    <button class="filter-tab px-6 py-4 text-sm font-bold border-b-2 border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high whitespace-nowrap transition-all" data-status="In Progress">In Progress</button>
+                    <button class="filter-tab px-6 py-4 text-sm font-bold border-b-2 border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high whitespace-nowrap transition-all" data-status="Resolved">Resolved</button>
+                </div>
+
+                <div id="support-queries-list" class="p-6 space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar bg-white">
+                    <!-- Loaded dynamically by admin.js -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: DRIVER ACTIVITY ==================== -->
+        <div id="view-driver-activity" class="view-container hidden space-y-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Driver Activity Log</h2>
+                    <p class="font-body-md text-on-surface-variant mt-1">Track driver schedules, working shifts, and session status</p>
+                </div>
+                <button id="refresh-sessions-btn" class="flex items-center gap-2 px-5 py-2.5 bg-surface hover:bg-surface-container-high border border-outline-variant text-on-surface rounded-xl font-semibold transition-all text-sm">
+                    <span class="material-symbols-outlined text-[18px]">sync</span>
+                    <span>Refresh Logs</span>
+                </button>
+            </div>
+
+            <!-- Stat Row -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 shadow-sm">
+                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Currently Active</p>
+                    <p class="text-3xl font-black text-green-600" id="da-active-count">0</p>
+                </div>
+                <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 shadow-sm">
+                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Stopped Today</p>
+                    <p class="text-3xl font-black text-on-surface" id="da-stopped-count">0</p>
+                </div>
+                <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 shadow-sm">
+                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Total Sessions Today</p>
+                    <p class="text-3xl font-black text-primary" id="da-total-count">0</p>
+                </div>
+            </div>
+
+            <!-- Shift Table -->
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
+                <div class="px-6 py-4 border-b border-outline-variant flex items-center justify-between bg-surface-container-low">
+                    <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider">Driver Session Feed</h3>
+                    <select id="da-filter" class="text-sm border border-outline-variant rounded-lg px-3 py-1 bg-white outline-none focus:border-primary">
+                        <option value="all">All Sessions</option>
+                        <option value="active">Active Only</option>
+                        <option value="stopped">Stopped Only</option>
+                    </select>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left text-sm bg-white">
+                        <thead class="bg-surface-container-low border-b border-outline-variant">
+                            <tr>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Driver</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Assigned Bus</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Shift Started</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Shift Ended</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Duration</th>
+                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="driver-activity-tbody" class="divide-y divide-outline-variant">
+                            <!-- Populated by admin.js -->
+                            <tr>
+                                <td colspan="6" class="px-6 py-12 text-center text-on-surface-variant">Loading activities...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: GPS SETTINGS ==================== -->
+        <div id="view-tracking-settings" class="view-container hidden space-y-lg">
+            <div>
+                <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">GPS Tracker Settings</h2>
+                <p class="font-body-md text-on-surface-variant mt-1">Configure MapmyIndia IoT credentials and API keys securely</p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 shadow-xl border border-slate-200/60 max-w-xl">
+                <form id="form-tracking-settings" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">MapmyIndia API Key (Client ID) *</label>
+                        <input id="input-gps-api-key" name="apiKey" required type="password" placeholder="Enter MapmyIndia API Key" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">MapmyIndia Client Secret *</label>
+                        <input id="input-gps-client-secret" name="clientSecret" required type="password" placeholder="Enter MapmyIndia Client Secret" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div class="flex justify-end pt-4">
+                        <button type="submit" class="px-6 py-3 bg-primary hover:bg-primary-container text-on-primary font-semibold rounded-xl transition-all shadow-md">
+                            Save Secure Credentials
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ==================== ADD BUS MODAL ==================== -->
+    <div id="modal-add-bus" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Add New Bus</h3>
+                    <p class="text-xs text-on-surface-variant">Register a new transit vehicle to database</p>
+                </div>
+                <button id="close-bus-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="form-add-bus" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Bus Number *</label>
+                        <input name="number" required placeholder="e.g. Bus 101" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Route Name *</label>
+                        <input name="route" required placeholder="e.g. Route A - Library Loop" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Driver Name *</label>
+                    <input name="driver" required placeholder="e.g. Rajesh Kumar" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Driver Phone</label>
+                        <input name="phone" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Conductor Name</label>
+                        <input name="conductor" placeholder="e.g. Amit Singh" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Conductor Phone</label>
+                        <input name="conductorPhone" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Tracker ID / Device Serial</label>
+                        <input name="trackerId" placeholder="e.g. TRK-9902" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                    <button type="button" id="cancel-bus-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Add Bus</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== REGISTER STUDENT MODAL ==================== -->
+    <div id="modal-add-student" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Register Student</h3>
+                    <p class="text-xs text-on-surface-variant">Create user account and issue pass</p>
+                </div>
+                <button id="close-student-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="form-add-student" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Full Name *</label>
+                        <input name="name" required placeholder="John Doe" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Enrollment ID / College ID *</label>
+                        <input name="enrollment" required placeholder="e.g. 0818CS221001" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Email Address *</label>
+                        <input name="email" type="email" required placeholder="name@indoreinstitute.com" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Password *</label>
+                        <div class="relative">
+                            <input id="password-input" name="password" type="password" required minlength="6" placeholder="Min 6 characters" class="w-full px-4 py-2.5 pr-10 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                            <button type="button" id="toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-sm">👁️</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Pick-up/Drop Address</label>
+                    <input name="address" placeholder="Residential colony / Landmark" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Student Phone</label>
+                        <input name="phone" type="tel" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Parent/Guardian Phone</label>
+                        <input name="parentPhone" type="tel" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Department</label>
+                        <input name="department" placeholder="e.g. CSE, IT, ME" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Academic Year</label>
+                        <select name="year" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Assign Bus Route *</label>
+                        <select name="assignedBusId" id="input-assign-bus" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="">Loading routes...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Pass Validity End Date *</label>
+                        <input name="passValidity" type="date" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary text-sm">
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                    <button type="button" id="cancel-student-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== IMPORT STUDENTS MODAL ==================== -->
+    <div id="modal-import-students" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100 flex flex-col">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Import Students (Excel/CSV)</h3>
+                    <p class="text-xs text-on-surface-variant">Batch upload student database profiles from Excel or CSV files</p>
+                </div>
+                <button id="close-import-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-4 flex-1">
+                <!-- Drop zone or file input -->
+                <div class="border-2 border-dashed border-outline-variant hover:border-primary rounded-2xl p-8 text-center cursor-pointer transition-colors relative" id="csv-drop-zone">
+                    <input type="file" id="csv-file-input" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 opacity-0 cursor-pointer">
+                    <span class="material-symbols-outlined text-4xl text-outline mb-2">upload_file</span>
+                    <p class="font-bold text-sm text-on-surface">Click to upload or drag & drop Excel/CSV file</p>
+                    <p class="text-xs text-on-surface-variant mt-1">Accepts standard .xlsx, .xls, or .csv files</p>
+                </div>
+
+                <!-- Instructions & Sample template download -->
+                <div class="p-4 bg-primary-container text-on-primary-container rounded-xl text-xs space-y-2">
+                    <p class="font-bold">Required CSV Columns:</p>
+                    <p class="font-mono">Name, Email, Password, Enrollment, BusRoute, PassValidity</p>
+                    <p class="font-bold mt-2">Optional Columns:</p>
+                    <p class="font-mono">Address, Phone, ParentPhone, Department, Year</p>
+                    <div class="pt-2 flex justify-between items-center">
+                        <span class="text-[10px] text-gray-500">* PassValidity should be formatted as YYYY-MM-DD</span>
+                        <button id="download-csv-template" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">download</span> Download Template
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preview Area (Hidden by default) -->
+                <div id="import-preview-container" class="hidden space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-sm text-on-surface">File Preview (<span id="import-preview-count">0</span> Records Found)</h4>
+                        <span id="preview-validation-badge" class="px-2 py-1 bg-green-100 text-green-700 rounded-full font-bold text-[10px]">ALL VALID</span>
+                    </div>
+                    <div class="overflow-x-auto max-h-48 border border-outline-variant rounded-xl text-xs custom-scrollbar">
+                        <table class="w-full text-left border-collapse border-spacing-0">
+                            <thead class="bg-surface-container-high text-on-surface-variant font-bold sticky top-0">
+                                <tr>
+                                    <th class="p-2 border-b border-outline-variant">Name</th>
+                                    <th class="p-2 border-b border-outline-variant">Email</th>
+                                    <th class="p-2 border-b border-outline-variant">Password</th>
+                                    <th class="p-2 border-b border-outline-variant">Enrollment</th>
+                                    <th class="p-2 border-b border-outline-variant">Bus Route</th>
+                                    <th class="p-2 border-b border-outline-variant">Validity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="import-preview-tbody" class="bg-white">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Progress / Console Logs Area (Hidden by default) -->
+                <div id="import-progress-container" class="hidden space-y-3">
+                    <div class="flex justify-between text-xs font-bold">
+                        <span id="import-progress-status" class="text-on-surface">Importing records...</span>
+                        <span id="import-progress-pct" class="text-primary">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div id="import-progress-bar" class="bg-gradient-to-r from-blue-600 to-indigo-600 h-full w-0 transition-all duration-200"></div>
+                    </div>
+                    <div id="import-log-box" class="w-full h-32 bg-slate-900 rounded-xl p-3 font-mono text-[10px] text-green-400 overflow-y-auto space-y-1 border border-slate-800">
+                        <p class="text-slate-500">> Ready to import.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-outline-variant flex gap-3 bg-surface-container-low sticky bottom-0">
+                <button type="button" id="cancel-import-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                <button type="button" id="start-import-btn" disabled class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Start Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== REGISTER STAFF MODAL ==================== -->
+    <div id="modal-add-staff" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Register Staff Member</h3>
+                    <p class="text-xs text-on-surface-variant">Create staff account and assign to vehicle</p>
+                </div>
+                <button id="close-staff-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="form-add-staff" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Full Name *</label>
+                        <input name="name" required placeholder="e.g. Rajesh Kumar" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Role *</label>
+                        <select name="role" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="driver">Driver</option>
+                            <option value="conductor">Conductor</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Email Address *</label>
+                        <input name="email" type="email" required placeholder="e.g. driver@gmail.com" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Phone Number *</label>
+                        <input name="phone" required placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Password *</label>
+                        <input name="password" type="password" required minlength="6" placeholder="Min 6 characters" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Assign Bus *</label>
+                        <select name="assignedBusId" id="input-assign-staff-bus" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="">Select a bus...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                    <button type="button" id="cancel-staff-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Register Staff</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== EDIT STUDENT MODAL ==================== -->
+    <div id="modal-edit-student" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Edit Student Information</h3>
+                    <p class="text-xs text-on-surface-variant">Modify enrollment record and route assignments</p>
+                </div>
+                <button id="close-edit-student-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="form-edit-student" class="p-6 space-y-4">
+                <input type="hidden" name="id">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Full Name *</label>
+                        <input name="name" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Enrollment ID (Read-only)</label>
+                        <input name="enrollment" readonly class="w-full px-4 py-2.5 bg-surface-container-high border border-outline-variant rounded-xl outline-none text-sm text-on-surface-variant">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Email Address (Read-only)</label>
+                    <input name="email" readonly class="w-full px-4 py-2.5 bg-surface-container-high border border-outline-variant rounded-xl outline-none text-sm text-on-surface-variant">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Pick-up/Drop Address</label>
+                    <input name="address" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Student Phone</label>
+                        <input name="phone" type="tel" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Parent/Guardian Phone</label>
+                        <input name="parentPhone" type="tel" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Department</label>
+                        <input name="department" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Academic Year</label>
+                        <select name="year" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Assign Bus Route</label>
+                        <select name="assignedBusId" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="">Select a route...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Pass Validity End Date *</label>
+                        <input name="passValidity" type="date" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary text-sm">
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                    <button type="button" id="cancel-edit-student-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== STUDENT DETAILS VIEW MODAL ==================== -->
+    <div id="modal-student-detail" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Student Profile</h3>
+                    <p class="text-xs text-on-surface-variant">Full database record</p>
+                </div>
+                <button id="close-student-detail-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="p-6" id="student-detail-content">
+                <!-- Injected dynamically by admin.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SUPPORT TICKET RESPONSE MODAL ==================== -->
+    <div id="modal-respond-query" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Ticket Actions</h3>
+                    <p class="text-xs text-on-surface-variant">Respond or close student query</p>
+                </div>
+                <button id="close-respond-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div id="modal-query-details" class="p-4 bg-surface rounded-xl border border-outline-variant text-sm">
+                    <!-- Populated dynamically by admin.js -->
+                </div>
+                
+                <form id="form-respond-query" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Ticket Status *</label>
+                        <select id="response-status" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Response Message *</label>
+                        <textarea id="response-message" required rows="5" placeholder="Type your response to the student..." class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none resize-none text-sm transition-all"></textarea>
+                    </div>
+                    <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                        <button type="button" id="cancel-respond-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                        <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Send Response</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== BROADCAST ANNOUNCEMENT MODAL ==================== -->
+    <div id="modal-add-notification" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Send Announcement</h3>
+                    <p class="text-xs text-on-surface-variant">Broadcast alerts or consolidated route warnings</p>
+                </div>
+                <button id="close-notification-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="form-add-notification" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Notification Type *</label>
+                    <select name="type" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                        <option value="info">Info Alert (General)</option>
+                        <option value="alert">Emergency Alert (🚨)</option>
+                        <option value="delay">Delay Alert (⚠️)</option>
+                        <option value="crowd">Crowd Alert (👥)</option>
+                    </select>
+                </div>
+                <!-- Route Consolidation Selector -->
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Target Route (For Route Merges / Consolidation) *</label>
+                    <select name="targetRouteId" id="announcement-target-route" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                        <option value="all">All Routes (General Announcement)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Announcement Message *</label>
+                    <textarea name="message" required rows="4" placeholder="Type your announcement message here..." class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none resize-none text-sm transition-all"></textarea>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                    <button type="button" id="cancel-notification-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Broadcast</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../db-helper.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Cambus Connect - Secure Login</title>
+    
+    <!-- Tailwind CSS with form plugins -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    
+    <!-- Firebase ESM Configuration -->
+    <script type="importmap">
+      {
+        "imports": {
+          "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
+          "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
+        }
+      }
+    </script>
+    <script type="module" src="../firebase-init.js"></script>
+    <script type="module" src="../app.js"></script>
+
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+              "primary-container": "var(--primary-color, #1d4ed8)",
+              "error": "#ba1a1a",
+              "tertiary": "#004f35",
+              "on-tertiary-container": "#60eeb1",
+              "error-container": "#ffdad6",
+              "on-primary-fixed-variant": "#0039b5",
+              "outline": "#747686",
+              "outline-variant": "#c4c5d7",
+              "on-background": "var(--text-color, #0b1c30)",
+              "primary": "var(--primary-color, #0037b0)",
+              "inverse-primary": "#b7c4ff",
+              "secondary-fixed-dim": "#ffb690",
+              "secondary": "#9d4300",
+              "on-secondary": "#ffffff",
+              "on-primary-container": "#cad3ff",
+              "on-surface-variant": "#434655",
+              "on-secondary-fixed-variant": "#783200",
+              "tertiary-fixed-dim": "#4edea3",
+              "on-primary-fixed": "#001551",
+              "on-tertiary-fixed": "#002113",
+              "on-secondary-fixed": "#341100",
+              "surface-tint": "#2151da",
+              "primary-fixed": "#dce1ff",
+              "on-error": "#ffffff",
+              "surface": "#f8f9ff",
+              "surface-container-high": "#dce9ff",
+              "secondary-fixed": "#ffdbca",
+              "on-surface": "#0b1c30",
+              "secondary-container": "#fd761a",
+              "surface-variant": "#d3e4fe",
+              "tertiary-fixed": "#6ffbbe",
+              "surface-dim": "#cbdbf5",
+              "inverse-surface": "#213145",
+              "inverse-on-surface": "#eaf1ff",
+              "background": "#f8f9ff",
+              "surface-bright": "#f8f9ff",
+              "on-secondary-container": "#5c2400",
+              "surface-container": "#e5eeff",
+              "on-primary": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "surface-container-highest": "#d3e4fe",
+              "surface-container-low": "#eff4ff",
+              "primary-fixed-dim": "#b7c4ff",
+              "on-tertiary": "#ffffff",
+              "tertiary-container": "#006a48",
+              "on-tertiary-fixed-variant": "#005236",
+              "on-error-container": "#93000a"
+            },
+            "borderRadius": {
+              "DEFAULT": "0.25rem",
+              "lg": "0.5rem",
+              "xl": "0.75rem",
+              "full": "9999px"
+            },
+            "spacing": {
+              "xl": "48px",
+              "margin-desktop": "32px",
+              "margin-mobile": "16px",
+              "base": "4px",
+              "xs": "4px",
+              "gutter": "16px",
+              "sm": "8px",
+              "md": "16px",
+              "lg": "24px"
+            },
+            "fontFamily": {
+              "headline-md": ["Inter"],
+              "label-sm": ["Inter"],
+              "label-md": ["Inter"],
+              "body-md": ["Inter"],
+              "mono-data": ["Inter"],
+              "body-lg": ["Inter"],
+              "headline-lg": ["Inter"],
+              "label-lg": ["Inter"]
+            },
+            "fontSize": {
+              "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+              "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+              "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+              "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+              "mono-data": ["16px", {"lineHeight": "24px", "fontWeight": "700"}],
+              "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+              "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+              "label-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9ff;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex items-center justify-center p-margin-mobile">
+
+    <!-- Card Container with Shadow and Smooth Boundaries -->
+    <div class="w-full max-w-[460px] bg-surface-container-lowest rounded-3xl border border-outline-variant shadow-xl overflow-hidden flex flex-col">
+        
+        <!-- Header Banner (Branding) -->
+        <header class="p-lg bg-gradient-to-r from-primary-container to-primary text-on-primary flex flex-col items-center gap-sm relative">
+            <!-- Decorative Background Pattern -->
+            <div class="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white via-indigo-200 to-transparent"></div>
+            
+            <div class="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-inner relative z-10">
+                <span class="material-symbols-outlined text-[36px]" style="font-variation-settings: 'FILL' 1;">directions_bus</span>
+            </div>
+            <div class="text-center relative z-10">
+                <h2 class="text-headline-md font-headline-md leading-none text-white tracking-tight">Cambus Connect</h2>
+                <p class="text-xs text-primary-light font-bold mt-1 tracking-wider uppercase">Multi-Tenant Transit Portal</p>
+            </div>
+        </header>
+
+        <!-- Main Form Area -->
+        <main class="p-lg flex-1 flex flex-col justify-center">
+            
+            <!-- Error Alert Banner -->
+            <div id="login-error-message" class="hidden flex items-start gap-sm p-md bg-error-container text-on-error-container rounded-2xl border border-error/20 mb-lg text-sm font-semibold animate-pulse">
+                <span class="material-symbols-outlined text-error text-[20px]">error</span>
+                <span id="error-text" class="flex-1">Invalid credentials</span>
+            </div>
+
+            <!-- Login form -->
+            <div id="form-container">
+                <form id="login-form" class="space-y-md">
+                    <!-- ID / Email Input -->
+                    <div class="space-y-xs">
+                        <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Student ID / Work Email</label>
+                        <div class="relative">
+                            <input id="login-email" required name="email" type="text" placeholder="e.g. 0818CS221001 or admin@college.edu" class="w-full h-xl px-margin-mobile border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm"/>
+                            <span class="absolute right-margin-mobile top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[20px]">person</span>
+                        </div>
+                    </div>
+
+                    <!-- Password Input -->
+                    <div class="space-y-xs">
+                        <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Security Password</label>
+                        <div class="relative">
+                            <input id="login-password" required name="password" type="password" placeholder="Enter your credentials" class="w-full h-xl px-margin-mobile border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm"/>
+                            <span class="absolute right-margin-mobile top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[20px]">lock</span>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button class="w-full h-xl bg-primary text-on-primary rounded-lg font-label-md text-label-md shadow-md hover:bg-primary-container transition-all active:scale-[0.98] flex items-center justify-center gap-sm" id="btn-login" type="submit">
+                        <span>Sign In</span>
+                        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Secure Footer Badge -->
+            <div class="bg-surface-container-low px-lg py-sm flex items-center justify-center gap-xs">
+                <span class="material-symbols-outlined text-tertiary text-[16px]" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+                <span class="font-label-sm text-label-sm text-on-surface-variant">Secure AES-256 Encrypted Authentication</span>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="login.js"></script>
+</body>
+</html>

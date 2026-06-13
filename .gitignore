@@ -1,0 +1,37 @@
+# ============================================================
+# CAMBUS Connect — .gitignore
+# ============================================================
+
+# --- Sensitive Firebase config (contains API keys) ---
+tenant-config.js
+firebase-config.js
+
+# --- Node / NPM ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# --- Environment files ---
+.env
+.env.local
+.env.*.local
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- Build output ---
+dist/
+build/
