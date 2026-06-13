@@ -2,9 +2,9 @@
 # CAMBUS Connect — .gitignore
 # ============================================================
 
-# --- Sensitive Firebase config (contains API keys) ---
-tenant-config.js
-firebase-config.js
+# NOTE: Firebase web API keys are public by design.
+# Security is enforced via Firestore Security Rules, not by hiding keys.
+# See: https://firebase.google.com/docs/projects/api-keys
 
 # --- Node / NPM ---
 node_modules/
