@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
     const driverNameDisplay = document.getElementById('driver-name-display');
     const greetingTitle = document.getElementById('greeting-title');
+    const driverEmailDisplay = document.getElementById('driver-email-display');
     const busNumberDisplay = document.getElementById('bus-number-display');
     const busRouteDisplay = document.getElementById('bus-route-display');
     const vehicleIdDisplay = document.getElementById('vehicle-id-display');
@@ -23,6 +24,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const driverAlertMessage = document.getElementById('driver-alert-message');
     const driverAlertType = document.getElementById('driver-alert-type');
     const historyList = document.getElementById('driver-history-list');
+
+    // Headcount UI elements
+    const headcountCard = document.getElementById('headcount-card');
+    const btnDecrementHeadcount = document.getElementById('btn-decrement-headcount');
+    const btnIncrementHeadcount = document.getElementById('btn-increment-headcount');
+    const headcountDisplay = document.getElementById('headcount-display');
+
+    // Populate driver email display
+    if (driverEmailDisplay) {
+        driverEmailDisplay.textContent = driverEmail;
+    }
 
     let driverProfile = null;
     let assignedBus = null;
@@ -70,6 +82,42 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Error fetching driver profile:", err);
         });
 
+    function updateHeadcountUI() {
+        if (!headcountCard) return;
+        if (isTracking) {
+            headcountCard.classList.remove('opacity-50', 'pointer-events-none');
+            if (btnDecrementHeadcount) btnDecrementHeadcount.removeAttribute('disabled');
+            if (btnIncrementHeadcount) btnIncrementHeadcount.removeAttribute('disabled');
+        } else {
+            headcountCard.classList.add('opacity-50', 'pointer-events-none');
+            if (btnDecrementHeadcount) btnDecrementHeadcount.setAttribute('disabled', 'true');
+            if (btnIncrementHeadcount) btnIncrementHeadcount.setAttribute('disabled', 'true');
+        }
+    }
+
+    // Headcount Button Event Handlers
+    if (btnIncrementHeadcount) {
+        btnIncrementHeadcount.addEventListener('click', () => {
+            if (!assignedBus || !isTracking) return;
+            const currentHeadcount = assignedBus.headcount || 0;
+            if (currentHeadcount >= 100) return; // limit to 100
+            dbHelper.getBusesCol().doc(assignedBus.id).update({
+                headcount: currentHeadcount + 1
+            }).catch(err => console.error("Error incrementing headcount:", err));
+        });
+    }
+
+    if (btnDecrementHeadcount) {
+        btnDecrementHeadcount.addEventListener('click', () => {
+            if (!assignedBus || !isTracking) return;
+            const currentHeadcount = assignedBus.headcount || 0;
+            if (currentHeadcount <= 0) return; // bound at 0
+            dbHelper.getBusesCol().doc(assignedBus.id).update({
+                headcount: currentHeadcount - 1
+            }).catch(err => console.error("Error decrementing headcount:", err));
+        });
+    }
+
     let hasAutoRestored = false;
 
     function loadBusDetails(busId) {
@@ -89,6 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
             busNumberDisplay.textContent = assignedBus.number || '--';
             busRouteDisplay.textContent = assignedBus.route || 'No Route Assigned';
             vehicleIdDisplay.textContent = assignedBus.id || '--';
+
+            // Sync headcount from Firestore
+            if (headcountDisplay) {
+                headcountDisplay.textContent = assignedBus.headcount || 0;
+            }
+            updateHeadcountUI();
 
             // Set default notification message for consolidation/alert
             if (driverAlertMessage && !driverAlertMessage.value) {
@@ -125,6 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         isTracking = true;
+        updateHeadcountUI();
 
         if (isRestore) {
             const savedStart = localStorage.getItem('driverShiftStart');
@@ -134,6 +189,11 @@ document.addEventListener('DOMContentLoaded', () => {
             shiftStartTime = new Date();
             localStorage.setItem('driverShiftActive', 'true');
             localStorage.setItem('driverShiftStart', shiftStartTime.toISOString());
+            
+            // Reset headcount to 0 in Firestore on new shift
+            dbHelper.getBusesCol().doc(assignedBus.id).update({
+                headcount: 0
+            }).catch(err => console.error("Error resetting headcount on shift start:", err));
         }
 
         // Update UI state
@@ -230,14 +290,59 @@ document.addEventListener('DOMContentLoaded', () => {
             simulateMapMyIndiaFeed();
             watchId = setInterval(simulateMapMyIndiaFeed, 5000);
         } else {
-            // Fallback to local device GPS
+            // Fallback to local device GPS with simulated fallback for insecure origins/local IPs
+            const startSimulatedGPS = () => {
+                console.log("📡 Starting simulated driver phone GPS stream...");
+                let currentLat = 22.7196;
+                let currentLng = 75.8577;
+                
+                if (assignedBus.location && assignedBus.location.lat) {
+                    currentLat = assignedBus.location.lat;
+                    currentLng = assignedBus.location.lng;
+                }
+
+                const runSimulation = () => {
+                    currentLat += (Math.random() - 0.5) * 0.00015;
+                    currentLng += (Math.random() - 0.5) * 0.00015;
+
+                    latDisplay.textContent = currentLat.toFixed(6);
+                    lngDisplay.textContent = currentLng.toFixed(6);
+                    accuracyDisplay.textContent = "±15m (Simulated)";
+                    accuracyDisplay.className = "text-xs font-bold text-amber-600";
+
+                    dbHelper.getBusesCol().doc(assignedBus.id).set({
+                        location: { lat: currentLat, lng: currentLng },
+                        status: 'On Time',
+                        locationSource: 'driver_phone_simulated',
+                        lastUpdate: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true }).then(() => {
+                        console.log("Simulated GPS coordinates successfully streamed.");
+                    }).catch(err => {
+                        console.error("Simulated GPS update error:", err);
+                    });
+                };
+
+                runSimulation();
+                watchId = setInterval(runSimulation, 5000);
+            };
+
             if (!navigator.geolocation) {
-                alert("Geolocation is not supported by your browser.");
+                console.warn("⚠️ Geolocation not supported. Falling back to simulation...");
+                startSimulatedGPS();
                 return;
             }
 
+            let geoTimeout = setTimeout(() => {
+                if (isTracking && !watchId) {
+                    console.warn("⚠️ Geolocation watch request timed out. Falling back to simulation...");
+                    startSimulatedGPS();
+                }
+            }, 3000);
+
             watchId = navigator.geolocation.watchPosition(
                 (position) => {
+                    clearTimeout(geoTimeout);
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
                     const accuracy = position.coords.accuracy;
@@ -245,8 +350,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     latDisplay.textContent = lat.toFixed(6);
                     lngDisplay.textContent = lng.toFixed(6);
                     accuracyDisplay.textContent = `±${Math.round(accuracy)}m`;
+                    accuracyDisplay.className = "font-mono text-sm font-bold text-gray-700 mt-0.5";
 
-                    // Update location stream in Firestore buses collection
                     dbHelper.getBusesCol().doc(assignedBus.id).set({
                         location: { lat: lat, lng: lng },
                         status: 'On Time',
@@ -260,13 +365,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 },
                 (error) => {
+                    clearTimeout(geoTimeout);
                     console.error("GPS error:", error);
-                    accuracyDisplay.textContent = "Error";
-                    accuracyDisplay.classList.add('text-red-600');
+                    // If blocked or insecure context error, fall back to simulation to keep the UI working
+                    console.warn("⚠️ Geolocation failed/permission denied. Falling back to simulation...");
+                    if (isTracking && !watchId) {
+                        startSimulatedGPS();
+                    }
                 },
                 {
                     enableHighAccuracy: true,
-                    timeout: 10000,
+                    timeout: 8000,
                     maximumAge: 0
                 }
             );
@@ -275,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function stopShift() {
         isTracking = false;
+        updateHeadcountUI();
         if (watchId) {
             const useTracker = !!(assignedBus && assignedBus.tracking && assignedBus.tracking.trackerId);
             if (useTracker) {
@@ -321,11 +431,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }).catch(err => console.error("Error updating shift log:", err));
         }
 
-        // Set bus status to offline or breakdown
+        // Set bus status to offline or breakdown and reset headcount to 0
         if (assignedBus) {
             dbHelper.getBusesCol().doc(assignedBus.id).update({
                 status: 'Breakdown',
-                lastUpdate: 'Shift ended'
+                lastUpdate: 'Shift ended',
+                headcount: 0
             }).catch(err => console.error("Error updating bus status:", err));
         }
     }

@@ -198,10 +198,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     </span>
                 </div>
                 
-                <div class="mb-6 p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200/60">
-                    <p class="text-xs font-bold text-slate-500 mb-1">ROUTE</p>
-                    <p class="text-sm font-bold text-slate-800">${bus.route}</p>
-                    <p class="text-xs text-slate-500 mt-2">Source: ${sourceLabel}</p>
+                <div class="mb-6 p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200/60 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-slate-500 mb-1">ROUTE</p>
+                        <p class="text-sm font-bold text-slate-800">${bus.route}</p>
+                        <p class="text-xs text-slate-500 mt-2">Source: ${sourceLabel}</p>
+                    </div>
+                    <div class="text-center bg-white border border-slate-100 shadow-sm p-2.5 rounded-xl flex flex-col items-center justify-center min-w-14">
+                        <span class="material-symbols-outlined text-primary text-base">groups</span>
+                        <span class="text-xs font-extrabold text-slate-800 mt-0.5">${bus.headcount || 0}</span>
+                        <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Riders</span>
+                    </div>
                 </div>
                 
                 <div class="grid grid-cols-3 gap-2">

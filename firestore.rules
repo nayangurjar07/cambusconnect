@@ -16,15 +16,15 @@ service cloud.firestore {
     // Helper to check if logged-in user is an admin
     function isAdmin() {
       return request.auth != null && 
-             exists(/$(database)/documents/users/$(request.auth.token.email)) &&
-             get(/$(database)/documents/users/$(request.auth.token.email)).data.role == 'admin';
+             exists(/databases/$(database)/documents/users/$(request.auth.token.email)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'admin';
     }
 
     // Helper to check if logged-in user is a driver
     function isDriver() {
       return request.auth != null && 
-             exists(/$(database)/documents/users/$(request.auth.token.email)) &&
-             get(/$(database)/documents/users/$(request.auth.token.email)).data.role == 'driver';
+             exists(/databases/$(database)/documents/users/$(request.auth.token.email)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'driver';
     }
 
     match /users/{email} {
