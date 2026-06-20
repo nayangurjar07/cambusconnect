@@ -62,32 +62,58 @@ document.addEventListener('DOMContentLoaded', () => {
         const domain = email.toLowerCase().split('@')[1];
         if (!domain) return null;
         
-        if (domain === 'cambusconnect.in' || domain === 'owner.cambusconnect.in') {
-            return { tenantKey: 'owner', domain: 'cambusconnect.in' };
+        const configs = window.tenantConfigs || {};
+        const host = window.location.hostname.toLowerCase();
+        
+        // Find matching tenant configuration
+        for (const [key, config] of Object.entries(configs)) {
+            if (config.emailDomains && config.emailDomains.includes(domain)) {
+                const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+                const isConfigLocal = key === 'localhost' || key === '127.0.0.1';
+                if (isLocalHost === isConfigLocal) {
+                    return { tenantKey: key, domain: domain };
+                }
+            }
         }
-        if (domain === 'indoreinstitute.com' || domain === 'iist.in' || domain === 'iist.cambusconnect.in') {
-            return { tenantKey: 'localhost', domain: 'indoreinstitute.com' };
-        }
-        if (domain === 'medicaps.com' || domain === 'medicaps.ac.in' || domain === 'medicaps.cambusconnect.in') {
-            return { tenantKey: '127.0.0.1', domain: 'medicaps.com' };
+        
+        for (const [key, config] of Object.entries(configs)) {
+            if (config.emailDomains && config.emailDomains.includes(domain)) {
+                return { tenantKey: key, domain: domain };
+            }
         }
         return null;
     };
 
     const getFallbackTenantInfo = () => {
-        const savedKey = localStorage.getItem('activeTenantKey');
-        if (savedKey === 'owner') {
-            return { tenantKey: 'owner', domain: 'cambusconnect.in' };
-        }
-        if (savedKey === '127.0.0.1' || savedKey === 'medicaps.cambusconnect.in') {
-            return { tenantKey: '127.0.0.1', domain: 'medicaps.com' };
-        }
-        if (savedKey === 'localhost' || savedKey === 'iist.cambusconnect.in') {
-            return { tenantKey: 'localhost', domain: 'indoreinstitute.com' };
-        }
         const host = window.location.hostname.toLowerCase();
-        if (host.includes('medicaps') || host.includes('127.0.0.1')) {
-            return { tenantKey: '127.0.0.1', domain: 'medicaps.com' };
+        const configs = window.tenantConfigs || {};
+        
+        // 1. Direct match by hostname
+        if (configs[host]) {
+            return { tenantKey: host, domain: configs[host].emailDomains ? configs[host].emailDomains[0] : '' };
+        }
+        
+        // 2. Partial hostname match against active branding shortNames
+        for (const [key, config] of Object.entries(configs)) {
+            if (config.branding && config.branding.shortName && host.includes(config.branding.shortName.toLowerCase())) {
+                const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+                const isConfigLocal = key === 'localhost' || key === '127.0.0.1';
+                if (isLocalHost === isConfigLocal) {
+                    return { tenantKey: key, domain: config.emailDomains ? config.emailDomains[0] : '' };
+                }
+            }
+        }
+
+        // 3. Fallback to localStorage active key if set
+        const savedKey = localStorage.getItem('activeTenantKey');
+        if (savedKey && configs[savedKey]) {
+            return { tenantKey: savedKey, domain: configs[savedKey].emailDomains ? configs[savedKey].emailDomains[0] : '' };
+        }
+        
+        // 4. Default fallback to first key in config
+        const firstKey = Object.keys(configs)[0];
+        if (firstKey && configs[firstKey]) {
+            return { tenantKey: firstKey, domain: configs[firstKey].emailDomains ? configs[firstKey].emailDomains[0] : '' };
         }
         return { tenantKey: 'localhost', domain: 'indoreinstitute.com' };
     };
@@ -184,24 +210,10 @@ document.addEventListener('DOMContentLoaded', () => {
             let docSnap = await docRef.get();
 
             if (!docSnap.exists) {
-                // Support dynamic failsafe auto-creation for test driver account
-                if (email === 'driver@indoreinstitute.com') {
-                    console.log("Creating default database document for driver@indoreinstitute.com...");
-                    const defaultDriverProfile = {
-                        name: "Indore Institute Driver",
-                        role: "driver",
-                        email: email,
-                        assignedBusId: "demo-bus-101",
-                        createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
-                    };
-                    await docRef.set(defaultDriverProfile);
-                    docSnap = await docRef.get();
-                } else {
-                    console.error("❌ Profile not found in Firestore");
-                    localStorage.removeItem('instituteId');
-                    localStorage.removeItem('activeTenantKey');
-                    throw new Error("Profile not found in database. Please contact admin.");
-                }
+                console.error("❌ Profile not found in Firestore");
+                localStorage.removeItem('instituteId');
+                localStorage.removeItem('activeTenantKey');
+                throw new Error("Profile not found in database. Please contact admin.");
             }
 
             const userData = docSnap.data();
@@ -496,7 +508,10 @@ document.addEventListener('DOMContentLoaded', () => {
         togglePassword.addEventListener('click', () => {
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
-            togglePassword.textContent = type === 'password' ? '👁' : '⌣';
+            const iconSpan = togglePassword.querySelector('.material-symbols-outlined');
+            if (iconSpan) {
+                iconSpan.textContent = type === 'password' ? 'visibility' : 'visibility_off';
+            }
         });
     }
 

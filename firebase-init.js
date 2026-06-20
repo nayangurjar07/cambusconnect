@@ -194,6 +194,7 @@ class CompatAuth {
 // Attach compatibility classes to window for global scripts
 window.auth = new CompatAuth(auth);
 window.db = new CompatFirestore(db);
+window.tenantConfigs = tenantConfigs;
 
 window.firebase = {
     apps: [app],
@@ -207,6 +208,8 @@ window.firebase = {
         }
     })
 };
+window.tenantConfigs = tenantConfigs;
+
 
 export function reinitializeFirebase(tenantKey) {
     if (!tenantConfigs[tenantKey]) return Promise.reject("Invalid tenant key: " + tenantKey);

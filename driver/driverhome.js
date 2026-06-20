@@ -36,6 +36,41 @@ document.addEventListener('DOMContentLoaded', () => {
         driverEmailDisplay.textContent = driverEmail;
     }
 
+    // Populate active institute info in driver panel, header, and sidebar
+    const infoCollegeLogo = document.getElementById('info-college-logo');
+    const infoCollegeName = document.getElementById('info-college-name');
+    const navLogo = document.getElementById('college-logo');
+    const navName = document.getElementById('college-title');
+    const sidebarTitle = document.getElementById('sidebar-college-title');
+
+    if (window.activeBranding) {
+        const shortName = window.activeBranding.shortName;
+        const logoUrl = window.activeBranding.logoUrl;
+
+        if (infoCollegeName && shortName) {
+            infoCollegeName.textContent = shortName;
+        }
+        if (infoCollegeLogo && logoUrl) {
+            infoCollegeLogo.src = logoUrl;
+            infoCollegeLogo.classList.remove('hidden');
+        }
+
+        // Show branding in Driver header
+        if (navName && shortName) {
+            navName.textContent = `| ${shortName}`;
+            navName.classList.remove('hidden');
+        }
+        if (navLogo && logoUrl) {
+            navLogo.src = logoUrl;
+            navLogo.classList.remove('hidden');
+        }
+
+        // Show branding in Driver sidebar
+        if (sidebarTitle && shortName) {
+            sidebarTitle.textContent = `| ${shortName}`;
+            sidebarTitle.classList.remove('hidden');
+        }
+    }
     let driverProfile = null;
     let assignedBus = null;
     let isTracking = false;
@@ -199,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update UI state
         btnToggleShift.innerHTML = `
             <span class="material-symbols-outlined animate-spin">sync</span>
-            <span>STOP SHIFT & GPS TRACKING</span>
+            <span>STOP GPS TRACKING</span>
         `;
         btnToggleShift.classList.remove('bg-primary');
         btnToggleShift.classList.add('bg-red-600');
@@ -403,7 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update UI state
         btnToggleShift.innerHTML = `
             <span class="material-symbols-outlined">play_arrow</span>
-            <span>Start Shift & GPS Tracking</span>
+            <span>Start GPS Tracking</span>
         `;
         btnToggleShift.classList.remove('bg-red-600');
         btnToggleShift.classList.add('bg-primary');

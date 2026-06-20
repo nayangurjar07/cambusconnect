@@ -30,6 +30,7 @@ function bootstrapSaaSBranding() {
 
     // Keep global app title as Cambus Connect
     document.title = "Cambus Connect";
+    window.activeBranding = branding;
     
     // Ensure the default logo and title are always visible and Cambus Connect branding is kept
     const defaultLogo = document.getElementById("default-logo-container");

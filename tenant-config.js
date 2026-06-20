@@ -3,6 +3,7 @@ export const tenantConfigs = {
     // -------------------------------------------------------------------------
     // INDORE INSTITUTE OF SCIENCE AND TECHNOLOGY (IIST)
     // -------------------------------------------------------------------------
+    // IIST uses cambus-medicap backend database
     "localhost": {
         firebaseConfig: {
             apiKey: "AIzaSyD4sdDsx19EDGV5VrBP3bDwyOnmUogfRUw",
@@ -14,6 +15,7 @@ export const tenantConfigs = {
             measurementId: "G-9JD5KC1F7Q",
             databaseURL: "https://cambus-iist-default-rtdb.firebaseio.com"
         },
+        emailDomains: ["indoreinstitute.com", "iist.in", "iist.cambusconnect.in"],
         branding: {
             name: "Indore Institute of Science and Technology",
             shortName: "IIST",
@@ -27,7 +29,6 @@ export const tenantConfigs = {
         }
     },
     "iist.cambusconnect.in": {
-        // Inherits default production settings matching local target parameters
         firebaseConfig: {
             apiKey: "AIzaSyD4sdDsx19EDGV5VrBP3bDwyOnmUogfRUw",
             authDomain: "cambus-iist.firebaseapp.com",
@@ -38,6 +39,7 @@ export const tenantConfigs = {
             measurementId: "G-9JD5KC1F7Q",
             databaseURL: "https://cambus-iist-default-rtdb.firebaseio.com"
         },
+        emailDomains: ["indoreinstitute.com", "iist.in", "iist.cambusconnect.in"],
         branding: {
             name: "Indore Institute of Science and Technology",
             shortName: "IIST",
@@ -49,6 +51,7 @@ export const tenantConfigs = {
     // -------------------------------------------------------------------------
     // MEDI-CAPS UNIVERSITY
     // -------------------------------------------------------------------------
+    // Medi-Caps uses cambus-iist backend database
     "127.0.0.1": {
         firebaseConfig: {
             apiKey: "AIzaSyCr7eid8VwqAD4OharNBSD8NME-kyC2FE4",
@@ -60,6 +63,7 @@ export const tenantConfigs = {
             measurementId: "G-ERLRXBMHPB",
             databaseURL: "https://cambus-medicap-default-rtdb.firebaseio.com"
         },
+        emailDomains: ["medicaps.com", "medicaps.ac.in", "medicaps.cambusconnect.in"],
         branding: {
             name: "Medi-Caps University",
             shortName: "Medi-Caps",
@@ -83,6 +87,7 @@ export const tenantConfigs = {
             measurementId: "G-ERLRXBMHPB",
             databaseURL: "https://cambus-medicap-default-rtdb.firebaseio.com"
         },
+        emailDomains: ["medicaps.com", "medicaps.ac.in", "medicaps.cambusconnect.in"],
         branding: {
             name: "Medi-Caps University",
             shortName: "Medi-Caps",
@@ -105,6 +110,7 @@ export const tenantConfigs = {
             measurementId: "G-09SJ4VC3CQ",
             databaseURL: "https://cambus-owner-default-rtdb.firebaseio.com"
         },
+        emailDomains: ["cambusconnect.in", "owner.cambusconnect.in"],
         branding: {
             name: "Cambus Connect Owner Portal",
             shortName: "Owner",

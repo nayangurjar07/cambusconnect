@@ -141,7 +141,7 @@
         <!-- Welcome Greeting & Header -->
         <section class="mb-6">
             <h1 id="greeting-title" class="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">Hello, Driver!</h1>
-            <p class="text-sm text-gray-500 font-medium mt-1">Please start your shift to stream route coordinates to students.</p>
+            <p class="text-sm text-gray-500 font-medium mt-1">Please start GPS tracking to stream route coordinates to students.</p>
         </section>
 
         <!-- Bento Grid Layout -->
@@ -185,7 +185,7 @@
                             <p id="accuracy-display" class="text-xs font-bold text-gray-700 mt-0.5">--</p>
                         </div>
                         <div>
-                            <p class="text-[9px] font-bold text-gray-400 uppercase">Shift Duration</p>
+                            <p class="text-[9px] font-bold text-gray-400 uppercase">Tracking Duration</p>
                             <p id="duration-display" class="text-xs font-bold text-primary mt-0.5">00:00:00</p>
                         </div>
                     </div>
@@ -210,19 +210,8 @@
                     <div>
                         <button id="btn-toggle-shift" class="w-full py-4 bg-primary hover:bg-primary-dark text-white font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 text-base active:scale-95 duration-150">
                             <span class="material-symbols-outlined">play_arrow</span>
-                            <span>Start Shift & GPS Tracking</span>
+                            <span>Start GPS Tracking</span>
                         </button>
-                    </div>
-                </div>
-
-                <!-- Recent Shifts Log Card -->
-                <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
-                    <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">history</span>
-                        My Shifts Today
-                    </h3>
-                    <div id="driver-history-list" class="space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar text-xs">
-                        <p class="text-center text-gray-400 py-4">No shift logs recorded today.</p>
                     </div>
                 </div>
             </div>
@@ -274,7 +263,14 @@
                             <span id="driver-email-display" class="font-mono font-bold text-gray-700">Loading...</span>
                         </div>
                         <div class="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
-                            <span class="text-gray-500 font-medium">Shift Status</span>
+                            <span class="text-gray-500 font-medium">Institute</span>
+                            <div class="flex items-center gap-2">
+                                <img id="info-college-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" class="h-6 w-auto rounded-md hidden" alt="Logo"/>
+                                <span id="info-college-name" class="font-bold text-gray-700">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                            <span class="text-gray-500 font-medium">Account Status</span>
                             <span class="px-2 py-0.5 bg-green-100 text-green-700 font-bold rounded-md">Active Account</span>
                         </div>
                     </div>

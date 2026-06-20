@@ -219,12 +219,7 @@
                 <span class="font-label-md text-label-md">Support Desk</span>
                 <span id="pending-badge" class="hidden ml-auto px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">0</span>
             </button>
-            <!-- Driver Activity Tab -->
-            <button id="tab-driver-activity" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left relative">
-                <span class="material-symbols-outlined">history</span>
-                <span class="font-label-md text-label-md">Driver Activity</span>
-                <span id="active-drivers-badge" class="hidden ml-auto px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full">0</span>
-            </button>
+
             <!-- GPS Settings Tab -->
             <button id="tab-tracking-settings" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
                 <span class="material-symbols-outlined">settings_input_antenna</span>
@@ -455,67 +450,7 @@
             </div>
         </div>
 
-        <!-- ==================== VIEW: DRIVER ACTIVITY ==================== -->
-        <div id="view-driver-activity" class="view-container hidden space-y-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Driver Activity Log</h2>
-                    <p class="font-body-md text-on-surface-variant mt-1">Track driver schedules, working shifts, and session status</p>
-                </div>
-                <button id="refresh-sessions-btn" class="flex items-center gap-2 px-5 py-2.5 bg-surface hover:bg-surface-container-high border border-outline-variant text-on-surface rounded-xl font-semibold transition-all text-sm">
-                    <span class="material-symbols-outlined text-[18px]">sync</span>
-                    <span>Refresh Logs</span>
-                </button>
-            </div>
 
-            <!-- Stat Row -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 shadow-sm">
-                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Currently Active</p>
-                    <p class="text-3xl font-black text-green-600" id="da-active-count">0</p>
-                </div>
-                <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 shadow-sm">
-                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Stopped Today</p>
-                    <p class="text-3xl font-black text-on-surface" id="da-stopped-count">0</p>
-                </div>
-                <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 shadow-sm">
-                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Total Sessions Today</p>
-                    <p class="text-3xl font-black text-primary" id="da-total-count">0</p>
-                </div>
-            </div>
-
-            <!-- Shift Table -->
-            <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
-                <div class="px-6 py-4 border-b border-outline-variant flex items-center justify-between bg-surface-container-low">
-                    <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider">Driver Session Feed</h3>
-                    <select id="da-filter" class="text-sm border border-outline-variant rounded-lg px-3 py-1 bg-white outline-none focus:border-primary">
-                        <option value="all">All Sessions</option>
-                        <option value="active">Active Only</option>
-                        <option value="stopped">Stopped Only</option>
-                    </select>
-                </div>
-                <div class="overflow-x-auto custom-scrollbar">
-                    <table class="w-full text-left text-sm bg-white">
-                        <thead class="bg-surface-container-low border-b border-outline-variant">
-                            <tr>
-                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Driver</th>
-                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Assigned Bus</th>
-                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Shift Started</th>
-                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Shift Ended</th>
-                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Duration</th>
-                                <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="driver-activity-tbody" class="divide-y divide-outline-variant">
-                            <!-- Populated by admin.js -->
-                            <tr>
-                                <td colspan="6" class="px-6 py-12 text-center text-on-surface-variant">Loading activities...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
 
         <!-- ==================== VIEW: GPS SETTINGS ==================== -->
         <div id="view-tracking-settings" class="view-container hidden space-y-lg">
@@ -595,6 +530,62 @@
                 <div class="flex gap-3 pt-4 border-t border-outline-variant">
                     <button type="button" id="cancel-bus-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
                     <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Add Bus</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== EDIT BUS MODAL ==================== -->
+    <div id="modal-edit-bus" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Edit Bus Details</h3>
+                    <p class="text-xs text-on-surface-variant">Modify transit vehicle registry parameters</p>
+                </div>
+                <button id="close-edit-bus-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="form-edit-bus" class="p-6 space-y-4">
+                <input type="hidden" name="busId"/>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Bus Number *</label>
+                        <input name="number" required placeholder="e.g. Bus 101" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Route Name *</label>
+                        <input name="route" required placeholder="e.g. Route A - Library Loop" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Driver Name *</label>
+                    <input name="driver" required placeholder="e.g. Rajesh Kumar" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Driver Phone</label>
+                        <input name="phone" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Conductor Name</label>
+                        <input name="conductor" placeholder="e.g. Amit Singh" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Conductor Phone</label>
+                        <input name="conductorPhone" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Tracker ID / Device Serial</label>
+                        <input name="trackerId" placeholder="e.g. TRK-9902" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                    <button type="button" id="cancel-edit-bus-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Save Changes</button>
                 </div>
             </form>
         </div>
