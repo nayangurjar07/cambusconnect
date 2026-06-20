@@ -34,14 +34,21 @@
             console.error("❌ Multi-tenant Error: No active instituteId found in session!");
             // Redirect to login if not on public pages
             const path = window.location.pathname.toLowerCase();
-            const isPublic = path.includes('/owner/index.html') || path.includes('/owner/login.html') || path.endsWith('/') || path.endsWith('index.html');
+            const isPublic = 
+                path.includes('/portals/owner/index.html') || 
+                path.includes('/owner/index.html') || 
+                path.endsWith('/') || 
+                path.endsWith('index.html') || 
+                path.includes('login.html');
             if (!isPublic) {
                 localStorage.clear();
                 let prefix = '';
-                if (path.includes('/owner/') || path.includes('/admin/') || path.includes('/student/') || path.includes('/driver/')) {
+                if (path.includes('/portals/')) {
+                    prefix = '../../';
+                } else if (path.includes('/owner/') || path.includes('/admin/') || path.includes('/student/') || path.includes('/driver/')) {
                     prefix = '../';
                 }
-                window.location.href = prefix + 'owner/login.html';
+                window.location.href = prefix + 'portals/owner/index.html';
             }
             throw new Error("No active institute session. Please log in again.");
         }

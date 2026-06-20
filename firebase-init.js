@@ -19,7 +19,9 @@ import {
     updateDoc, 
     deleteDoc, 
     onSnapshot,
-    serverTimestamp
+    serverTimestamp,
+    arrayUnion,
+    arrayRemove
 } from "firebase/firestore";
 import { 
     signInWithEmailAndPassword, 
@@ -195,6 +197,7 @@ class CompatAuth {
 window.auth = new CompatAuth(auth);
 window.db = new CompatFirestore(db);
 window.tenantConfigs = tenantConfigs;
+window.activeBranding = activeBranding;
 
 window.firebase = {
     apps: [app],
@@ -204,7 +207,9 @@ window.firebase = {
     }),
     firestore: Object.assign(() => window.db, {
         FieldValue: {
-            serverTimestamp: () => serverTimestamp()
+            serverTimestamp: () => serverTimestamp(),
+            arrayUnion: (...elements) => arrayUnion(...elements),
+            arrayRemove: (...elements) => arrayRemove(...elements)
         }
     })
 };
@@ -217,6 +222,7 @@ export function reinitializeFirebase(tenantKey) {
     localStorage.setItem('activeTenantKey', tenantKey);
     currentTenant = tenantConfigs[tenantKey];
     activeBranding = currentTenant.branding;
+    window.activeBranding = activeBranding;
     
     return deleteApp(app).then(() => {
         app = initializeApp(currentTenant.firebaseConfig);

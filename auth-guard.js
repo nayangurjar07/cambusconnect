@@ -35,24 +35,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Determine prefix back to root folder dynamically
     let prefix = '';
-    if (path.includes('/owner/') || path.includes('/admin/') || path.includes('/student/') || path.includes('/driver/')) {
+    if (path.includes('/portals/')) {
+        prefix = '../../';
+    } else if (path.includes('/owner/') || path.includes('/admin/') || path.includes('/student/') || path.includes('/driver/')) {
         prefix = '../';
     }
 
-    const loginPath = prefix + 'owner/login.html';
-    const adminHomePath = prefix + 'admin/admin.html';
-    const studentHomePath = prefix + 'student/home.html';
-    const driverHomePath = prefix + 'driver/driverhome.html';
-    const ownerHomePath = prefix + 'owner/owner.html';
+    let loginPath = prefix + 'portals/owner/index.html';
+    if (path.includes('/student/')) {
+        loginPath = prefix + 'portals/student/student-login.html';
+    } else if (path.includes('/admin/')) {
+        loginPath = prefix + 'portals/admin/admin-login.html';
+    } else if (path.includes('/driver/')) {
+        loginPath = prefix + 'portals/driver/driver-login.html';
+    } else if (path.includes('/owner/')) {
+        loginPath = prefix + 'portals/owner/owner-login.html';
+    }
+
+    const adminHomePath = prefix + 'portals/admin/admin.html';
+    const studentHomePath = prefix + 'portals/student/home.html';
+    const driverHomePath = prefix + 'portals/driver/driverhome.html';
+    const ownerHomePath = prefix + 'portals/owner/owner.html';
 
     console.log(`Auth Guard checking page: ${page}, Path: ${path}, Prefix: ${prefix}, Logged in: ${isLoggedIn}, Role: ${userRole}, Tenant: ${instituteId}`);
 
     // Define page sets by directory context
-    const isPublicPage = path.includes('/owner/index.html') || path.includes('/owner/login.html') || path.endsWith('/') || page === 'index.html';
-    const isOwnerPage = path.includes('/owner/owner.html');
-    const isAdminPage = path.includes('/admin/');
-    const isDriverPage = path.includes('/driver/');
-    const isStudentPage = path.includes('/student/');
+    const isPublicPage = 
+        path.includes('/portals/owner/index.html') || 
+        path.includes('/owner/index.html') || 
+        path.endsWith('/') || 
+        page === 'index.html' || 
+        page.includes('login.html');
+
+    const isOwnerPage = path.includes('/owner/') && !page.includes('login.html') && !page.includes('index.html');
+    const isAdminPage = path.includes('/admin/') && !page.includes('login.html');
+    const isDriverPage = path.includes('/driver/') && !page.includes('login.html');
+    const isStudentPage = path.includes('/student/') && !page.includes('login.html');
 
     // -------------------------------------------------------------------------
     // B. Subdomain Enforcement Check (Production Only)

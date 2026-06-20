@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("❌ Error parsing student data:", error);
             // If data is corrupted, clear and redirect to login
             localStorage.clear();
-            window.location.href = '../owner/login.html';
+            window.location.href = 'student-login.html';
             return;
         }
     } else {
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Redirect to login page
             console.log("→ Redirecting to login page...");
-            window.location.href = '../owner/login.html';
+            window.location.href = 'student-login.html';
             
         } catch (error) {
             console.error("❌ Logout error:", error);
@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 "You will be redirected to login."
             );
             
-            window.location.href = '../owner/login.html';
+            window.location.href = 'student-login.html';
         }
     };
 

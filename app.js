@@ -10,7 +10,7 @@ function bootstrapSaaSBranding() {
     let branding = activeBranding;
 
     // Use common, brand-aligned Indigo theme on landing & login pages when not logged in
-    if (!isLoggedIn && (page === 'index.html' || page === 'login.html' || page === '')) {
+    if (!isLoggedIn && (page === 'index.html' || page.includes('login.html') || page === '')) {
         branding = {
             colors: {
                 primary: "#4f46e5",     // indigo-600
