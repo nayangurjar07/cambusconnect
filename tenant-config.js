@@ -5,14 +5,14 @@ export const tenantConfigs = {
     // -------------------------------------------------------------------------
     "localhost": {
         firebaseConfig: {
-            apiKey: "AIzaSyD4sdDsx19EDGV5VrBP3bDwyOnmUogfRUw",
-            authDomain: "cambus-iist.firebaseapp.com",
-            projectId: "cambus-iist",
-            storageBucket: "cambus-iist.firebasestorage.app",
-            messagingSenderId: "560938631277",
-            appId: "1:560938631277:web:69308fe046c5d613213f64",
-            measurementId: "G-9JD5KC1F7Q",
-            databaseURL: "https://cambus-iist-default-rtdb.firebaseio.com"
+            apiKey: "AIzaSyBliJ5tYf1pHxeUYF6Xm_H9I47wkSLk8Vg",
+            authDomain: "cambus2-9bbb1.firebaseapp.com",
+            projectId: "cambus2-9bbb1",
+            storageBucket: "cambus2-9bbb1.firebasestorage.app",
+            messagingSenderId: "803501850082",
+            appId: "1:803501850082:web:b6a36b6d993745872b4dbb",
+            measurementId: "G-Z9W8VBLN5T",
+            databaseURL: "https://cambus2-9bbb1-default-rtdb.firebaseio.com"
         },
         emailDomains: ["indoreinstitute.com", "iist.in", "iist.cambusconnect.in"],
         branding: {
@@ -30,14 +30,14 @@ export const tenantConfigs = {
     "iist.cambusconnect.in": {
         // Inherits default production settings matching local target parameters
         firebaseConfig: {
-            apiKey: "AIzaSyD4sdDsx19EDGV5VrBP3bDwyOnmUogfRUw",
-            authDomain: "cambus-iist.firebaseapp.com",
-            projectId: "cambus-iist",
-            storageBucket: "cambus-iist.firebasestorage.app",
-            messagingSenderId: "560938631277",
-            appId: "1:560938631277:web:69308fe046c5d613213f64",
-            measurementId: "G-9JD5KC1F7Q",
-            databaseURL: "https://cambus-iist-default-rtdb.firebaseio.com"
+            apiKey: "AIzaSyBliJ5tYf1pHxeUYF6Xm_H9I47wkSLk8Vg",
+            authDomain: "cambus2-9bbb1.firebaseapp.com",
+            projectId: "cambus2-9bbb1",
+            storageBucket: "cambus2-9bbb1.firebasestorage.app",
+            messagingSenderId: "803501850082",
+            appId: "1:803501850082:web:b6a36b6d993745872b4dbb",
+            measurementId: "G-Z9W8VBLN5T",
+            databaseURL: "https://cambus2-9bbb1-default-rtdb.firebaseio.com"
         },
         emailDomains: ["indoreinstitute.com", "iist.in", "iist.cambusconnect.in"],
         branding: {
