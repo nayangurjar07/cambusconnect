@@ -44,21 +44,18 @@ function bootstrapSaaSBranding() {
     }
 
     const navName = document.getElementById("college-title");
-    if (navName && branding.shortName) {
-        navName.textContent = `| ${branding.shortName}`;
-        navName.classList.remove('hidden');
+    if (navName) {
+        navName.classList.add('hidden');
     }
     
     const sidebarTitle = document.getElementById("sidebar-college-title");
-    if (sidebarTitle && branding.shortName) {
-        sidebarTitle.textContent = `| ${branding.shortName}`;
-        sidebarTitle.classList.remove('hidden');
+    if (sidebarTitle) {
+        sidebarTitle.classList.add('hidden');
     }
     
     const navLogo = document.getElementById("college-logo");
-    if (navLogo && branding.logoUrl) {
-        navLogo.src = branding.logoUrl;
-        navLogo.classList.remove('hidden');
+    if (navLogo) {
+        navLogo.classList.add('hidden');
     }
 
     console.log(`🎨 Injected color scheme branding variables for tenant: ${activeBranding.shortName}`);

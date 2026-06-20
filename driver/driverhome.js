@@ -36,16 +36,39 @@ document.addEventListener('DOMContentLoaded', () => {
         driverEmailDisplay.textContent = driverEmail;
     }
 
-    // Populate active institute info in driver panel
+    // Populate active institute info in driver panel, header, and sidebar
     const infoCollegeLogo = document.getElementById('info-college-logo');
     const infoCollegeName = document.getElementById('info-college-name');
+    const navLogo = document.getElementById('college-logo');
+    const navName = document.getElementById('college-title');
+    const sidebarTitle = document.getElementById('sidebar-college-title');
+
     if (window.activeBranding) {
-        if (infoCollegeName && window.activeBranding.shortName) {
-            infoCollegeName.textContent = window.activeBranding.shortName;
+        const shortName = window.activeBranding.shortName;
+        const logoUrl = window.activeBranding.logoUrl;
+
+        if (infoCollegeName && shortName) {
+            infoCollegeName.textContent = shortName;
         }
-        if (infoCollegeLogo && window.activeBranding.logoUrl) {
-            infoCollegeLogo.src = window.activeBranding.logoUrl;
+        if (infoCollegeLogo && logoUrl) {
+            infoCollegeLogo.src = logoUrl;
             infoCollegeLogo.classList.remove('hidden');
+        }
+
+        // Show branding in Driver header
+        if (navName && shortName) {
+            navName.textContent = `| ${shortName}`;
+            navName.classList.remove('hidden');
+        }
+        if (navLogo && logoUrl) {
+            navLogo.src = logoUrl;
+            navLogo.classList.remove('hidden');
+        }
+
+        // Show branding in Driver sidebar
+        if (sidebarTitle && shortName) {
+            sidebarTitle.textContent = `| ${shortName}`;
+            sidebarTitle.classList.remove('hidden');
         }
     }
 
