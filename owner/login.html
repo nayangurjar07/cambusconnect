@@ -169,8 +169,10 @@
                     <div class="space-y-xs">
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Security Password</label>
                         <div class="relative">
-                            <input id="login-password" required name="password" type="password" placeholder="Enter your credentials" class="w-full h-xl px-margin-mobile border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm"/>
-                            <span class="absolute right-margin-mobile top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[20px]">lock</span>
+                            <input id="login-password" required name="password" type="password" placeholder="Enter your credentials" class="w-full h-xl pr-12 pl-margin-mobile border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm"/>
+                            <button type="button" id="toggle-password" class="absolute right-margin-mobile top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-all flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[20px]">visibility</span>
+                            </button>
                         </div>
                     </div>
 
