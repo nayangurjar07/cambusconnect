@@ -263,6 +263,7 @@ function createInfoWindowContent(bus) {
             <p><strong>Driver:</strong> ${bus.driver || 'N/A'}</p>
             <p><strong>Conductor:</strong> ${bus.conductor || 'N/A'}</p>
             <p><strong>Status:</strong> <span class="status-badge ${statusClass}">${bus.status}</span></p>
+            <p><strong>Headcount (Riders):</strong> <span style="font-weight: bold; color: #4f46e5;">${bus.headcount || 0}</span></p>
             <p><strong>Source:</strong> ${sourceLabel}</p>
             <p><strong>Tracker ID:</strong> ${trackerId}</p>
             <p><strong>Google:</strong> ${googleEmail}</p>
@@ -318,7 +319,12 @@ function renderBusList() {
                 </span>
             </div>
             <div class="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
-                <span>${bus.driver || 'No driver'}</span>
+                <span class="flex items-center gap-1.5 font-medium">
+                    <span>${bus.driver || 'No driver'}</span>
+                    <span class="text-slate-300">|</span>
+                    <span class="material-symbols-outlined text-[15px] text-blue-600" style="font-variation-settings: 'FILL' 1;">groups</span>
+                    <span class="font-bold text-blue-600">${bus.headcount || 0} Riders</span>
+                </span>
                 ${hasLocation ? 
                     `<button onclick="event.stopPropagation(); focusBus('${bus.id}')" class="text-blue-600 hover:text-blue-700 font-semibold">Locate</button>` : 
                     '<span class="text-red-500">No GPS</span>'

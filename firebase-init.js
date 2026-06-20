@@ -207,6 +207,8 @@ window.firebase = {
         }
     })
 };
+window.tenantConfigs = tenantConfigs;
+
 
 export function reinitializeFirebase(tenantKey) {
     if (!tenantConfigs[tenantKey]) return Promise.reject("Invalid tenant key: " + tenantKey);

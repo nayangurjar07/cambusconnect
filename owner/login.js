@@ -62,32 +62,56 @@ document.addEventListener('DOMContentLoaded', () => {
         const domain = email.toLowerCase().split('@')[1];
         if (!domain) return null;
         
-        if (domain === 'cambusconnect.in' || domain === 'owner.cambusconnect.in') {
-            return { tenantKey: 'owner', domain: 'cambusconnect.in' };
+        const configs = window.tenantConfigs || {};
+        const host = window.location.hostname.toLowerCase();
+        
+        // Find matching tenant configuration
+        for (const [key, config] of Object.entries(configs)) {
+            if (config.emailDomains && config.emailDomains.includes(domain)) {
+                const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+                const isConfigLocal = key === 'localhost' || key === '127.0.0.1';
+                if (isLocalHost === isConfigLocal) {
+                    return { tenantKey: key, domain: domain };
+                }
+            }
         }
-        if (domain === 'indoreinstitute.com' || domain === 'iist.in' || domain === 'iist.cambusconnect.in') {
-            return { tenantKey: 'localhost', domain: 'indoreinstitute.com' };
-        }
-        if (domain === 'medicaps.com' || domain === 'medicaps.ac.in' || domain === 'medicaps.cambusconnect.in') {
-            return { tenantKey: '127.0.0.1', domain: 'medicaps.com' };
+        
+        for (const [key, config] of Object.entries(configs)) {
+            if (config.emailDomains && config.emailDomains.includes(domain)) {
+                return { tenantKey: key, domain: domain };
+            }
         }
         return null;
     };
 
     const getFallbackTenantInfo = () => {
-        const savedKey = localStorage.getItem('activeTenantKey');
-        if (savedKey === 'owner') {
-            return { tenantKey: 'owner', domain: 'cambusconnect.in' };
-        }
-        if (savedKey === '127.0.0.1' || savedKey === 'medicaps.cambusconnect.in') {
-            return { tenantKey: '127.0.0.1', domain: 'medicaps.com' };
-        }
-        if (savedKey === 'localhost' || savedKey === 'iist.cambusconnect.in') {
-            return { tenantKey: 'localhost', domain: 'indoreinstitute.com' };
-        }
         const host = window.location.hostname.toLowerCase();
-        if (host.includes('medicaps') || host.includes('127.0.0.1')) {
-            return { tenantKey: '127.0.0.1', domain: 'medicaps.com' };
+        const configs = window.tenantConfigs || {};
+        
+        if (configs[host]) {
+            return { tenantKey: host, domain: configs[host].emailDomains ? configs[host].emailDomains[0] : '' };
+        }
+        
+        for (const [key, config] of Object.entries(configs)) {
+            if (host.includes(config.branding.shortName.toLowerCase())) {
+                const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+                const isConfigLocal = key === 'localhost' || key === '127.0.0.1';
+                if (isLocalHost === isConfigLocal) {
+                    return { tenantKey: key, domain: config.emailDomains ? config.emailDomains[0] : '' };
+                }
+            }
+        }
+
+        if (host === '127.0.0.1' || host.includes('medicaps')) {
+            return { tenantKey: configs['medicaps.cambusconnect.in'] ? 'medicaps.cambusconnect.in' : '127.0.0.1', domain: 'medicaps.com' };
+        }
+        if (host === 'localhost' || host.includes('iist')) {
+            return { tenantKey: configs['iist.cambusconnect.in'] ? 'iist.cambusconnect.in' : 'localhost', domain: 'indoreinstitute.com' };
+        }
+
+        const savedKey = localStorage.getItem('activeTenantKey');
+        if (savedKey && configs[savedKey]) {
+            return { tenantKey: savedKey, domain: configs[savedKey].emailDomains ? configs[savedKey].emailDomains[0] : '' };
         }
         return { tenantKey: 'localhost', domain: 'indoreinstitute.com' };
     };

@@ -30,6 +30,7 @@ function bootstrapSaaSBranding() {
 
     // Keep global app title as Cambus Connect
     document.title = "Cambus Connect";
+    window.activeBranding = branding;
     
     // Ensure the default logo and title are always visible and Cambus Connect branding is kept
     const defaultLogo = document.getElementById("default-logo-container");
@@ -43,18 +44,21 @@ function bootstrapSaaSBranding() {
     }
 
     const navName = document.getElementById("college-title");
-    if (navName) {
-        navName.classList.add('hidden');
+    if (navName && branding.shortName) {
+        navName.textContent = `| ${branding.shortName}`;
+        navName.classList.remove('hidden');
     }
     
     const sidebarTitle = document.getElementById("sidebar-college-title");
-    if (sidebarTitle) {
-        sidebarTitle.classList.add('hidden');
+    if (sidebarTitle && branding.shortName) {
+        sidebarTitle.textContent = `| ${branding.shortName}`;
+        sidebarTitle.classList.remove('hidden');
     }
     
     const navLogo = document.getElementById("college-logo");
-    if (navLogo) {
-        navLogo.classList.add('hidden');
+    if (navLogo && branding.logoUrl) {
+        navLogo.src = branding.logoUrl;
+        navLogo.classList.remove('hidden');
     }
 
     console.log(`🎨 Injected color scheme branding variables for tenant: ${activeBranding.shortName}`);
