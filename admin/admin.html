@@ -535,6 +535,62 @@
         </div>
     </div>
 
+    <!-- ==================== EDIT BUS MODAL ==================== -->
+    <div id="modal-edit-bus" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Edit Bus Details</h3>
+                    <p class="text-xs text-on-surface-variant">Modify transit vehicle registry parameters</p>
+                </div>
+                <button id="close-edit-bus-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="form-edit-bus" class="p-6 space-y-4">
+                <input type="hidden" name="busId"/>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Bus Number *</label>
+                        <input name="number" required placeholder="e.g. Bus 101" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Route Name *</label>
+                        <input name="route" required placeholder="e.g. Route A - Library Loop" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Driver Name *</label>
+                    <input name="driver" required placeholder="e.g. Rajesh Kumar" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Driver Phone</label>
+                        <input name="phone" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Conductor Name</label>
+                        <input name="conductor" placeholder="e.g. Amit Singh" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Conductor Phone</label>
+                        <input name="conductorPhone" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Tracker ID / Device Serial</label>
+                        <input name="trackerId" placeholder="e.g. TRK-9902" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                    <button type="button" id="cancel-edit-bus-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- ==================== REGISTER STUDENT MODAL ==================== -->
     <div id="modal-add-student" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">

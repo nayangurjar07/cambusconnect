@@ -225,9 +225,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         Issue
                     </button>
                 </div>
-                <button onclick="window.location.href='admin-track.html'" class="mt-3 w-full px-3 py-2 rounded-lg text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all">
-                    Open Live Location Source Settings
-                </button>
+                <div class="grid grid-cols-2 gap-2 mt-3">
+                    <button onclick="window.location.href='admin-track.html'" class="px-3 py-2 rounded-lg text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all">
+                        Fleet Map View
+                    </button>
+                    <button onclick="editBus('${bus.id}')" class="px-3 py-2 rounded-lg text-xs font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-all">
+                        Edit Fleet/GPS
+                    </button>
+                </div>
             `;
 
             busesGrid.appendChild(card);
@@ -346,6 +351,68 @@ document.addEventListener('DOMContentLoaded', () => {
                     modalAddBus.classList.add('hidden');
                     modalAddBus.classList.remove('flex');
                 }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        });
+    }
+
+    // === EDIT BUS MODAL ===
+    const modalEditBus = document.getElementById('modal-edit-bus');
+    const closeEditBusModalBtn = document.getElementById('close-edit-bus-modal-btn');
+    const cancelEditBusModalBtn = document.getElementById('cancel-edit-bus-modal-btn');
+    const formEditBus = document.getElementById('form-edit-bus');
+
+    window.editBus = function(busId) {
+        const bus = buses.find(b => b.id === busId);
+        if (!bus) return;
+
+        if (modalEditBus) {
+            modalEditBus.querySelector('[name="busId"]').value = busId;
+            modalEditBus.querySelector('[name="number"]').value = bus.number || '';
+            modalEditBus.querySelector('[name="route"]').value = bus.route || '';
+            modalEditBus.querySelector('[name="driver"]').value = bus.driver || '';
+            modalEditBus.querySelector('[name="phone"]').value = bus.phone || '';
+            modalEditBus.querySelector('[name="conductor"]').value = bus.conductor || '';
+            modalEditBus.querySelector('[name="conductorPhone"]').value = bus.conductorPhone || '';
+            modalEditBus.querySelector('[name="trackerId"]').value = (bus.tracking && bus.tracking.trackerId) || bus.trackerId || '';
+
+            modalEditBus.classList.remove('hidden');
+            modalEditBus.classList.add('flex');
+        }
+    };
+
+    function closeEditBusModal() {
+        if (modalEditBus) {
+            modalEditBus.classList.add('hidden');
+            modalEditBus.classList.remove('flex');
+        }
+    }
+
+    if (closeEditBusModalBtn) closeEditBusModalBtn.addEventListener('click', closeEditBusModal);
+    if (cancelEditBusModalBtn) cancelEditBusModalBtn.addEventListener('click', closeEditBusModal);
+
+    if (formEditBus) {
+        formEditBus.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const busId = formData.get('busId');
+
+            try {
+                await dbHelper.getBusesCol().doc(busId).update({
+                    number: formData.get('number'),
+                    route: formData.get('route'),
+                    driver: formData.get('driver'),
+                    phone: formData.get('phone') || '',
+                    conductor: formData.get('conductor') || '',
+                    conductorPhone: formData.get('conductorPhone') || '',
+                    "tracking.trackerId": formData.get('trackerId') || '',
+                    trackerId: formData.get('trackerId') || '',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                alert('✅ Bus updated successfully!');
+                closeEditBusModal();
             } catch (error) {
                 alert('❌ Error: ' + error.message);
             }
