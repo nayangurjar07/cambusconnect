@@ -6,14 +6,14 @@ export const tenantConfigs = {
     // IIST uses cambus-medicap backend database
     "localhost": {
         firebaseConfig: {
-            apiKey: "AIzaSyD4sdDsx19EDGV5VrBP3bDwyOnmUogfRUw",
-            authDomain: "cambus-iist.firebaseapp.com",
-            projectId: "cambus-iist",
-            storageBucket: "cambus-iist.firebasestorage.app",
-            messagingSenderId: "560938631277",
-            appId: "1:560938631277:web:69308fe046c5d613213f64",
-            measurementId: "G-9JD5KC1F7Q",
-            databaseURL: "https://cambus-iist-default-rtdb.firebaseio.com"
+            apiKey: "AIzaSyCr7eid8VwqAD4OharNBSD8NME-kyC2FE4",
+            authDomain: "cambus-medicap.firebaseapp.com",
+            projectId: "cambus-medicap",
+            storageBucket: "cambus-medicap.firebasestorage.app",
+            messagingSenderId: "398140728981",
+            appId: "1:398140728981:web:a2c4ed5d6296ad63185d9c",
+            measurementId: "G-ERLRXBMHPB",
+            databaseURL: "https://cambus-medicap-default-rtdb.firebaseio.com"
         },
         emailDomains: ["indoreinstitute.com", "iist.in", "iist.cambusconnect.in"],
         branding: {
@@ -30,14 +30,14 @@ export const tenantConfigs = {
     },
     "iist.cambusconnect.in": {
         firebaseConfig: {
-            apiKey: "AIzaSyD4sdDsx19EDGV5VrBP3bDwyOnmUogfRUw",
-            authDomain: "cambus-iist.firebaseapp.com",
-            projectId: "cambus-iist",
-            storageBucket: "cambus-iist.firebasestorage.app",
-            messagingSenderId: "560938631277",
-            appId: "1:560938631277:web:69308fe046c5d613213f64",
-            measurementId: "G-9JD5KC1F7Q",
-            databaseURL: "https://cambus-iist-default-rtdb.firebaseio.com"
+            apiKey: "AIzaSyCr7eid8VwqAD4OharNBSD8NME-kyC2FE4",
+            authDomain: "cambus-medicap.firebaseapp.com",
+            projectId: "cambus-medicap",
+            storageBucket: "cambus-medicap.firebasestorage.app",
+            messagingSenderId: "398140728981",
+            appId: "1:398140728981:web:a2c4ed5d6296ad63185d9c",
+            measurementId: "G-ERLRXBMHPB",
+            databaseURL: "https://cambus-medicap-default-rtdb.firebaseio.com"
         },
         emailDomains: ["indoreinstitute.com", "iist.in", "iist.cambusconnect.in"],
         branding: {
@@ -54,14 +54,14 @@ export const tenantConfigs = {
     // Medi-Caps uses cambus-iist backend database
     "127.0.0.1": {
         firebaseConfig: {
-            apiKey: "AIzaSyCr7eid8VwqAD4OharNBSD8NME-kyC2FE4",
-            authDomain: "cambus-medicap.firebaseapp.com",
-            projectId: "cambus-medicap",
-            storageBucket: "cambus-medicap.firebasestorage.app",
-            messagingSenderId: "398140728981",
-            appId: "1:398140728981:web:a2c4ed5d6296ad63185d9c",
-            measurementId: "G-ERLRXBMHPB",
-            databaseURL: "https://cambus-medicap-default-rtdb.firebaseio.com"
+            apiKey: "AIzaSyD4sdDsx19EDGV5VrBP3bDwyOnmUogfRUw",
+            authDomain: "cambus-iist.firebaseapp.com",
+            projectId: "cambus-iist",
+            storageBucket: "cambus-iist.firebasestorage.app",
+            messagingSenderId: "560938631277",
+            appId: "1:560938631277:web:69308fe046c5d613213f64",
+            measurementId: "G-9JD5KC1F7Q",
+            databaseURL: "https://cambus-iist-default-rtdb.firebaseio.com"
         },
         emailDomains: ["medicaps.com", "medicaps.ac.in", "medicaps.cambusconnect.in"],
         branding: {
@@ -78,14 +78,14 @@ export const tenantConfigs = {
     },
     "medicaps.cambusconnect.in": {
         firebaseConfig: {
-            apiKey: "AIzaSyCr7eid8VwqAD4OharNBSD8NME-kyC2FE4",
-            authDomain: "cambus-medicap.firebaseapp.com",
-            projectId: "cambus-medicap",
-            storageBucket: "cambus-medicap.firebasestorage.app",
-            messagingSenderId: "398140728981",
-            appId: "1:398140728981:web:a2c4ed5d6296ad63185d9c",
-            measurementId: "G-ERLRXBMHPB",
-            databaseURL: "https://cambus-medicap-default-rtdb.firebaseio.com"
+            apiKey: "AIzaSyD4sdDsx19EDGV5VrBP3bDwyOnmUogfRUw",
+            authDomain: "cambus-iist.firebaseapp.com",
+            projectId: "cambus-iist",
+            storageBucket: "cambus-iist.firebasestorage.app",
+            messagingSenderId: "560938631277",
+            appId: "1:560938631277:web:69308fe046c5d613213f64",
+            measurementId: "G-9JD5KC1F7Q",
+            databaseURL: "https://cambus-iist-default-rtdb.firebaseio.com"
         },
         emailDomains: ["medicaps.com", "medicaps.ac.in", "medicaps.cambusconnect.in"],
         branding: {
