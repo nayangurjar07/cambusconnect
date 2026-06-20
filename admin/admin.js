@@ -1889,7 +1889,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // === GPS SETTINGS MANAGEMENT ===
     function loadTrackingSettings() {
-        db.collection('settings').doc('tracking').get()
+        (window.db || firebase.firestore()).collection('settings').doc('tracking').get()
             .then(doc => {
                 const apiKeyInput = document.getElementById('input-gps-api-key');
                 const clientSecretInput = document.getElementById('input-gps-client-secret');

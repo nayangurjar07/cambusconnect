@@ -47,11 +47,11 @@
         }
         
         // Ensure firebase db is initialized
-        if (typeof db === 'undefined') {
+        if (typeof window.db === 'undefined') {
             throw new Error("Firebase Firestore is not initialized.");
         }
 
-        return db.collection('institutes').doc(instituteId);
+        return window.db.collection('institutes').doc(instituteId);
     }
 
     // Export helper functions globally (Multi-Instance flat collections)
@@ -59,31 +59,31 @@
         getInstituteId: getActiveInstituteId,
 
         getUsersCol: function() {
-            return db.collection('users');
+            return (window.db || firebase.firestore()).collection('users');
         },
 
         getBusesCol: function() {
-            return db.collection('buses');
+            return (window.db || firebase.firestore()).collection('buses');
         },
 
         getNotificationsCol: function() {
-            return db.collection('notifications');
+            return (window.db || firebase.firestore()).collection('notifications');
         },
 
         getLostItemsCol: function() {
-            return db.collection('lost-items');
+            return (window.db || firebase.firestore()).collection('lost-items');
         },
 
         getSupportQueriesCol: function() {
-            return db.collection('support-queries');
+            return (window.db || firebase.firestore()).collection('support-queries');
         },
 
         getTripsCol: function() {
-            return db.collection('trips');
+            return (window.db || firebase.firestore()).collection('trips');
         },
 
         getDriverSessionsCol: function() {
-            return db.collection('driverSessions');
+            return (window.db || firebase.firestore()).collection('driverSessions');
         }
     };
 })();
