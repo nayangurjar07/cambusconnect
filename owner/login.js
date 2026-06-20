@@ -88,12 +88,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const host = window.location.hostname.toLowerCase();
         const configs = window.tenantConfigs || {};
         
+        // 1. Direct match by hostname
         if (configs[host]) {
             return { tenantKey: host, domain: configs[host].emailDomains ? configs[host].emailDomains[0] : '' };
         }
         
+        // 2. Partial hostname match against active branding shortNames
         for (const [key, config] of Object.entries(configs)) {
-            if (host.includes(config.branding.shortName.toLowerCase())) {
+            if (config.branding && config.branding.shortName && host.includes(config.branding.shortName.toLowerCase())) {
                 const isLocalHost = host === 'localhost' || host === '127.0.0.1';
                 const isConfigLocal = key === 'localhost' || key === '127.0.0.1';
                 if (isLocalHost === isConfigLocal) {
@@ -102,16 +104,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (host === '127.0.0.1' || host.includes('medicaps')) {
-            return { tenantKey: configs['medicaps.cambusconnect.in'] ? 'medicaps.cambusconnect.in' : '127.0.0.1', domain: 'medicaps.com' };
-        }
-        if (host === 'localhost' || host.includes('iist')) {
-            return { tenantKey: configs['iist.cambusconnect.in'] ? 'iist.cambusconnect.in' : 'localhost', domain: 'indoreinstitute.com' };
-        }
-
+        // 3. Fallback to localStorage active key if set
         const savedKey = localStorage.getItem('activeTenantKey');
         if (savedKey && configs[savedKey]) {
             return { tenantKey: savedKey, domain: configs[savedKey].emailDomains ? configs[savedKey].emailDomains[0] : '' };
+        }
+        
+        // 4. Default fallback to first key in config
+        const firstKey = Object.keys(configs)[0];
+        if (firstKey && configs[firstKey]) {
+            return { tenantKey: firstKey, domain: configs[firstKey].emailDomains ? configs[firstKey].emailDomains[0] : '' };
         }
         return { tenantKey: 'localhost', domain: 'indoreinstitute.com' };
     };
@@ -208,24 +210,10 @@ document.addEventListener('DOMContentLoaded', () => {
             let docSnap = await docRef.get();
 
             if (!docSnap.exists) {
-                // Support dynamic failsafe auto-creation for test driver account
-                if (email === 'driver@indoreinstitute.com') {
-                    console.log("Creating default database document for driver@indoreinstitute.com...");
-                    const defaultDriverProfile = {
-                        name: "Indore Institute Driver",
-                        role: "driver",
-                        email: email,
-                        assignedBusId: "demo-bus-101",
-                        createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
-                    };
-                    await docRef.set(defaultDriverProfile);
-                    docSnap = await docRef.get();
-                } else {
-                    console.error("❌ Profile not found in Firestore");
-                    localStorage.removeItem('instituteId');
-                    localStorage.removeItem('activeTenantKey');
-                    throw new Error("Profile not found in database. Please contact admin.");
-                }
+                console.error("❌ Profile not found in Firestore");
+                localStorage.removeItem('instituteId');
+                localStorage.removeItem('activeTenantKey');
+                throw new Error("Profile not found in database. Please contact admin.");
             }
 
             const userData = docSnap.data();
