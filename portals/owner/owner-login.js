@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const role = localStorage.getItem('userRole');
         if (role === 'owner') window.location.href = 'owner.html';
         else if (role === 'admin') window.location.href = '../admin/admin.html';
-        else if (role === 'student') window.location.href = '../student/home.html';
+        else if (role === 'student') window.location.href = '../student/home/home.html';
         else if (role === 'driver') window.location.href = '../driver/driverhome.html';
         return;
     }

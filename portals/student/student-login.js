@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isLoggedIn === 'true') {
         const role = localStorage.getItem('userRole');
         if (role === 'student') {
-            window.location.href = 'home.html';
+            window.location.href = 'home/home.html';
         } else if (role === 'admin') {
             window.location.href = '../admin/admin.html';
         } else if (role === 'driver') {
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loginButton.classList.remove('bg-blue-600');
             loginButton.classList.add('bg-green-600');
 
-            setTimeout(() => { window.location.href = 'home.html'; }, 500);
+            setTimeout(() => { window.location.href = 'home/home.html'; }, 500);
 
         } catch (error) {
             console.error("❌ Student LOGIN ERROR:", error.code, error.message);

@@ -21,7 +21,8 @@ import {
     onSnapshot,
     serverTimestamp,
     arrayUnion,
-    arrayRemove
+    arrayRemove,
+    writeBatch
 } from "firebase/firestore";
 import { 
     signInWithEmailAndPassword, 
@@ -158,12 +159,39 @@ class CompatQuerySnap {
     }
 }
 
+class CompatWriteBatch {
+    constructor(dbInstance) {
+        this._batch = writeBatch(dbInstance);
+    }
+    set(compatDocRef, data, options) {
+        const ref = compatDocRef.ref || compatDocRef;
+        this._batch.set(ref, data, options);
+        return this;
+    }
+    update(compatDocRef, data) {
+        const ref = compatDocRef.ref || compatDocRef;
+        this._batch.update(ref, data);
+        return this;
+    }
+    delete(compatDocRef) {
+        const ref = compatDocRef.ref || compatDocRef;
+        this._batch.delete(ref);
+        return this;
+    }
+    commit() {
+        return this._batch.commit();
+    }
+}
+
 class CompatFirestore {
     constructor(dbInstance) {
         this._db = dbInstance;
     }
     collection(path) {
         return new CompatCollection(this._db, path);
+    }
+    batch() {
+        return new CompatWriteBatch(this._db);
     }
 }
 

@@ -1,0 +1,310 @@
+// buses.js - Bus Fleet Management Logic for Cambus Connect
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if firebase is available (loaded as modular import/global)
+    const initInterval = setInterval(() => {
+        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+            clearInterval(initInterval);
+            initBusesPanel();
+        }
+    }, 100);
+
+    function initBusesPanel() {
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Display admin name from localStorage
+        const adminNameDisplay = document.getElementById('admin-name-display');
+        if (adminNameDisplay) {
+            const adminName = localStorage.getItem('adminName');
+            if (adminName) adminNameDisplay.textContent = adminName;
+        }
+
+        // Support Queries Badge
+        const pendingBadge = document.getElementById('pending-badge');
+        dbHelper.getSupportQueriesCol().where('status', '==', 'Pending').onSnapshot(snapshot => {
+            const pendingCount = snapshot.size;
+            if (pendingBadge) {
+                if (pendingCount > 0) {
+                    pendingBadge.textContent = pendingCount;
+                    pendingBadge.classList.remove('hidden');
+                } else {
+                    pendingBadge.classList.add('hidden');
+                }
+            }
+        }, err => {
+            console.error("Error loading pending queries badge:", err);
+        });
+
+        // DOM Elements
+        const busesGrid = document.getElementById('admin-buses-grid');
+        const addBusBtn = document.getElementById('add-bus-btn');
+        const modalAddBus = document.getElementById('modal-add-bus');
+        const closeBusModalBtn = document.getElementById('close-bus-modal-btn');
+        const cancelBusModalBtn = document.getElementById('cancel-bus-modal-btn');
+        const formAddBus = document.getElementById('form-add-bus');
+
+        const modalEditBus = document.getElementById('modal-edit-bus');
+        const closeEditBusModalBtn = document.getElementById('close-edit-bus-modal-btn');
+        const cancelEditBusModalBtn = document.getElementById('cancel-edit-bus-modal-btn');
+        const formEditBus = document.getElementById('form-edit-bus');
+
+        let buses = [];
+
+        // Real-time snapshot listener on the buses collection
+        dbHelper.getBusesCol().onSnapshot(snapshot => {
+            buses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderBuses();
+        }, err => {
+            console.error("Error fetching buses:", err);
+            if (busesGrid) {
+                busesGrid.innerHTML = `<div class="col-span-full text-center p-8 bg-red-50 rounded-2xl border-2 border-red-200">
+                    <p class="text-red-700 font-bold">Error loading buses</p>
+                </div>`;
+            }
+        });
+
+        function renderBuses() {
+            if (!busesGrid) return;
+            busesGrid.innerHTML = '';
+
+            if (buses.length === 0) {
+                busesGrid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">No buses found</div>`;
+                return;
+            }
+
+            buses.forEach(bus => {
+                const card = document.createElement('div');
+                card.className = 'card-hover bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-slate-200/60';
+                const sourceType = bus.locationSource || bus.tracking?.sourceType;
+                const sourceLabel = sourceType === 'driver_phone'
+                    ? 'Driver Phone'
+                    : sourceType === 'conductor_phone'
+                        ? 'Conductor Phone'
+                        : sourceType === 'tracking_device'
+                            ? 'Tracking Device'
+                            : 'Manual';
+
+                const statusColors = {
+                    'On Time': 'bg-emerald-500 text-white',
+                    'Delayed': 'bg-amber-500 text-white',
+                    'Breakdown': 'bg-rose-500 text-white'
+                };
+
+                const currentStatus = statusColors[bus.status] || 'bg-slate-300 text-slate-700';
+
+                let driversDisplay = bus.driver || 'No Driver';
+                if (bus.driverEmails && bus.driverEmails.length > 0) {
+                    driversDisplay = bus.driverEmails.join(', ');
+                }
+                let conductorsDisplay = bus.conductor || '';
+                if (bus.conductorEmails && bus.conductorEmails.length > 0) {
+                    conductorsDisplay = bus.conductorEmails.join(', ');
+                }
+                const staffLabelText = conductorsDisplay ? `${driversDisplay} | ${conductorsDisplay}` : driversDisplay;
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/30">
+                                ${bus.number}
+                            </div>
+                            <div>
+                                <h3 class="font-black text-slate-800 text-lg">Bus ${bus.number}</h3>
+                                <p class="text-sm text-slate-500 font-semibold truncate max-w-[180px]" title="${staffLabelText}">${staffLabelText}</p>
+                            </div>
+                        </div>
+                        <span class="status-badge px-3 py-1 ${currentStatus} rounded-full text-xs font-bold shadow-md">
+                            ${bus.status}
+                        </span>
+                    </div>
+                    
+                    <div class="mb-6 p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200/60 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 mb-1">ROUTE</p>
+                            <p class="text-sm font-bold text-slate-800">${bus.route}</p>
+                            <p class="text-xs text-slate-500 mt-2">Source: ${sourceLabel}</p>
+                        </div>
+                        <div class="text-center bg-white border border-slate-100 shadow-sm p-2.5 rounded-xl flex flex-col items-center justify-center min-w-14">
+                            <span class="material-symbols-outlined text-primary text-base">groups</span>
+                            <span class="text-xs font-extrabold text-slate-800 mt-0.5">${bus.headcount || 0}</span>
+                            <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Riders</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-2">
+                        <button class="btn-status px-3 py-2 rounded-lg text-xs font-bold transition-all ${bus.status === 'On Time' ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-emerald-100'}" 
+                            data-id="${bus.id}" data-status="On Time">
+                            On Time
+                        </button>
+                        <button class="btn-status px-3 py-2 rounded-lg text-xs font-bold transition-all ${bus.status === 'Delayed' ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-amber-100'}" 
+                            data-id="${bus.id}" data-status="Delayed">
+                            Delayed
+                        </button>
+                        <button class="btn-status px-3 py-2 rounded-lg text-xs font-bold transition-all ${bus.status === 'Breakdown' ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-rose-100'}" 
+                            data-id="${bus.id}" data-status="Breakdown">
+                            Issue
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mt-3">
+                        <a href="../admin-track.html" class="text-center px-3 py-2 rounded-lg text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all">
+                            Fleet Map View
+                        </a>
+                        <button class="btn-edit-bus px-3 py-2 rounded-lg text-xs font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-all" data-id="${bus.id}">
+                            Edit Fleet/GPS
+                        </button>
+                    </div>
+                `;
+
+                busesGrid.appendChild(card);
+            });
+
+            // Bind bus status listeners
+            document.querySelectorAll('.btn-status').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const button = e.target.closest('button');
+                    if (button) updateBusStatus(button.dataset.id, button.dataset.status);
+                });
+            });
+
+            // Bind edit bus modal listeners
+            document.querySelectorAll('.btn-edit-bus').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const button = e.target.closest('button');
+                    if (button) editBus(button.dataset.id);
+                });
+            });
+        }
+
+        function updateBusStatus(busId, status) {
+            dbHelper.getBusesCol().doc(busId).update({
+                status: status,
+                lastUpdate: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }).then(() => {
+                console.log('Bus status updated');
+            }).catch(err => {
+                alert("Update failed: " + err.message);
+            });
+        }
+
+        // Add Bus modal open
+        if (addBusBtn && modalAddBus) {
+            addBusBtn.addEventListener('click', () => {
+                modalAddBus.classList.remove('hidden');
+                modalAddBus.classList.add('flex');
+            });
+        }
+
+        function closeAddBusModal() {
+            if (modalAddBus) {
+                modalAddBus.classList.add('hidden');
+                modalAddBus.classList.remove('flex');
+            }
+        }
+        if (closeBusModalBtn) closeBusModalBtn.addEventListener('click', closeAddBusModal);
+        if (cancelBusModalBtn) cancelBusModalBtn.addEventListener('click', closeAddBusModal);
+
+        if (formAddBus) {
+            formAddBus.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+
+                try {
+                    await dbHelper.getBusesCol().add({
+                        number: formData.get('number'),
+                        route: formData.get('route'),
+                        driver: formData.get('driver'),
+                        phone: formData.get('phone') || '',
+                        conductor: formData.get('conductor') || '',
+                        conductorPhone: formData.get('conductorPhone') || '',
+                        status: 'On Time',
+                        tracking: {
+                            sourceType: 'driver_phone',
+                            trackerId: formData.get('trackerId') || '',
+                            googleAccount: {
+                                connected: false,
+                                email: ''
+                            }
+                        },
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    alert('✅ Bus added successfully!');
+                    e.target.reset();
+                    closeAddBusModal();
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            });
+        }
+
+        // Edit Bus modal logic
+        function editBus(busId) {
+            const bus = buses.find(b => b.id === busId);
+            if (!bus) return;
+
+            if (modalEditBus) {
+                modalEditBus.querySelector('[name="busId"]').value = busId;
+                modalEditBus.querySelector('[name="number"]').value = bus.number || '';
+                modalEditBus.querySelector('[name="route"]').value = bus.route || '';
+                modalEditBus.querySelector('[name="driver"]').value = bus.driver || '';
+                modalEditBus.querySelector('[name="phone"]').value = bus.phone || '';
+                modalEditBus.querySelector('[name="conductor"]').value = bus.conductor || '';
+                modalEditBus.querySelector('[name="conductorPhone"]').value = bus.conductorPhone || '';
+                modalEditBus.querySelector('[name="trackerId"]').value = (bus.tracking && bus.tracking.trackerId) || bus.trackerId || '';
+
+                modalEditBus.classList.remove('hidden');
+                modalEditBus.classList.add('flex');
+            }
+        }
+
+        function closeEditBusModal() {
+            if (modalEditBus) {
+                modalEditBus.classList.add('hidden');
+                modalEditBus.classList.remove('flex');
+            }
+        }
+
+        if (closeEditBusModalBtn) closeEditBusModalBtn.addEventListener('click', closeEditBusModal);
+        if (cancelEditBusModalBtn) cancelEditBusModalBtn.addEventListener('click', closeEditBusModal);
+
+        if (formEditBus) {
+            formEditBus.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const busId = formData.get('busId');
+
+                try {
+                    await dbHelper.getBusesCol().doc(busId).update({
+                        number: formData.get('number'),
+                        route: formData.get('route'),
+                        driver: formData.get('driver'),
+                        phone: formData.get('phone') || '',
+                        conductor: formData.get('conductor') || '',
+                        conductorPhone: formData.get('conductorPhone') || '',
+                        "tracking.trackerId": formData.get('trackerId') || '',
+                        trackerId: formData.get('trackerId') || '',
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    alert('✅ Bus updated successfully!');
+                    closeEditBusModal();
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            });
+        }
+
+        // Logout
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                if (confirm('Logout?')) {
+                    auth.signOut().then(() => {
+                        localStorage.clear();
+                        window.location.href = '../admin-login.html';
+                    });
+                }
+            });
+        }
+    }
+});

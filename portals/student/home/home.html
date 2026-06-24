@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Cambus Connect | Student Transit Portal</title>
+    
+    <!-- Auth Guard checks login status immediately -->
+    <script src="../../../auth-guard.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    
+    <!-- Firebase ESM Configuration -->
+    <script type="importmap">
+      {
+        "imports": {
+          "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
+          "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
+        }
+      }
+    </script>
+    <script type="module" src="../../../firebase-init.js"></script>
+    <script type="module" src="../../../app.js"></script>
+
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .pulse-animation {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9ff;
+        }
+    </style>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-fixed-variant": "#0039b5",
+                    "on-tertiary-fixed-variant": "#005236",
+                    "secondary-fixed-dim": "#ffb690",
+                    "on-tertiary-fixed": "#002113",
+                    "inverse-primary": "#b7c4ff",
+                    "surface-bright": "#f8f9ff",
+                    "surface-variant": "#d3e4fe",
+                    "secondary-container": "#fd761a",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-fixed": "#ffdbca",
+                    "on-surface-variant": "#434655",
+                    "tertiary-fixed": "#6ffbbe",
+                    "tertiary-fixed-dim": "#4edea3",
+                    "on-surface": "var(--text-color, #0b1c30)",
+                    "primary-fixed": "#dce1ff",
+                    "on-tertiary-container": "#60eeb1",
+                    "outline-variant": "#c4c5d7",
+                    "surface-container": "#e5eeff",
+                    "surface": "#f8f9ff",
+                    "surface-container-high": "#dce9ff",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed-variant": "#783200",
+                    "on-error": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "inverse-surface": "#213145",
+                    "on-primary": "#ffffff",
+                    "primary-fixed-dim": "#b7c4ff",
+                    "on-background": "#0b1c30",
+                    "on-secondary-fixed": "#341100",
+                    "error-container": "#ffdad6",
+                    "primary-container": "var(--primary-color, #1d4ed8)",
+                    "on-primary-container": "#cad3ff",
+                    "inverse-on-surface": "#eaf1ff",
+                    "on-error-container": "#93000a",
+                    "error": "#ba1a1a",
+                    "surface-tint": "#2151da",
+                    "surface-container-highest": "#d3e4fe",
+                    "outline": "#747686",
+                    "on-secondary-container": "#5c2400",
+                    "on-primary-fixed": "#001551",
+                    "primary": "var(--primary-color, #0037b0)",
+                    "surface-dim": "#cbdbf5",
+                    "surface-container-low": "#eff4ff",
+                    "tertiary-container": "#006a48",
+                    "secondary": "var(--secondary-color, #9d4300)",
+                    "tertiary": "#004f35",
+                    "background": "var(--bg-color, #f8f9ff)"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-desktop": "32px",
+                    "margin-mobile": "16px",
+                    "xs": "4px",
+                    "base": "4px",
+                    "lg": "24px",
+                    "sm": "8px",
+                    "gutter": "16px",
+                    "md": "16px",
+                    "xl": "48px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "body-md": ["Inter"],
+                    "mono-data": ["Inter"],
+                    "label-md": ["Inter"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "mono-data": ["16px", {"lineHeight": "24px", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="text-on-surface">
+    <!-- TopAppBar -->
+    <header class="fixed top-0 w-full z-50 bg-surface dark:bg-surface-dim shadow-sm flex justify-between items-center px-margin-mobile md:px-margin-desktop h-16 w-full">
+        <div class="flex items-center gap-2">
+            <!-- Mobile Menu Toggle Button -->
+            <button id="menu-button" class="md:hidden material-symbols-outlined text-primary hover:bg-surface-container-high p-2 rounded-full transition-colors active:scale-95 duration-150">menu</button>
+            <div id="default-logo-container" class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">
+                Cambus Connect
+            </div>
+            <img id="college-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" class="h-8 w-auto rounded-lg hidden" alt="College Logo"/>
+            <div id="college-title" class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim hidden"></div>
+        </div>
+        <div class="flex items-center space-x-4 relative">
+            <p id="student-name-header" class="text-xs text-on-surface-variant font-medium hidden md:block"></p>
+            <button id="quick-actions-btn" class="material-symbols-outlined text-primary hover:bg-surface-container-high p-2 rounded-full transition-colors active:scale-95 duration-150">more_vert</button>
+            <a href="../notifications/notifications.html" class="material-symbols-outlined text-primary hover:bg-surface-container-high p-2 rounded-full transition-colors active:scale-95 duration-150">notifications</a>
+            
+            <!-- Quick Actions Panel Dropdown (Toggled by home.js) -->
+            <div id="quick-actions-panel" class="hidden absolute top-12 right-0 bg-surface-container-lowest rounded-xl shadow-2xl p-4 w-64 z-50 border border-outline-variant">
+                <h4 class="font-bold text-gray-800 mb-3 text-sm flex items-center">
+                    <span class="material-symbols-outlined text-primary mr-2">more_vert</span>
+                    Quick Actions
+                </h4>
+                <div class="space-y-2">
+                    <button id="report-issue-btn" class="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-container-high transition-colors flex items-center text-sm group">
+                        <div class="w-8 h-8 bg-error-container rounded-lg flex items-center justify-center mr-3">
+                            <span class="material-symbols-outlined text-error">report</span>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800">Report Issue</p>
+                            <p class="text-xs text-gray-500">Bus delays or issues</p>
+                        </div>
+                    </button>
+                    <button id="emergency-btn" class="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-container-high transition-colors flex items-center text-sm group">
+                        <div class="w-8 h-8 bg-secondary-fixed rounded-lg flex items-center justify-center mr-3">
+                            <span class="material-symbols-outlined text-secondary">phone_in_talk</span>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800">Emergency Contact</p>
+                            <p class="text-xs text-gray-500">Call support hotline</p>
+                        </div>
+                    </button>
+                    <button id="download-pass-btn" class="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-container-high transition-colors flex items-center text-sm group">
+                        <div class="w-8 h-8 bg-primary-fixed rounded-lg flex items-center justify-center mr-3">
+                            <span class="material-symbols-outlined text-primary">download</span>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800">Download Pass</p>
+                            <p class="text-xs text-gray-500">Save pass details</p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Navigation Menu Drawer -->
+    <div id="mobile-menu" class="hidden fixed top-16 left-0 w-full bg-surface-container-low border-b border-outline-variant shadow-lg z-50 md:hidden">
+        <div class="p-4 flex flex-col space-y-2">
+            <a class="flex items-center space-x-3 p-3 bg-primary-container text-on-primary-container rounded-lg font-bold" href="../home/home.html">
+                <span class="material-symbols-outlined">home</span>
+                <span class="font-label-md text-label-md">Home</span>
+            </a>
+            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../track/track.html">
+                <span class="material-symbols-outlined">explore</span>
+                <span class="font-label-md text-label-md">Live Track</span>
+            </a>
+            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../bus-pass/bus-pass.html">
+                <span class="material-symbols-outlined">confirmation_number</span>
+                <span class="font-label-md text-label-md">Bus Pass</span>
+            </a>
+            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../notifications/notifications.html">
+                <span class="material-symbols-outlined">warning</span>
+                <span class="font-label-md text-label-md">Alerts</span>
+            </a>
+            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../lost-found/lost-found.html">
+                <span class="material-symbols-outlined">inventory_2</span>
+                <span class="font-label-md text-label-md">Lost & Found</span>
+            </a>
+            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../profile/profile.html">
+                <span class="material-symbols-outlined">person</span>
+                <span class="font-label-md text-label-md">Profile</span>
+            </a>
+            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../help/help.html">
+                <span class="material-symbols-outlined">help</span>
+                <span class="font-label-md text-label-md">Help FAQs</span>
+            </a>
+            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../search/search.html">
+                <span class="material-symbols-outlined">search</span>
+                <span class="font-label-md text-label-md">Search Buses</span>
+            </a>
+            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../support/support.html">
+                <span class="material-symbols-outlined">support_agent</span>
+                <span class="font-label-md text-label-md">Support Desk</span>
+            </a>
+            <hr class="border-outline-variant my-2" />
+            <button id="logout-button" class="flex items-center space-x-3 w-full p-3 hover:bg-error-container text-error rounded-lg transition-colors">
+                <span class="material-symbols-outlined">logout</span>
+                <span class="font-label-md text-label-md">Logout</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- SideNavBar (Desktop Only) -->
+    <nav class="fixed left-0 top-0 h-full w-64 z-40 hidden md:flex flex-col bg-surface-container-low dark:bg-surface-container-lowest p-4 space-y-2 pt-20">
+        <div class="mb-6 px-2">
+            <h2 id="sidebar-default-logo" class="font-headline-md text-headline-md font-bold text-primary">Cambus Connect</h2>
+            <h2 id="sidebar-college-title" class="font-headline-md text-headline-md font-bold text-primary hidden"></h2>
+            <p class="font-label-sm text-on-surface-variant">Student Transit Portal</p>
+        </div>
+        <a class="flex items-center space-x-3 p-3 bg-primary-container text-on-primary-container rounded-lg font-bold transition-all" href="../home/home.html">
+            <span class="material-symbols-outlined">home</span>
+            <span class="font-label-md text-label-md">Home</span>
+        </a>
+        <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../track/track.html">
+            <span class="material-symbols-outlined">explore</span>
+            <span class="font-label-md text-label-md">Live Track</span>
+        </a>
+        <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../bus-pass/bus-pass.html">
+            <span class="material-symbols-outlined">confirmation_number</span>
+            <span class="font-label-md text-label-md">Bus Pass</span>
+        </a>
+        <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../notifications/notifications.html">
+            <span class="material-symbols-outlined">warning</span>
+            <span class="font-label-md text-label-md">Alerts</span>
+        </a>
+        <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../lost-found/lost-found.html">
+            <span class="material-symbols-outlined">inventory_2</span>
+            <span class="font-label-md text-label-md">Lost & Found</span>
+        </a>
+        <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../profile/profile.html">
+            <span class="material-symbols-outlined">person</span>
+            <span class="font-label-md text-label-md">Profile</span>
+        </a>
+        <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../help/help.html">
+            <span class="material-symbols-outlined">help</span>
+            <span class="font-label-md text-label-md">Help FAQs</span>
+        </a>
+        <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../search/search.html">
+            <span class="material-symbols-outlined">search</span>
+            <span class="font-label-md text-label-md">Search Buses</span>
+        </a>
+        <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../support/support.html">
+            <span class="material-symbols-outlined">support_agent</span>
+            <span class="font-label-md text-label-md">Support Desk</span>
+        </a>
+        
+        <div class="mt-auto pt-4 border-t border-outline-variant">
+            <button id="logout-button-desktop" onclick="localStorage.clear(); window.location.href='../student-login.html';" class="w-full py-3 bg-error-container text-error rounded-xl font-bold flex items-center justify-center space-x-2 hover:bg-error hover:text-white transition-all">
+                <span class="material-symbols-outlined">logout</span>
+                <span>Logout</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content Canvas -->
+    <main class="pt-20 pb-24 md:pl-72 md:pt-24 px-margin-mobile md:px-margin-desktop min-h-screen">
+        <!-- Route Merge Warning Banner -->
+        <div id="route-merge-warning-banner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-2xl mb-6 flex items-start gap-3 shadow-md animate-pulse">
+            <span class="material-symbols-outlined text-amber-600">warning</span>
+            <div class="flex-1">
+                <h4 class="font-bold text-amber-900 text-sm">Route Consolidated Alert</h4>
+                <p id="route-merge-warning-text" class="text-xs text-amber-800 leading-relaxed mt-0.5"></p>
+            </div>
+        </div>
+
+        <!-- Next Day Arrival Info Banner -->
+        <div id="next-day-arrival-info" class="hidden bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-2xl mb-6 flex items-start gap-3 shadow-md">
+            <span class="material-symbols-outlined text-indigo-600">schedule</span>
+            <div class="flex-1">
+                <h4 class="font-bold text-indigo-900 text-sm">Next Day Dispatch ETA</h4>
+                <p id="next-day-arrival-text" class="text-xs text-indigo-800 leading-relaxed mt-0.5">Expected Arrival Time tomorrow: Loading...</p>
+                <p id="next-day-holiday-text" class="text-[10px] text-indigo-500 mt-0.5 font-medium"></p>
+            </div>
+        </div>
+
+        <!-- Welcome Header -->
+        <section class="mb-lg">
+            <h1 id="welcome-message" class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-xs">Welcome back</h1>
+            <p class="font-body-md text-body-md text-on-surface-variant">Your next bus is arriving in approximately <span id="eta-minutes" class="font-bold">--</span> minutes.</p>
+        </section>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+            <!-- Bento Grid Left -->
+            <div class="lg:col-span-8 space-y-gutter">
+                <!-- Live Card: Assigned Bus Status -->
+                <div class="bg-surface-container-lowest rounded-xl p-md border-l-8 border-primary shadow-md relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-md">
+                        <div>
+                            <span class="inline-block px-3 py-1 bg-primary text-on-primary rounded-full font-mono-data text-label-sm mb-sm" id="home-route">Loading Route...</span>
+                            <h3 class="font-headline-md text-headline-md">Your Assigned Bus</h3>
+                        </div>
+                        <div class="text-right">
+                            <div id="bus-status" class="text-secondary font-mono-data text-headline-md flex items-center justify-end">
+                                <span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                                On Time
+                            </div>
+                            <p class="font-label-sm text-label-sm text-on-surface-variant mt-1">Pass Validity: <span id="home-validity" class="font-bold">Loading...</span></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="../track/track.html" class="flex-1 py-3 bg-primary text-on-primary rounded-lg font-label-md hover:opacity-90 transition-opacity flex items-center justify-center space-x-2">
+                            <span class="material-symbols-outlined">map</span>
+                            <span>Track Live</span>
+                        </a>
+                        <a href="../bus-pass/bus-pass.html" class="flex-1 py-3 border border-outline text-on-surface rounded-lg font-label-md hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-2">
+                            <span class="material-symbols-outlined">confirmation_number</span>
+                            <span>Show Bus Pass</span>
+                        </a>
+                    </div>
+                </div>
+
+
+                <!-- Quick Access Shortcuts -->
+                <div>
+                    <h3 class="font-headline-md text-headline-md text-on-surface mb-md flex items-center">
+                        <span class="w-1 h-6 bg-primary rounded-full mr-3"></span>
+                        Quick Shortcuts
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="home-shortcuts">
+                        <!-- Loaded dynamically by home.js -->
+                    </div>
+                </div>
+
+                <!-- Today's Schedule Widget -->
+                <div class="bg-surface-container-lowest rounded-xl p-md border border-outline-variant shadow-sm">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+                        <span class="material-symbols-outlined text-primary mr-2">calendar_today</span>
+                        Today's Schedule
+                    </h3>
+                    <div id="schedule-widget" class="space-y-3">
+                        <!-- Loaded dynamically by home.js -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bento Grid Right -->
+            <div class="lg:col-span-4 space-y-gutter">
+                <!-- Recent Updates / Notifications -->
+                <div class="bg-surface-container-lowest rounded-xl p-md border border-outline-variant shadow-sm">
+                    <div class="flex items-center justify-between mb-md">
+                        <h3 class="font-label-md font-bold text-on-surface uppercase tracking-wider">Recent Alerts</h3>
+                        <a href="../notifications/notifications.html" class="text-primary font-label-sm hover:underline">View All</a>
+                    </div>
+                    <div class="space-y-3" id="home-notifications">
+                        <!-- Loaded dynamically by home.js -->
+                    </div>
+                </div>
+
+                <!-- Weather Widget -->
+                <div class="bg-surface-container-lowest rounded-xl p-md border border-outline-variant shadow-sm">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+                        <span class="material-symbols-outlined text-primary mr-2">wb_sunny</span>
+                        Today's Weather
+                    </h3>
+                    <div id="weather-widget" class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center text-white">
+                                <span class="material-symbols-outlined text-white">wb_sunny</span>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-gray-800">28°C</p>
+                                <p class="text-sm text-gray-500">Sunny & Clear</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm text-gray-600">Perfect commute weather!</p>
+                            <p class="text-xs text-gray-400 mt-1">No rain expected</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pro Tip of the Day -->
+                <div class="bg-surface-container-lowest rounded-xl p-md border-l-4 border-primary shadow-sm">
+                    <h3 class="font-bold text-gray-800 mb-2 flex items-center">
+                        <span class="material-symbols-outlined text-primary mr-2">lightbulb</span>
+                        Daily Tip
+                    </h3>
+                    <p id="daily-tip" class="text-sm text-gray-700">Loading daily tip...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- BottomNavBar (Mobile Only) -->
+    <nav class="fixed bottom-0 left-0 w-full z-50 rounded-t-xl md:hidden bg-surface-container dark:bg-surface-container-highest shadow-lg flex justify-around items-center px-4 py-2 pb-safe">
+        <a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-2xl px-4 py-1 transition-all" href="../home/home.html">
+            <span class="material-symbols-outlined">home</span>
+            <span class="font-label-sm text-label-sm-mobile font-bold">Home</span>
+        </a>
+        <a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant p-2 rounded-lg" href="../track/track.html">
+            <span class="material-symbols-outlined">explore</span>
+            <span class="font-label-sm text-label-sm-mobile">Track</span>
+        </a>
+        <a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant p-2 rounded-lg" href="../bus-pass/bus-pass.html">
+            <span class="material-symbols-outlined">confirmation_number</span>
+            <span class="font-label-sm text-label-sm-mobile">Pass</span>
+        </a>
+        <a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant p-2 rounded-lg" href="../notifications/notifications.html">
+            <span class="material-symbols-outlined">warning</span>
+            <span class="font-label-sm text-label-sm-mobile">Alerts</span>
+        </a>
+        <a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant p-2 rounded-lg" href="../lost-found/lost-found.html">
+            <span class="material-symbols-outlined">inventory_2</span>
+            <span class="font-label-sm text-label-sm-mobile">Lost</span>
+        </a>
+    </nav>
+
+    <!-- Scripts -->
+    <script src="../../../db-helper.js"></script>
+    <script src="../../../main.js"></script>
+    <script src="home.js"></script>
+</body>
+</html>

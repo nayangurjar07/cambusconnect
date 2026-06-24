@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isLoggedIn === 'true') {
         const role = localStorage.getItem('userRole');
         if (role === 'admin') window.location.href = 'admin.html';
-        else if (role === 'student') window.location.href = '../student/home.html';
+        else if (role === 'student') window.location.href = '../student/home/home.html';
         else if (role === 'driver') window.location.href = '../driver/driverhome.html';
         else if (role === 'owner') window.location.href = '../owner/owner.html';
         return;

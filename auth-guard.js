@@ -36,7 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Determine prefix back to root folder dynamically
     let prefix = '';
     if (path.includes('/portals/')) {
-        prefix = '../../';
+        const portalPart = path.split('/portals/')[1];
+        const slashCount = (portalPart.match(/\//g) || []).length;
+        prefix = '../'.repeat(slashCount + 1);
     } else if (path.includes('/owner/') || path.includes('/admin/') || path.includes('/student/') || path.includes('/driver/')) {
         prefix = '../';
     }
@@ -53,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const adminHomePath = prefix + 'portals/admin/admin.html';
-    const studentHomePath = prefix + 'portals/student/home.html';
+    const studentHomePath = prefix + 'portals/student/home/home.html';
     const driverHomePath = prefix + 'portals/driver/driverhome.html';
     const ownerHomePath = prefix + 'portals/owner/owner.html';
 

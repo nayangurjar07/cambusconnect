@@ -1,0 +1,76 @@
+Created At: 2026-06-23T17:26:55Z
+Completed At: 2026-06-23T17:26:55Z
+File Path: `file:///c:/Users/07nay/Desktop/sanboxing%20the%20cambus/portals/driver/driverhome.html`
+Total Lines: 482
+Total Bytes: 31102
+Showing lines 1 to 482
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: <!DOCTYPE html>
+2: <html class="light" lang="en">
+3: <head>
+4:     <meta charset="utf-8"/>
+5:     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+6:     <title>Driver Console | Cambus Connect</title>
+7:     
+8:     <!-- Auth Guard checks login status immediately -->
+9:     <script src="../../auth-guard.js"></script>
+10: 
+11:     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+12:     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+13:     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+14:     
+15:     <!-- Firebase ESM Configuration -->
+16:     <script type="importmap">
+17:       {
+18:         "imports": {
+19:           "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
+20:           "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
+21:           "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
+22:         }
+23:       }
+24:     </script>
+25:     <script type="module" src="../../firebase-init.js"></script>
+26:     <script type="module" src="../../app.js"></script>
+27:     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+28: 
+29:     <style>
+30:         .material-symbols-outlined {
+31:             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+32:        
+<truncated 29860 bytes>
+terial-symbols-outlined text-slate-400 hover:bg-slate-100 p-1.5 rounded-full transition-colors">close</button>
+449:             </div>
+450:             
+451:             <div id="confirm-student-details" class="space-y-3.5">
+452:                 <!-- Populated dynamically -->
+453:             </div>
+454: 
+455:             <div class="flex gap-3 pt-3 border-t border-slate-100">
+456:                 <button id="btn-cancel-confirm" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all">
+457:                     Cancel
+458:                 </button>
+459:                 <button id="btn-action-confirm" class="flex-grow-[2] py-3 bg-primary hover:bg-primary-dark text-white text-xs font-extrabold rounded-xl transition-all shadow-md shadow-primary/20">
+460:                     Confirm & Add (+1)
+461:                 </button>
+462:             </div>
+463:         </div>
+464:     </div>
+465: 
+466:     <!-- Toast Banner for Fast Headcount results -->
+467:     <div id="toast-verify-result" class="fixed top-5 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center space-x-3 translate-y-[-100px] opacity-0 transition-all duration-300 z-[200]">
+468:         <span id="toast-verify-icon" class="material-symbols-outlined text-green-400 text-2xl">check_circle</span>
+469:         <div>
+470:             <p id="toast-verify-title" class="font-extrabold text-sm">Pass Verified</p>
+471:             <p id="toast-verify-msg" class="text-xs text-slate-400 mt-0.5">Checked in John Doe.</p>
+472:         </div>
+473:     </div>
+474: 
+475:     <!-- Scripts -->
+476:     <script src="../../db-helper.js"></script>
+477:     <script src="../../main.js"></script>
+478:     <script src="../../optimal-route-optimizer/engine/CambusPassVerificationSystem.js"></script>
+479:     <script src="driverhome.js"></script>
+480: </body>
+481: </html>
+482: 
+The above content shows the entire, complete file contents of the requested file.

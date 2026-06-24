@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isLoggedIn === 'true') {
         const role = localStorage.getItem('userRole');
         if (role === 'driver') window.location.href = 'driverhome.html';
-        else if (role === 'student') window.location.href = '../student/home.html';
+        else if (role === 'student') window.location.href = '../student/home/home.html';
         else if (role === 'admin') window.location.href = '../admin/admin.html';
         else if (role === 'owner') window.location.href = '../owner/owner.html';
         return;
@@ -93,35 +93,35 @@ document.addEventListener('DOMContentLoaded', () => {
         let lastError = null;
         let successfulTenant = null;
 
-        for (const tenant of tenantsToTry) {
-            try {
-                const activeKey = localStorage.getItem('activeTenantKey');
-                if (activeKey !== tenant.tenantKey) {
-                    await window.reinitializeFirebase(tenant.tenantKey);
-                }
-                await window.auth.signInWithEmailAndPassword(email, password);
-                loggedIn = true;
-                successfulTenant = tenant;
-                break;
-            } catch (err) {
-                console.warn(`⚠️ Auth failed on tenant ${tenant.tenantKey}:`, err.code, err.message);
-                lastError = err;
-                if (err.code === 'auth/wrong-password') {
+        try {
+            for (const tenant of tenantsToTry) {
+                try {
+                    const activeKey = localStorage.getItem('activeTenantKey');
+                    if (activeKey !== tenant.tenantKey) {
+                        await window.reinitializeFirebase(tenant.tenantKey);
+                    }
+                    await window.auth.signInWithEmailAndPassword(email, password);
+                    loggedIn = true;
+                    successfulTenant = tenant;
                     break;
-                }
-                if (err.code !== 'auth/user-not-found' && err.code !== 'auth/invalid-credential') {
-                    break;
+                } catch (err) {
+                    console.warn(`⚠️ Auth failed on tenant ${tenant.tenantKey}:`, err.code, err.message);
+                    lastError = err;
+                    if (err.code === 'auth/wrong-password') {
+                        break;
+                    }
+                    if (err.code !== 'auth/user-not-found' && err.code !== 'auth/invalid-credential') {
+                        break;
+                    }
                 }
             }
-        }
 
-        if (!loggedIn) {
-            throw lastError || new Error("Authentication failed.");
-        }
+            if (!loggedIn) {
+                throw lastError || new Error("Authentication failed.");
+            }
 
-        tenantInfo = successfulTenant;
+            tenantInfo = successfulTenant;
 
-        try {
             localStorage.setItem('instituteId', tenantInfo.domain);
             localStorage.setItem('activeTenantKey', tenantInfo.tenantKey);
 
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'auth/too-many-requests': msg = "❌ Too many attempts. Try after 5 minutes."; break;
                 case 'auth/network-request-failed': msg = "❌ Network error."; break;
                 default:
-                    if (error.message.includes("Profile not found")) msg = "❌ Account exists in Auth but profile not found in database. Contact admin.";
+                    if (error.message && error.message.includes("Profile not found")) msg = "❌ Account exists in Auth but profile not found in database. Contact admin.";
                     else msg = `❌ ${error.message}`;
             }
             showError(msg);

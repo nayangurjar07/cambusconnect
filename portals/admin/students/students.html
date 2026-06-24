@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Students | Admin | Cambus Connect</title>
+    
+    <!-- Auth Guard check -->
+    <script src="../../../auth-guard.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Firebase ESM Configuration -->
+    <script type="importmap">
+      {
+        "imports": {
+          "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
+          "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
+        }
+      }
+    </script>
+    <script type="module" src="../../../firebase-init.js"></script>
+    <script type="module" src="../../../app.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8f9ff; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c4c5d7;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #747686;
+        }
+        .modal-active {
+            display: flex !important;
+        }
+    </style>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+              "primary-container": "var(--primary-color, #1d4ed8)",
+              "error": "#ba1a1a",
+              "tertiary": "#004f35",
+              "on-tertiary-container": "#60eeb1",
+              "error-container": "#ffdad6",
+              "on-primary-fixed-variant": "#0039b5",
+              "outline": "#747686",
+              "outline-variant": "#c4c5d7",
+              "on-background": "var(--text-color, #0b1c30)",
+              "primary": "var(--primary-color, #0037b0)",
+              "inverse-primary": "#b7c4ff",
+              "secondary-fixed-dim": "#ffb690",
+              "secondary": "var(--secondary-color, #9d4300)",
+              "on-secondary": "#ffffff",
+              "on-primary-container": "#cad3ff",
+              "on-surface-variant": "#434655",
+              "on-secondary-fixed-variant": "#783200",
+              "tertiary-fixed-dim": "#4edea3",
+              "on-primary-fixed": "#001551",
+              "on-tertiary-fixed": "#002113",
+              "on-secondary-fixed": "#341100",
+              "surface-tint": "#2151da",
+              "primary-fixed": "#dce1ff",
+              "on-error": "#ffffff",
+              "surface": "#f8f9ff",
+              "surface-container-high": "#dce9ff",
+              "secondary-fixed": "#ffdbca",
+              "on-surface": "var(--text-color, #0b1c30)",
+              "secondary-container": "#fd761a",
+              "surface-variant": "#d3e4fe",
+              "tertiary-fixed": "#6ffbbe",
+              "surface-dim": "#cbdbf5",
+              "inverse-surface": "#213145",
+              "inverse-on-surface": "#eaf1ff",
+              "background": "var(--bg-color, #f8f9ff)",
+              "surface-bright": "#f8f9ff",
+              "on-secondary-container": "#5c2400",
+              "surface-container": "#e5eeff",
+              "on-primary": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "surface-container-highest": "#d3e4fe",
+              "surface-container-low": "#eff4ff",
+              "primary-fixed-dim": "#b7c4ff",
+              "on-tertiary": "#ffffff",
+              "tertiary-container": "#006a48",
+              "on-tertiary-fixed-variant": "#005236",
+              "on-error-container": "#93000a"
+            },
+            "borderRadius": {
+              "DEFAULT": "0.25rem",
+              "lg": "0.5rem",
+              "xl": "0.75rem",
+              "full": "9999px"
+            },
+            "spacing": {
+              "xl": "48px",
+              "margin-desktop": "32px",
+              "margin-mobile": "16px",
+              "base": "4px",
+              "xs": "4px",
+              "gutter": "16px",
+              "sm": "8px",
+              "md": "16px",
+              "lg": "24px"
+            },
+            "fontFamily": {
+              "headline-md": ["Inter"],
+              "label-sm": ["Inter"],
+              "label-md": ["Inter"],
+              "body-lg": ["Inter"],
+              "headline-lg-mobile": ["Inter"],
+              "body-md": ["Inter"],
+              "mono-data": ["Inter"],
+              "headline-lg": ["Inter"]
+            },
+            "fontSize": {
+              "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+              "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+              "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+              "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+              "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+              "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+              "mono-data": ["16px", { "lineHeight": "24px", "fontWeight": "700" }],
+              "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-surface">
+    <!-- Enhanced Sidebar -->
+    <aside class="h-screen w-64 fixed left-0 top-0 bg-surface border-r border-outline-variant shadow-sm z-50 flex flex-col p-md gap-sm">
+        <div class="mb-6 px-sm">
+            <h1 id="sidebar-default-logo" class="text-headline-md font-headline-md font-black text-primary">Cambus Connect</h1>
+            <h1 id="sidebar-college-title" class="text-headline-md font-headline-md font-black text-primary hidden"></h1>
+            <p class="text-label-sm text-on-surface-variant font-medium">Administrator Control</p>
+        </div>
+        
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100 mb-4">
+            <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Signed in as</p>
+            <p id="admin-name-display" class="text-sm font-bold text-slate-800">Administrator</p>
+        </div>
+
+        <nav class="flex-grow space-y-base overflow-y-auto custom-scrollbar">
+            <!-- Buses Tab -->
+            <a href="../buses/buses.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">directions_bus</span>
+                <span class="font-label-md text-label-md">Bus Fleet</span>
+            </a>
+            <!-- Students Tab (Active) -->
+            <a href="#" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-left bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 group">
+                <span class="material-symbols-outlined text-white">groups</span>
+                <span class="font-label-md text-label-md">Students</span>
+            </a>
+            <!-- Staff Directory Tab -->
+            <a href="../staff/staff.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">badge</span>
+                <span class="font-label-md text-label-md">Staff Directory</span>
+            </a>
+            <!-- Live Tracking Tab -->
+            <a href="../admin-track.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">explore</span>
+                <span class="font-label-md text-label-md">Live Tracking</span>
+            </a>
+            <!-- Route Optimizer Tab -->
+            <a href="../route-optimizer/optimizer.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">settings_suggest</span>
+                <span class="font-label-md text-label-md">Route Optimizer</span>
+            </a>
+            
+            
+            
+            
+            
+            <!-- Notifications Tab -->
+            <a href="../notifications/notifications.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">notifications</span>
+                <span class="font-label-md text-label-md">Notifications</span>
+            </a>
+            <!-- Lost & Found Tab -->
+            <a href="../lost-found/lost-found.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">inventory_2</span>
+                <span class="font-label-md text-label-md">Lost & Found</span>
+            </a>
+            <!-- Support Tab -->
+            <a href="../support/support.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left relative">
+                <span class="material-symbols-outlined">support_agent</span>
+                <span class="font-label-md text-label-md">Support Desk</span>
+                <span id="pending-badge" class="hidden ml-auto px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">0</span>
+            </a>
+
+            <!-- GPS Settings Tab -->
+            <a href="../gps-settings/gps-settings.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">settings_input_antenna</span>
+                <span class="font-label-md text-label-md">GPS Settings</span>
+            </a>
+
+            <!-- Shift Management Tab -->
+            <a href="../shifts/shifts.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">schedule</span>
+                <span class="font-label-md text-label-md">Shift Management</span>
+            </a>
+            <!-- Pass Scanner Tab -->
+            <a href="../scan-pass.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">qr_code_scanner</span>
+                <span class="font-label-md text-label-md">Pass Scanner</span>
+            </a>
+        </nav>
+        
+        <div class="mt-auto pt-4 border-t border-outline-variant">
+            <button id="logout-btn" class="w-full py-3 bg-error-container text-error rounded-xl font-bold flex items-center justify-center space-x-2 hover:bg-error hover:text-white transition-all">
+                <span class="material-symbols-outlined">logout</span>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- TopAppBar -->
+    <header class="flex justify-between items-center h-16 px-margin-desktop ml-64 bg-surface/80 backdrop-blur-md sticky top-0 z-40 border-b border-outline-variant">
+        <h2 class="text-headline-md font-headline-md font-black text-primary" id="admin-page-title">Student Directory</h2>
+        <div class="flex items-center gap-lg">
+            <div class="flex items-center gap-md">
+                <a href="../admin-track.html" class="flex items-center gap-xs px-4 py-2 bg-primary text-on-primary rounded-lg font-label-md hover:bg-primary-container transition-all text-sm font-semibold">
+                    <span class="material-symbols-outlined text-[18px]">explore</span>
+                    <span>Fleet Map View</span>
+                </a>
+                <!-- Route Optimizer Tab -->
+                <a href="../route-optimizer/optimizer.html" class="flex items-center gap-xs px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-label-md transition-all text-sm font-semibold">
+                    <span class="material-symbols-outlined text-[18px]">settings_suggest</span>
+                    <span>Route Optimizer</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="ml-64 p-margin-desktop min-h-screen">
+        <!-- ==================== VIEW: STUDENTS ==================== -->
+        <div id="view-students" class="view-container space-y-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Student Directory</h2>
+                    <p class="font-body-md text-on-surface-variant mt-1">Register student accounts and modify transit pass validity</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="import-students-btn" class="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all text-sm">
+                        <span class="material-symbols-outlined text-[18px]">upload_file</span>
+                        <span>Import CSV</span>
+                    </button>
+
+                    <!-- ✦ FILTER DROPDOWN BUTTON -->
+                    <div class="relative" id="filter-dropdown-wrapper">
+                        <button id="filter-dropdown-btn" type="button"
+                            class="flex items-center gap-2 px-5 py-3 bg-white border-2 border-slate-200 hover:border-primary text-slate-700 hover:text-primary rounded-xl font-bold shadow-sm hover:shadow-md active:scale-95 transition-all text-sm group">
+                            <span class="material-symbols-outlined text-[18px] group-hover:text-primary transition-colors">filter_alt</span>
+                            <span>Filters</span>
+                            <span id="filter-active-badge" class="hidden ml-1 w-2 h-2 bg-blue-500 rounded-full"></span>
+                            <span class="material-symbols-outlined text-[16px] text-slate-400 group-hover:text-primary transition-all" id="filter-chevron">expand_more</span>
+                        </button>
+
+                        <!-- DROPDOWN PANEL -->
+                        <div id="filter-dropdown-panel"
+                            class="hidden absolute right-0 top-[calc(100%+8px)] w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-900/15 z-50 overflow-hidden">
+
+                            <!-- Header -->
+                            <div class="px-4 py-3 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 flex items-center justify-between">
+                                <span class="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[14px] text-primary">filter_alt</span>
+                                    Directories &amp; Filters
+                                </span>
+                                <button id="btn-clear-student-filters" type="button" class="text-[10px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-0.5 transition-colors">
+                                    <span class="material-symbols-outlined text-[12px]">filter_alt_off</span>
+                                    Reset
+                                </button>
+                            </div>
+
+                            <div class="p-3 space-y-1">
+
+                                <!-- Academic Year accordion -->
+                                <div>
+                                    <button type="button" id="year-accordion-btn"
+                                        class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-50 text-slate-700 transition-colors text-sm font-semibold">
+                                        <span class="material-symbols-outlined text-[16px] text-slate-400">school</span>
+                                        <span class="flex-1 text-left">Academic Year</span>
+                                        <span id="filter-year-label" class="text-[10px] font-black text-primary bg-blue-50 px-2 py-0.5 rounded-full">All</span>
+                                        <span class="material-symbols-outlined text-[14px] text-slate-400 transition-transform duration-200" id="year-chevron">expand_more</span>
+                                    </button>
+                                    <!-- Inline Year Options -->
+                                    <div id="year-accordion-panel" class="hidden px-2 pb-1">
+                                        <div class="bg-slate-50 rounded-xl overflow-hidden divide-y divide-slate-100">
+                                            <button data-year="all" class="year-filter-opt w-full text-left px-4 py-2.5 text-xs font-bold text-primary hover:bg-blue-50 transition-colors flex items-center gap-2">
+                                                <span class="material-symbols-outlined text-[13px]">done_all</span> All Years
+                                            </button>
+                                            <button data-year="1st Year" class="year-filter-opt w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors">1st Year</button>
+                                            <button data-year="2nd Year" class="year-filter-opt w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors">2nd Year</button>
+                                            <button data-year="3rd Year" class="year-filter-opt w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors">3rd Year</button>
+                                            <button data-year="4th Year" class="year-filter-opt w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors">4th Year</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sub-Institute accordion -->
+                                <div>
+                                    <button type="button" id="inst-accordion-btn"
+                                        class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-50 text-slate-700 transition-colors text-sm font-semibold">
+                                        <span class="material-symbols-outlined text-[16px] text-slate-400">domain</span>
+                                        <span class="flex-1 text-left">Sub-Institute</span>
+                                        <span id="filter-inst-label" class="text-[10px] font-black text-primary bg-blue-50 px-2 py-0.5 rounded-full">All</span>
+                                        <span class="material-symbols-outlined text-[14px] text-slate-400 transition-transform duration-200" id="inst-chevron">expand_more</span>
+                                    </button>
+                                    <!-- Inline Sub-Institute Options -->
+                                    <div id="inst-accordion-panel" class="hidden px-2 pb-1">
+                                        <div id="sub-inst-submenu" class="bg-slate-50 rounded-xl overflow-hidden divide-y divide-slate-100">
+                                            <button data-inst="all" class="inst-filter-opt w-full text-left px-4 py-2.5 text-xs font-bold text-primary hover:bg-blue-50 transition-colors flex items-center gap-2">
+                                                <span class="material-symbols-outlined text-[13px]">done_all</span> All Sub-Institutes
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Divider -->
+                                <div class="border-t border-slate-100 my-1"></div>
+
+                                <!-- Add Sub-Institute inline -->
+                                <div class="px-3 py-2 space-y-2">
+                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-[12px]">add_circle</span>
+                                        Add Sub-Institute
+                                    </p>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="input-new-sub-institute"
+                                            placeholder="Enter name..."
+                                            class="flex-1 px-3 py-2 border border-outline-variant rounded-xl focus:border-primary bg-slate-50 text-xs transition-all outline-none font-medium">
+                                        <button type="button" id="btn-add-sub-institute"
+                                            class="bg-primary hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center shrink-0 active:scale-95">
+                                            <span class="material-symbols-outlined text-[16px]">add</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <!-- Hidden inputs for actual filter values -->
+                            <input type="hidden" id="filter-student-year" value="all">
+                            <input type="hidden" id="filter-student-sub-institute" value="all">
+                            <input type="hidden" id="filter-student-shift" value="all">
+                        </div>
+                    </div>
+
+                    <button id="add-student-btn" class="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all text-sm">
+                        <span class="material-symbols-outlined text-[18px]">person_add</span>
+                        <span>Register Student</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Full Width Content -->
+            <div class="space-y-4">
+                <!-- Search & Count Bar -->
+                <div class="flex flex-col sm:flex-row items-center gap-4 bg-surface-container-low border border-outline-variant p-4 rounded-xl shadow-sm">
+                    <div class="relative w-full sm:flex-1">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+                        <input type="text" id="search-student" placeholder="Search by name, ID, or enrollment number..." class="w-full pl-10 pr-4 py-3 bg-surface border-2 border-outline-variant focus:border-primary rounded-xl outline-none transition-all font-body-md text-body-md">
+                    </div>
+                    <div class="px-5 py-3 bg-primary-container text-on-primary-container rounded-xl font-bold text-sm shrink-0">
+                        Filtered: <span id="student-count">0</span> / <span id="student-total-count">0</span> Registered
+                    </div>
+                </div>
+
+                <!-- ✦ SHIFT SWITCHER STRIP (visible only when Shift 2 is enabled) -->
+                <div id="shift-switcher-strip" class="hidden">
+                    <div class="relative flex items-center gap-1 bg-white border border-outline-variant rounded-2xl p-1.5 shadow-sm overflow-hidden">
+                        <!-- Animated sliding background -->
+                        <span id="shift-strip-slider" class="absolute top-1.5 bottom-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30 transition-all duration-300 ease-in-out" style="left:6px; width:calc(33.33% - 6px);"></span>
+                        <!-- All -->
+                        <button type="button" data-val="all" id="strip-chip-all"
+                            class="shift-strip-chip relative z-10 flex-1 py-2.5 text-xs font-bold rounded-xl text-white transition-all duration-200 flex items-center justify-center gap-1.5">
+                            <span class="material-symbols-outlined text-[14px]">grid_view</span>
+                            All Students
+                        </button>
+                        <!-- Shift 1 -->
+                        <button type="button" data-val="Shift 1" id="strip-chip-shift1"
+                            class="shift-strip-chip relative z-10 flex-1 py-2.5 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all duration-200 flex items-center justify-center gap-1.5">
+                            <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                            Shift 1
+                        </button>
+                        <!-- Shift 2 -->
+                        <button type="button" data-val="Shift 2" id="strip-chip-shift2"
+                            class="shift-strip-chip relative z-10 flex-1 py-2.5 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all duration-200 flex items-center justify-center gap-1.5">
+                            <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+                            Shift 2
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Single Panel (Merged / Single Shift) -->
+                <div id="student-single-panel" class="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-surface-container-low border-b border-outline-variant">
+                                <tr>
+                                    <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Student Name</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Email Address</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Enrollment ID</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Assigned Bus</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Pass Valid Until</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-table-body" class="divide-y divide-outline-variant bg-white">
+                                <tr>
+                                    <td colspan="6" class="px-6 py-12 text-center text-on-surface-variant">Loading student directory...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Split Panels (When Shift 2 is active) -->
+                <div id="student-split-panels" class="hidden space-y-4">
+
+                    <!-- Shift 1 Panel -->
+                    <div id="panel-shift1" class="bg-surface-container-lowest border-2 border-blue-100 rounded-2xl overflow-hidden shadow-sm">
+                        <div class="px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 flex items-center gap-3">
+                            <span class="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse"></span>
+                            <h3 class="text-sm font-black text-blue-800 uppercase tracking-wider" id="label-shift-1-panel">Shift 1 Students</h3>
+                            <span id="shift1-count-badge" class="ml-auto px-2.5 py-0.5 bg-blue-100 text-blue-700 text-[11px] font-black rounded-full">0</span>
+                        </div>
+                        <div class="overflow-x-auto custom-scrollbar">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-slate-50 border-b border-outline-variant">
+                                    <tr>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Student Name</th>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Email Address</th>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Enrollment ID</th>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Assigned Bus</th>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Pass Valid Until</th>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="student-table-body-shift1" class="divide-y divide-outline-variant bg-white">
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-12 text-center text-on-surface-variant">No Shift 1 students found.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Shift 2 Panel -->
+                    <div id="panel-shift2" class="bg-surface-container-lowest border-2 border-purple-100 rounded-2xl overflow-hidden shadow-sm">
+                        <div class="px-6 py-3 bg-gradient-to-r from-purple-50 to-fuchsia-50 border-b border-purple-100 flex items-center gap-3">
+                            <span class="w-2.5 h-2.5 bg-purple-500 rounded-full animate-pulse"></span>
+                            <h3 class="text-sm font-black text-purple-800 uppercase tracking-wider" id="label-shift-2-panel">Shift 2 Students</h3>
+                            <span id="shift2-count-badge" class="ml-auto px-2.5 py-0.5 bg-purple-100 text-purple-700 text-[11px] font-black rounded-full">0</span>
+                        </div>
+                        <div class="overflow-x-auto custom-scrollbar">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-slate-50 border-b border-outline-variant">
+                                    <tr>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Student Name</th>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Email Address</th>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Enrollment ID</th>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Assigned Bus</th>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Pass Valid Until</th>
+                                        <th class="px-6 py-3.5 text-xs font-bold text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="student-table-body-shift2" class="divide-y divide-outline-variant bg-white">
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-12 text-center text-on-surface-variant">No Shift 2 students found.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ==================== REGISTER STUDENT MODAL ==================== -->
+    <div id="modal-add-student" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Register Student</h3>
+                    <p class="text-xs text-on-surface-variant">Create user account and issue pass</p>
+                </div>
+                <button id="close-student-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="form-add-student" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Full Name *</label>
+                        <input name="name" required placeholder="John Doe" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Enrollment ID / College ID *</label>
+                        <input name="enrollment" required placeholder="e.g. 0818CS221001" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Email Address *</label>
+                        <input name="email" type="email" required placeholder="name@indoreinstitute.com" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Password *</label>
+                        <div class="relative">
+                            <input id="password-input" name="password" type="password" required minlength="6" placeholder="Min 6 characters" class="w-full px-4 py-2.5 pr-10 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                            <button type="button" id="toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-sm">👁️</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Pick-up/Drop Address</label>
+                    <input name="address" placeholder="Residential colony / Landmark" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Student Phone</label>
+                        <input name="phone" type="tel" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Parent/Guardian Phone</label>
+                        <input name="parentPhone" type="tel" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Department</label>
+                        <input name="department" placeholder="e.g. CSE, IT, ME" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Academic Year</label>
+                        <select name="year" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Assign Bus Route *</label>
+                        <select name="assignedBusId" id="input-assign-bus" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="">Loading routes...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Pass Validity End Date *</label>
+                        <input name="passValidity" type="date" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Sub-Institute / College Branch *</label>
+                        <select name="subInstitute" required class="select-sub-institute w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="">Select sub-institute...</option>
+                        </select>
+                    </div>
+                    <div id="student-shift-container" class="hidden">
+                        <label class="block text-xs font-bold text-on-surface mb-2">Assign Shift *</label>
+                        <select name="shift" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="Shift 1">Shift 1</option>
+                            <option value="Shift 2">Shift 2</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                    <button type="button" id="cancel-student-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== IMPORT STUDENTS MODAL ==================== -->
+    <div id="modal-import-students" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100 flex flex-col">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Import Students (Excel/CSV)</h3>
+                    <p class="text-xs text-on-surface-variant">Batch upload student database profiles from Excel or CSV files</p>
+                </div>
+                <button id="close-import-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-4 flex-1">
+                <div class="border-2 border-dashed border-outline-variant hover:border-primary rounded-2xl p-8 text-center cursor-pointer transition-colors relative" id="csv-drop-zone">
+                    <input type="file" id="csv-file-input" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 opacity-0 cursor-pointer">
+                    <span class="material-symbols-outlined text-4xl text-outline mb-2">upload_file</span>
+                    <p class="font-bold text-sm text-on-surface">Click to upload or drag & drop Excel/CSV file</p>
+                    <p class="text-xs text-on-surface-variant mt-1">Accepts standard .xlsx, .xls, or .csv files</p>
+                </div>
+
+                <div class="p-4 bg-primary-container text-on-primary-container rounded-xl text-xs space-y-2">
+                    <p class="font-bold">Required CSV Columns:</p>
+                    <p class="font-mono">Name, Email, Password, Enrollment, BusRoute, PassValidity</p>
+                    <p class="font-bold mt-2">Optional Columns:</p>
+                    <p class="font-mono">Address, Phone, ParentPhone, Department, Year</p>
+                    <div class="pt-2 flex justify-between items-center">
+                        <span class="text-[10px] text-gray-500">* PassValidity should be formatted as YYYY-MM-DD</span>
+                        <button id="download-csv-template" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">download</span> Download Template
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preview Area -->
+                <div id="import-preview-container" class="hidden space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-sm text-on-surface">File Preview (<span id="import-preview-count">0</span> Records Found)</h4>
+                        <span id="preview-validation-badge" class="px-2 py-1 bg-green-100 text-green-700 rounded-full font-bold text-[10px]">ALL VALID</span>
+                    </div>
+                    <div class="overflow-x-auto max-h-48 border border-outline-variant rounded-xl text-xs custom-scrollbar">
+                        <table class="w-full text-left border-collapse border-spacing-0">
+                            <thead class="bg-surface-container-high text-on-surface-variant font-bold sticky top-0">
+                                <tr>
+                                    <th class="p-2 border-b border-outline-variant">Name</th>
+                                    <th class="p-2 border-b border-outline-variant">Email</th>
+                                    <th class="p-2 border-b border-outline-variant">Password</th>
+                                    <th class="p-2 border-b border-outline-variant">Enrollment</th>
+                                    <th class="p-2 border-b border-outline-variant">Bus Route</th>
+                                    <th class="p-2 border-b border-outline-variant">Validity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="import-preview-tbody" class="bg-white">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div id="import-progress-container" class="hidden space-y-3">
+                    <div class="flex justify-between text-xs font-bold">
+                        <span id="import-progress-status" class="text-on-surface">Importing records...</span>
+                        <span id="import-progress-pct" class="text-primary">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div id="import-progress-bar" class="bg-gradient-to-r from-blue-600 to-indigo-600 h-full w-0 transition-all duration-200"></div>
+                    </div>
+                    <div id="import-log-box" class="w-full h-32 bg-slate-900 rounded-xl p-3 font-mono text-[10px] text-green-400 overflow-y-auto space-y-1 border border-slate-800">
+                        <p class="text-slate-500">> Ready to import.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-outline-variant flex gap-3 bg-surface-container-low sticky bottom-0">
+                <button type="button" id="cancel-import-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                <button type="button" id="start-import-btn" disabled class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Start Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== EDIT STUDENT MODAL ==================== -->
+    <div id="modal-edit-student" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Edit Student Information</h3>
+                    <p class="text-xs text-on-surface-variant">Modify enrollment record and route assignments</p>
+                </div>
+                <button id="close-edit-student-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="form-edit-student" class="p-6 space-y-4">
+                <input type="hidden" name="id">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Full Name *</label>
+                        <input name="name" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Enrollment ID (Read-only)</label>
+                        <input name="enrollment" readonly class="w-full px-4 py-2.5 bg-surface-container-high border border-outline-variant rounded-xl outline-none text-sm text-on-surface-variant">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Email Address (Read-only)</label>
+                    <input name="email" readonly class="w-full px-4 py-2.5 bg-surface-container-high border border-outline-variant rounded-xl outline-none text-sm text-on-surface-variant">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Pick-up/Drop Address</label>
+                    <input name="address" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Student Phone</label>
+                        <input name="phone" type="tel" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Parent/Guardian Phone</label>
+                        <input name="parentPhone" type="tel" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Department</label>
+                        <input name="department" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Academic Year</label>
+                        <select name="year" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Assign Bus Route</label>
+                        <select name="assignedBusId" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="">Select a route...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Pass Validity End Date *</label>
+                        <input name="passValidity" type="date" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Sub-Institute / College Branch *</label>
+                        <select name="subInstitute" required class="select-sub-institute w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="">Select sub-institute...</option>
+                        </select>
+                    </div>
+                    <div id="student-edit-shift-container" class="hidden">
+                        <label class="block text-xs font-bold text-on-surface mb-2">Assign Shift *</label>
+                        <select name="shift" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="Shift 1">Shift 1</option>
+                            <option value="Shift 2">Shift 2</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                    <button type="button" id="cancel-edit-student-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== STUDENT DETAILS VIEW MODAL ==================== -->
+    <div id="modal-student-detail" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Student Profile</h3>
+                    <p class="text-xs text-on-surface-variant">Full database record</p>
+                </div>
+                <button id="close-student-detail-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="p-6" id="student-detail-content">
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../../db-helper.js"></script>
+    <script src="students.js"></script>
+</body>
+</html>
