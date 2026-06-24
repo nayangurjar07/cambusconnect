@@ -20,20 +20,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     let qrCheckedIn = false;
     let qrCodeText = ""; // Holds token for synchronous fallback layout
-    let scanCount = parseInt(localStorage.getItem(`scanCount_${student.collegeId}`)) || 0;
-    let lastCheckinTime = localStorage.getItem(`lastCheckin_${student.collegeId}`);
-    let checkinHistory = JSON.parse(localStorage.getItem(`checkinHistory_${student.collegeId}`)) || [];
+    const studentId = String(student.collegeId || student.enrollment || student.id || student.email || 'UNKNOWN');
+    const studentName = String(student.name || 'Unknown Student');
+    const studentRoute = String(student.busRoute || 'Not Assigned');
+    const instituteId = String(
+        localStorage.getItem('instituteId') ||
+        (student.email && student.email.includes('@') ? student.email.split('@')[1].toLowerCase() : '') ||
+        'unknown'
+    );
+    const storageKeySuffix = studentId;
+    let scanCount = parseInt(localStorage.getItem(`scanCount_${storageKeySuffix}`)) || 0;
+    let lastCheckinTime = localStorage.getItem(`lastCheckin_${storageKeySuffix}`);
+    let checkinHistory = JSON.parse(localStorage.getItem(`checkinHistory_${storageKeySuffix}`)) || [];
 
     // ========================================
     // 3. GENERATE SECURE CRYPTOGRAPHIC QR CODE
     // ========================================
     async function initSecurePassQR() {
         const secretKey = "server_super_secret_salt"; // Shared verification key
-        
-        const studentEmail = student.email || student.id || '';
-        const parsedDomain = studentEmail.includes('@') ? studentEmail.split('@')[1].toLowerCase() : '';
-        const instituteId = localStorage.getItem('instituteId') || parsedDomain || 'unknown';
-        const plainText = `Cambus Pass - Verified Student: ${student.name} | Route: ${student.busRoute || 'Not Assigned'} | ID: ${student.collegeId || student.id} | Institute: ${instituteId}`;
+
+        const payloadObject = {
+            studentId,
+            studentName,
+            routeName: studentRoute,
+            instituteId
+        };
+        const plainText = btoa(unescape(encodeURIComponent(JSON.stringify(payloadObject))));
         
         // Browser Native HMAC-SHA256
         const encoder = new TextEncoder();
@@ -68,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        const qrCodeText = `${plainText}.${signature}`;
+        qrCodeText = `${plainText}.${signature}`;
         
         // Display QR code text
         const qrTextElement = document.getElementById('pass-qrcode-text');
@@ -83,11 +95,11 @@ document.addEventListener('DOMContentLoaded', () => {
             qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
                 text: qrCodeText,
-                width: 192,
-                height: 192,
+                width: 180,
+                height: 180,
                 colorDark: "#000000",
                 colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
+                correctLevel: QRCode.CorrectLevel.M
             });
             console.log("✅ Secure Cryptographic QR Code generated");
         } else if (qrContainer) {
@@ -110,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     const barcodeContainer = document.getElementById('barcode-container');
     if(barcodeContainer) {
-        const barcodeData = student.collegeId.toString();
+        const barcodeData = studentId;
         barcodeContainer.innerHTML = '';
         
         for(let i = 0; i < 30; i++) {
@@ -137,9 +149,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const passCollegeId = document.getElementById('pass-college-id');
         const passRoute = document.getElementById('pass-route');
         
-        if(passName) passName.textContent = student.name;
-        if(passCollegeId) passCollegeId.textContent = student.collegeId;
-        if(passRoute) passRoute.textContent = student.busRoute || 'Not Assigned';
+        if(passName) passName.textContent = studentName;
+        if(passCollegeId) passCollegeId.textContent = studentId;
+        if(passRoute) passRoute.textContent = studentRoute;
         
         const validityBadge = document.getElementById('pass-validity-badge');
         if(validityBadge) {
@@ -152,15 +164,15 @@ document.addEventListener('DOMContentLoaded', () => {
             detailsContainer.innerHTML = `
                 <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <p class="text-xs text-gray-500 mb-1">Full Name</p>
-                    <p class="font-semibold text-gray-800">${student.name}</p>
+                    <p class="font-semibold text-gray-800">${studentName}</p>
                 </div>
                 <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <p class="text-xs text-gray-500 mb-1">College ID</p>
-                    <p class="font-semibold text-gray-800">${student.collegeId}</p>
+                    <p class="font-semibold text-gray-800">${studentId}</p>
                 </div>
                 <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <p class="text-xs text-gray-500 mb-1">Bus Route</p>
-                    <p class="font-semibold text-gray-800">${student.busRoute || 'Not Assigned'}</p>
+                    <p class="font-semibold text-gray-800">${studentRoute}</p>
                 </div>
                 <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <p class="text-xs text-gray-500 mb-1">Valid Until</p>
@@ -250,16 +262,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     checkinHistory.unshift({
                         timestamp: lastCheckinTime,
                         busId: student.assignedBusId || 'Unknown',
-                        route: student.busRoute || 'Unknown'
+                        route: studentRoute
                     });
                     
                     if(checkinHistory.length > 5) {
                         checkinHistory = checkinHistory.slice(0, 5);
                     }
                     
-                    localStorage.setItem(`scanCount_${student.collegeId}`, scanCount);
-                    localStorage.setItem(`lastCheckin_${student.collegeId}`, lastCheckinTime);
-                    localStorage.setItem(`checkinHistory_${student.collegeId}`, JSON.stringify(checkinHistory));
+                    localStorage.setItem(`scanCount_${storageKeySuffix}`, scanCount);
+                    localStorage.setItem(`lastCheckin_${storageKeySuffix}`, lastCheckinTime);
+                    localStorage.setItem(`checkinHistory_${storageKeySuffix}`, JSON.stringify(checkinHistory));
                     
                     if(scanCountElement) scanCountElement.textContent = scanCount;
                     if(lastCheckinElement) lastCheckinElement.textContent = new Date(lastCheckinTime).toLocaleDateString();
@@ -351,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     await navigator.share({
                         title: 'CAMBUS CONNECT - Digital Bus Pass',
-                        text: `My bus pass for route ${student.busRoute || 'N/A'}. Valid until ${student.passValidity || '31 Dec 2025'}`,
+                        text: `My bus pass for route ${studentRoute}. Valid until ${student.passValidity || '31 Dec 2025'}`,
                         url: window.location.href
                     });
                     console.log('✅ Pass shared successfully');
@@ -359,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('❌ Share cancelled or failed:', err);
                 }
             } else {
-                alert('Share Pass:\n\nYour pass details:\n• Route: ' + (student.busRoute || 'N/A') + '\n• Valid until: ' + (student.passValidity || '31 Dec 2025') + '\n\nCopy this link to share with others!');
+                alert('Share Pass:\n\nYour pass details:\n• Route: ' + studentRoute + '\n• Valid until: ' + (student.passValidity || '31 Dec 2025') + '\n\nCopy this link to share with others!');
             }
         });
     }
