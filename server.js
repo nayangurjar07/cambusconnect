@@ -81,7 +81,7 @@ const server = http.createServer((req, res) => {
         safePath = '/index.html';
     }
     
-    const filePath = path.join(__dirname, 'client', safePath);
+    const filePath = path.join(__dirname, safePath);
     
     fs.stat(filePath, (err, stats) => {
         if (err || !stats.isFile()) {
