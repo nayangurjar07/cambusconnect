@@ -12,14 +12,11 @@
         const savedId = localStorage.getItem('instituteId');
         if (savedId) return savedId;
 
-        // 2. Check subdomain (e.g., medicaps.cambusconnect.in -> medicaps)
-        const host = window.location.hostname;
-        const parts = host.split('.');
-        // If it's a subdomain (not localhost, and has 3 parts like subdomain.domain.com)
-        if (parts.length >= 3 && !host.includes('localhost') && !parts[0].startsWith('127')) {
-            const subdomain = parts[0].toLowerCase();
-            if (subdomain !== 'www' && subdomain !== 'vercel') {
-                return subdomain;
+        // 2. Check subdomain
+        if (window.getSubdomain) {
+            const sub = window.getSubdomain();
+            if (sub && sub !== 'www' && sub !== 'vercel') {
+                return sub;
             }
         }
 

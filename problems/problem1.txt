@@ -1,0 +1,26 @@
+Here are the main vulnerabilities I found, ordered by severity.
+
+1. Critical: Firestore is effectively wide open in the active rules file. In [firestore.rules](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/firestore.rules:8), the live rule is `allow read, write: if true;`, which means any client can read or modify any document in the database. That is a full data-exposure and data-tampering issue, not just a test setting.
+
+2. Critical: Authentication is only enforced in browser storage, so it is trivially bypassable. Pages trust `localStorage` flags like `isLoggedIn`, `userRole`, and `instituteId` in [auth-guard.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/auth-guard.js:28), [auth-guard.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/auth-guard.js:121), and the portal login files such as [portals/admin/admin-login.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/portals/admin/admin-login.js:100) and [portals/student/student-login.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/portals/student/student-login.js:139). An attacker can edit `localStorage` in DevTools and impersonate another role unless the server and database rules also enforce access control.
+
+3. Critical: The bus pass signature secret is hard-coded in client-side JavaScript, so passes can be forged. The QR generator uses `SECRET_KEY = "server_super_secret_salt"` in [portals/student/bus-pass/bus-pass.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/portals/student/bus-pass/bus-pass.js:39), and the verifier uses the same visible secret in [portals/driver/driverhome.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/portals/driver/driverhome.js:72) and [portals/admin/scan-pass.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/portals/admin/scan-pass.js:57). Because the key ships to the browser, anyone can generate a valid-looking QR code for any student.
+
+4. High: There is stored XSS risk from unescaped `innerHTML` with data coming from Firestore or localStorage. Examples include [portals/owner/owner.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/portals/owner/owner.js:97), [portals/student/profile/profile.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/portals/student/profile/profile.js:36), and [portals/student/bus-pass/bus-pass.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/portals/student/bus-pass/bus-pass.js:166). Because the data source is user-controlled and the rules are open, an attacker can inject HTML/JS into names, addresses, URLs, or other fields and hijack privileged sessions.
+
+5. High: The session transfer flow copies the entire `localStorage` payload into a query parameter and restores it blindly. In [auth-guard.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/auth-guard.js:8) to [auth-guard.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/auth-guard.js:22) and again at [auth-guard.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/auth-guard.js:104) to [auth-guard.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/auth-guard.js:116), the app encodes all session data into `session_transfer` and trusts it on the destination page. That can leak sensitive session state, enable session fixation, and makes the cross-domain redirect logic part of the attack surface.
+
+6. Medium: The bus-location API lacks fine-grained authorization. In [api/bus-location.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/api/bus-location.js:85), it checks only that the caller has a valid Firebase token, then returns location data for any `busId` supplied at [api/bus-location.js](C:/Users/07nay/Desktop/sanboxing%20the%20cambus/api/bus-location.js:69). A valid authenticated user may be able to query buses outside their tenant or role if the token is accepted.
+
+The biggest security problem is the combination of:
+- open Firestore rules,
+- client-side-only auth,
+- and HTML injection with untrusted data.
+
+That means one weak spot can cascade into full database compromise and account/session takeover.
+
+If you want, I can turn this into a proper remediation list next, with exact fixes in priority order:
+1. lock down Firestore rules,
+2. move auth to server-verified sessions,
+3. remove the hard-coded QR secret,
+4. sanitize all dynamic HTML rendering.

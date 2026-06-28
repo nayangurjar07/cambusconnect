@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pass Scanner &amp; Verification | Admin | Cambus Connect</title>
+
+    <!-- !! IMPORTANT: AUTH GUARD !! -->
+    <script src="../../auth-guard.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+    <!-- Firebase ESM Configuration -->
+    <script type="importmap">
+      {
+        "imports": {
+          "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
+          "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
+        }
+      }
+    </script>
+    <script type="module" src="../../firebase-init.js"></script>
+    <script type="module" src="../../app.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8f9ff; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c4c5d7; border-radius: 9999px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #747686; }
+        #mobile-sidebar { transition: transform 0.3s ease-in-out; }
+        #mobile-sidebar.hidden-sidebar { transform: translateX(-100%); }
+
+        /* Scanner viewfinder */
+        .scanner-frame { position: relative; }
+        .scanner-corner { position: absolute; width: 24px; height: 24px; z-index: 20; pointer-events: none; }
+        .scanner-corner-tl { top: 10px; left: 10px; border-top: 3px solid #2151da; border-left: 3px solid #2151da; border-radius: 3px 0 0 0; }
+        .scanner-corner-tr { top: 10px; right: 10px; border-top: 3px solid #2151da; border-right: 3px solid #2151da; border-radius: 0 3px 0 0; }
+        .scanner-corner-bl { bottom: 10px; left: 10px; border-bottom: 3px solid #2151da; border-left: 3px solid #2151da; border-radius: 0 0 0 3px; }
+        .scanner-corner-br { bottom: 10px; right: 10px; border-bottom: 3px solid #2151da; border-right: 3px solid #2151da; border-radius: 0 0 3px 0; }
+        @keyframes scanLine {
+            0%, 100% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            50% { top: calc(100% - 2px); }
+        }
+        .scan-line {
+            position: absolute; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, #2151da, transparent);
+            animation: scanLine 2.5s ease-in-out infinite;
+            z-index: 15; pointer-events: none;
+        }
+
+        /* Toggle switch */
+        .toggle-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .toggle-track {
+            width: 38px; height: 21px;
+            background: #cbd5e1; border-radius: 11px;
+            transition: all 0.25s; position: relative; flex-shrink: 0;
+        }
+        .toggle-track::after {
+            content: ''; position: absolute;
+            width: 15px; height: 15px; background: white;
+            border-radius: 50%; top: 3px; left: 3px;
+            transition: all 0.25s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        input:checked + .toggle-track { background: #0037b0; }
+        input:checked + .toggle-track::after { transform: translateX(17px); }
+    </style>
+
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+              "primary-container": "var(--primary-color, #1d4ed8)",
+              "error": "#ba1a1a",
+              "error-container": "#ffdad6",
+              "outline": "#747686",
+              "outline-variant": "#c4c5d7",
+              "on-background": "var(--text-color, #0b1c30)",
+              "primary": "var(--primary-color, #0037b0)",
+              "on-primary": "#ffffff",
+              "secondary": "var(--secondary-color, #9d4300)",
+              "on-surface-variant": "#434655",
+              "surface": "#f8f9ff",
+              "surface-container-high": "#dce9ff",
+              "on-surface": "var(--text-color, #0b1c30)",
+              "background": "var(--bg-color, #f8f9ff)",
+              "surface-container": "#e5eeff",
+              "surface-container-lowest": "#ffffff",
+              "surface-container-highest": "#d3e4fe",
+              "surface-container-low": "#eff4ff"
+            },
+            "spacing": {
+              "xl": "48px",
+              "margin-desktop": "32px",
+              "margin-mobile": "16px",
+              "base": "4px",
+              "xs": "4px",
+              "sm": "8px",
+              "md": "16px",
+              "lg": "24px"
+            },
+            "fontFamily": {
+              "headline-md": ["Inter"],
+              "label-md": ["Inter"],
+              "label-sm": ["Inter"],
+              "body-md": ["Inter"]
+            },
+            "fontSize": {
+              "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+              "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "600" }],
+              "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }]
+            }
+          }
+        }
+      }
+    </script>
+</head>
+
+<body class="bg-background text-on-surface font-sans min-h-screen">
+
+    <!-- Desktop Sidebar -->
+    <aside class="h-screen w-64 fixed left-0 top-0 bg-surface border-r border-outline-variant shadow-sm z-50 flex flex-col p-md gap-sm">
+        <div class="mb-6 px-sm">
+            <h1 id="sidebar-default-logo" class="text-headline-md font-headline-md font-black text-primary">Cambus Connect</h1>
+            <h1 id="sidebar-college-title" class="text-headline-md font-headline-md font-black text-primary hidden"></h1>
+            <p class="text-label-sm text-on-surface-variant font-medium">Administrator Control</p>
+        </div>
+
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100 mb-4">
+            <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Signed in as</p>
+            <p id="admin-name-display" class="text-sm font-bold text-slate-800">Administrator</p>
+        </div>
+
+        <nav class="flex-grow space-y-base overflow-y-auto custom-scrollbar">
+            <a href="buses/buses.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">directions_bus</span>
+                <span class="font-label-md text-label-md">Bus Fleet</span>
+            </a>
+            <a href="students/students.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">groups</span>
+                <span class="font-label-md text-label-md">Students</span>
+            </a>
+            <a href="staff/staff.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">badge</span>
+                <span class="font-label-md text-label-md">Staff Directory</span>
+            </a>
+            <a href="admin-track.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">explore</span>
+                <span class="font-label-md text-label-md">Live Tracking</span>
+            </a>
+            <a href="route-optimizer/optimizer.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">settings_suggest</span>
+                <span class="font-label-md text-label-md">Route Optimizer</span>
+            </a>
+            <a href="notifications/notifications.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">notifications</span>
+                <span class="font-label-md text-label-md">Notifications</span>
+            </a>
+            <a href="lost-found/lost-found.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">inventory_2</span>
+                <span class="font-label-md text-label-md">Lost &amp; Found</span>
+            </a>
+            <a href="support/support.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">support_agent</span>
+                <span class="font-label-md text-label-md">Support Desk</span>
+            </a>
+            <a href="gps-settings/gps-settings.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">settings_input_antenna</span>
+                <span class="font-label-md text-label-md">GPS Settings</span>
+            </a>
+            <a href="shifts/shifts.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
+                <span class="material-symbols-outlined">schedule</span>
+                <span class="font-label-md text-label-md">Shift Management</span>
+            </a>
+            <!-- Pass Scanner Tab (Active) -->
+            <a href="scan-pass.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-left bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30">
+                <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">qr_code_scanner</span>
+                <span class="font-label-md text-label-md">Pass Scanner</span>
+            </a>
+        </nav>
+
+        <div class="mt-auto pt-4 border-t border-outline-variant">
+            <button id="logout-btn" class="w-full py-3 bg-error-container text-error rounded-xl font-bold flex items-center justify-center space-x-2 hover:bg-error hover:text-white transition-all">
+                <span class="material-symbols-outlined">logout</span>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobile-sidebar" class="hidden-sidebar fixed inset-y-0 left-0 w-64 bg-surface border-r border-outline-variant shadow-2xl z-50 flex flex-col p-md gap-sm md:hidden">
+        <div class="flex items-center justify-between mb-6 px-sm">
+            <div class="font-black text-lg text-primary flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-[28px]" style="font-variation-settings:'FILL' 1;">directions_bus</span>
+                <span>Cambus Admin</span>
+            </div>
+            <button id="btn-close-sidebar" class="material-symbols-outlined text-slate-400 hover:bg-slate-100 p-1 rounded-full">close</button>
+        </div>
+        <nav class="flex-grow space-y-base overflow-y-auto custom-scrollbar">
+            <a href="buses/buses.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">directions_bus</span><span class="text-sm">Bus Fleet</span></a>
+            <a href="students/students.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">groups</span><span class="text-sm">Students</span></a>
+            <a href="staff/staff.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">badge</span><span class="text-sm">Staff Directory</span></a>
+            <a href="admin-track.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">explore</span><span class="text-sm">Live Tracking</span></a>
+            <a href="route-optimizer/optimizer.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">settings_suggest</span><span class="text-sm">Route Optimizer</span></a>
+            <a href="notifications/notifications.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">notifications</span><span class="text-sm">Notifications</span></a>
+            <a href="lost-found/lost-found.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">inventory_2</span><span class="text-sm">Lost &amp; Found</span></a>
+            <a href="support/support.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">support_agent</span><span class="text-sm">Support Desk</span></a>
+            <a href="gps-settings/gps-settings.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">settings_input_antenna</span><span class="text-sm">GPS Settings</span></a>
+            <a href="shifts/shifts.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">schedule</span><span class="text-sm">Shift Management</span></a>
+            <a href="scan-pass.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30"><span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">qr_code_scanner</span><span class="text-sm">Pass Scanner</span></a>
+        </nav>
+        <div class="mt-auto pt-4 border-t border-outline-variant">
+            <button onclick="localStorage.clear(); window.location.href='admin-login.html';" class="w-full py-3 bg-error-container text-error rounded-xl font-bold flex items-center justify-center space-x-2 hover:bg-error hover:text-white transition-all">
+                <span class="material-symbols-outlined">logout</span><span>Logout</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="ml-64 min-h-screen flex flex-col">
+
+        <!-- Top App Bar -->
+        <header class="flex justify-between items-center h-16 px-margin-desktop bg-surface/80 backdrop-blur-md sticky top-0 z-40 border-b border-outline-variant">
+            <div class="flex items-center gap-3">
+                <button id="btn-toggle-menu" class="md:hidden material-symbols-outlined text-primary hover:bg-slate-100 p-2 rounded-xl">menu</button>
+                <h2 class="text-headline-md font-headline-md font-black text-primary flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">qr_code_scanner</span>
+                    Pass Scanner
+                </h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <!-- Live Indicator -->
+                <div class="hidden sm:flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-xl">
+                    <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                    <span class="text-[10px] font-extrabold uppercase tracking-wider">Live</span>
+                </div>
+                <!-- Daily boarded badge -->
+                <div class="bg-blue-50 border border-blue-100 text-primary px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+                    <span class="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
+                    <span class="text-[10px] font-extrabold uppercase tracking-wider hidden sm:inline">Daily Boarded:</span>
+                    <span id="header-headcount-badge" class="font-mono font-black text-sm">0</span>
+                </div>
+                <!-- Fleet Map View -->
+                <a href="admin-track.html" class="flex items-center gap-xs px-4 py-2 bg-primary text-on-primary rounded-lg font-label-md hover:opacity-90 transition-all text-sm font-semibold">
+                    <span class="material-symbols-outlined text-[18px]">explore</span>
+                    <span>Fleet Map View</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Workspace -->
+        <main class="flex-1 p-margin-desktop space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- LEFT COLUMN (8 spans) -->
+                <div class="lg:col-span-8 space-y-6">
+
+                    <!-- Passenger Management Card -->
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-5 relative overflow-hidden">
+                        <div class="absolute -right-6 -top-6 w-20 h-20 bg-primary/5 rounded-full blur-xl pointer-events-none"></div>
+
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <h3 class="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings:'FILL' 1;">directions_bus</span>
+                                Passenger Management
+                            </h3>
+                            <span class="bg-blue-50 border border-blue-100 text-primary px-3 py-1 rounded-lg text-xs font-bold" id="bus-capacity-badge">Capacity: 45</span>
+                        </div>
+
+                        <!-- Bus Selection -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Select Fleet Bus Run *</label>
+                            <select id="select-active-bus" class="w-full px-3 py-2.5 border border-slate-200 focus:border-primary bg-white text-sm font-bold rounded-xl outline-none transition-all">
+                                <option value="">Loading buses...</option>
+                            </select>
+                        </div>
+
+                        <!-- Telemetry Strip -->
+                        <div class="grid grid-cols-3 gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl text-center">
+                            <div>
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Bus Driver</p>
+                                <p id="telemetry-driver" class="text-xs font-extrabold text-slate-700 truncate">--</p>
+                            </div>
+                            <div>
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Conductor</p>
+                                <p id="telemetry-conductor" class="text-xs font-extrabold text-slate-700 truncate">--</p>
+                            </div>
+                            <div>
+                                <p class="text-[9px] font-black text-emerald-500 uppercase tracking-wider mb-1">Sync Status</p>
+                                <p class="text-[10px] font-extrabold text-emerald-600 flex items-center justify-center gap-1">
+                                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                                    <span>LIVE</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Scan Lock Info -->
+                        <div id="scan-lock-summary" class="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-indigo-50 border border-indigo-100 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-indigo-500 text-[18px]">lock</span>
+                                <div>
+                                    <p class="font-black uppercase tracking-wider text-indigo-600 text-[9px]">Anti-Loop Scan Lock</p>
+                                    <p class="font-bold text-slate-600 mt-0.5">Enabled for same bus pass scans</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-black text-indigo-700">240 min</p>
+                                <p class="text-[10px] text-slate-500">Timer</p>
+                            </div>
+                        </div>
+
+                        <!-- Headcount Controls -->
+                        <div id="headcount-card" class="text-center py-5 bg-slate-50 border border-slate-100 rounded-2xl transition-all duration-300">
+                            <div class="text-[10px] tracking-wider uppercase text-slate-400 font-bold mb-2">Current Headcount</div>
+                            <div class="flex items-center justify-center gap-3">
+                                <button class="w-11 h-11 rounded-full border border-slate-200 bg-white text-xl font-bold flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:border-primary active:scale-95 disabled:opacity-40 disabled:cursor-default transition-all" id="btn-decrement-headcount" disabled>−</button>
+                                <input type="number" class="w-20 text-center border border-slate-200 rounded-xl font-black text-2xl py-1.5 bg-white text-slate-800 focus:outline-none focus:border-primary transition-all" id="headcount-display" value="0" min="0" max="100" disabled>
+                                <button class="w-11 h-11 rounded-full border border-slate-200 bg-white text-xl font-bold flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:border-primary active:scale-95 disabled:opacity-40 disabled:cursor-default transition-all" id="btn-increment-headcount" disabled>+</button>
+                                <button class="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 rounded-xl h-11 flex items-center justify-center active:scale-95 disabled:opacity-40 disabled:cursor-default transition-colors" id="btn-reset-headcount" disabled>Reset</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- QR Camera Scanner Card -->
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-4">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <h3 class="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings:'FILL' 1;">qr_code_scanner</span>
+                                Live QR Camera Scanner
+                            </h3>
+                            <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                <span class="w-1.5 h-1.5 bg-slate-300 rounded-full" id="camera-dot"></span>
+                                <span id="camera-status-label">Inactive</span>
+                            </div>
+                        </div>
+
+                        <!-- Scan Mode Selector -->
+                        <div class="flex items-center bg-slate-100 rounded-xl p-1 shadow-inner my-2">
+                            <label class="flex-1 text-center cursor-pointer relative">
+                                <input type="radio" name="scan_mode" value="checkin" class="peer sr-only" checked>
+                                <div class="py-2 px-3 rounded-lg text-xs font-bold text-slate-500 peer-checked:bg-white peer-checked:text-emerald-600 peer-checked:shadow-sm transition-all flex items-center justify-center gap-1">
+                                    <span class="material-symbols-outlined text-[16px]">login</span> Check-In
+                                </div>
+                            </label>
+                            <label class="flex-1 text-center cursor-pointer relative">
+                                <input type="radio" name="scan_mode" value="checkout" class="peer sr-only">
+                                <div class="py-2 px-3 rounded-lg text-xs font-bold text-slate-500 peer-checked:bg-white peer-checked:text-rose-600 peer-checked:shadow-sm transition-all flex items-center justify-center gap-1">
+                                    <span class="material-symbols-outlined text-[16px]">logout</span> Check-Out
+                                </div>
+                            </label>
+                            <label class="flex-1 text-center cursor-pointer relative">
+                                <input type="radio" name="scan_mode" value="verify" class="peer sr-only">
+                                <div class="py-2 px-3 rounded-lg text-xs font-bold text-slate-500 peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow-sm transition-all flex items-center justify-center gap-1">
+                                    <span class="material-symbols-outlined text-[16px]">verified</span> Verify Only
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Viewfinder -->
+                        <div id="qr-reader-container" class="scanner-frame relative bg-slate-900 border-2 border-slate-200 rounded-2xl overflow-hidden min-h-[260px] flex items-center justify-center">
+                            <div class="scanner-corner scanner-corner-tl"></div>
+                            <div class="scanner-corner scanner-corner-tr"></div>
+                            <div class="scanner-corner scanner-corner-bl"></div>
+                            <div class="scanner-corner scanner-corner-br"></div>
+                            <div class="scan-line"></div>
+                            <div id="qr-reader" class="w-full min-h-[260px]"></div>
+                            <!-- Placeholder -->
+                            <div id="qr-reader-placeholder" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950 z-10">
+                                <div class="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-3">
+                                    <span class="material-symbols-outlined text-4xl text-slate-500">videocam_off</span>
+                                </div>
+                                <h4 class="text-sm font-bold text-slate-400">Camera Viewfinder Inactive</h4>
+                                <p class="text-xs text-slate-600 mt-1 max-w-xs">Click "Start Camera Scanner" to activate, or upload a pass image.</p>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <button id="btn-toggle-camera" class="py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-500/20 active:scale-95">
+                                <span class="material-symbols-outlined text-[18px]" id="camera-btn-icon">videocam</span>
+                                <span id="camera-btn-text">Start Camera Scanner</span>
+                            </button>
+                            <button id="btn-upload-qr" class="py-3 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-teal-500/20 active:scale-95">
+                                <span class="material-symbols-outlined text-[18px]">photo_library</span>
+                                <span>Upload QR Code</span>
+                            </button>
+                        </div>
+                        <input type="file" id="qr-file-input" accept="image/*" class="hidden">
+
+                        <!-- Status Bar -->
+                        <div id="scanner-status" class="p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-center text-xs font-bold text-slate-500 transition-all duration-300">
+                            Align student QR code inside the viewfinder
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN (4 spans) -->
+                <div class="lg:col-span-4 space-y-6">
+
+                    <!-- Verification Simulator & Controls -->
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-5">
+                        <div>
+                            <h3 class="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 mb-1">
+                                <span class="material-symbols-outlined text-indigo-500 text-[20px]">smart_toy</span>
+                                Simulator &amp; Controls
+                            </h3>
+                            <p class="text-xs text-slate-500">Test verification rules, loop-locks, cutoffs and overrides.</p>
+                        </div>
+
+                        <!-- Policy Toggles -->
+                        <div class="space-y-3.5 pt-1 pb-4 border-b border-slate-100">
+
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-700">Fast Headcount Mode</p>
+                                    <p class="text-[10px] text-slate-400 mt-0.5">Auto verify and add +1</p>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="checkbox-fast-headcount" checked>
+                                    <div class="toggle-track"></div>
+                                </label>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-700">Late Boarding Override</p>
+                                    <p class="text-[10px] text-slate-400 mt-0.5">Allow boarding past cutoff</p>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="toggle-late-override">
+                                    <div class="toggle-track"></div>
+                                </label>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-700">Same Bus Scan Lock</p>
+                                    <p class="text-[10px] text-slate-400 mt-0.5">Block re-scan on same bus</p>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="toggle-scan-lock" checked>
+                                    <div class="toggle-track"></div>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Lock Timer (Minutes)</label>
+                                <div class="flex gap-2">
+                                    <input type="number" id="input-scan-lock-minutes" value="240" min="1" max="1440" class="flex-1 px-3 py-2 border border-slate-200 focus:border-primary text-xs font-bold rounded-xl outline-none bg-white transition-all">
+                                    <button id="btn-save-scan-lock" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95">Save</button>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-1">Blocks same pass re-scan across admin and driver portals.</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Late Cutoff Time</label>
+                                <input type="text" id="input-late-cutoff" value="08:45 AM" placeholder="e.g. 08:45 AM or 13:30" class="w-full px-3 py-2 border border-slate-200 focus:border-primary text-xs font-bold rounded-xl outline-none bg-white transition-all">
+                            </div>
+                        </div>
+
+                        <!-- Simulator Inputs -->
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Simulate QR String or College ID</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="sim-college-id" placeholder="e.g. EN21CS301015 or token" class="flex-1 px-3 py-2 border border-slate-200 text-xs font-bold rounded-xl outline-none focus:border-indigo-500 transition-all bg-white">
+                                    <button id="btn-sim-scan" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95">Scan</button>
+                                </div>
+                            </div>
+                            <button id="btn-quick-demo-scan" class="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-100 flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+                                <span class="material-symbols-outlined text-sm">casino</span>
+                                <span>Quick Demo Scan (Random)</span>
+                            </button>
+                        </div>
+
+                        <!-- Manual Search -->
+                        <div class="border-t border-slate-100 pt-4 space-y-2">
+                            <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider">Manual Student Search</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="input-verify-student" placeholder="Email or Enrollment ID..." class="flex-1 px-3 py-2.5 border border-slate-200 focus:border-slate-800 text-xs font-bold rounded-xl outline-none transition-all bg-white">
+                                <button id="btn-verify-student" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95">Search</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Boardings -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div class="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                        <span class="material-symbols-outlined text-teal-600 text-[20px]">history</span>
+                        <span>Recent Boardings</span>
+                        <span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg text-[10px] font-bold">Last 4 Hours</span>
+                    </div>
+                </div>
+                <div id="boardings-list" class="space-y-2 max-h-[320px] overflow-y-auto custom-scrollbar pr-1 min-h-[120px] flex flex-col gap-2">
+                    <p class="text-center py-10 text-slate-400 text-xs font-semibold" id="log-empty-state">
+                        <span class="material-symbols-outlined text-3xl text-slate-300 block mb-2">history_toggle_off</span>
+                        <span>No passengers boarded yet.</span>
+                    </p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Verification Confirmation Modal -->
+    <div id="modal-confirm-checkin" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 flex flex-col gap-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-extrabold text-slate-800 text-lg flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-600" style="font-variation-settings:'FILL' 1;">verified</span>
+                    <span>Confirm Student Check-In</span>
+                </h3>
+                <button id="btn-close-confirm" class="material-symbols-outlined text-slate-400 hover:bg-slate-100 p-1.5 rounded-full transition-colors">close</button>
+            </div>
+            <div id="confirm-student-details" class="space-y-3.5">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="flex gap-3 pt-3 border-t border-slate-100">
+                <button id="btn-cancel-confirm" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all">Cancel</button>
+                <button id="btn-more-info" class="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold rounded-xl transition-all shadow-md shadow-slate-900/10">More Info</button>
+                <button id="btn-action-confirm" class="flex-grow-[2] py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold rounded-xl transition-all shadow-md shadow-blue-500/20">Confirm &amp; Add (+1)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student More Info Modal -->
+    <div id="modal-student-more-info" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[110] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-slate-200 flex flex-col gap-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-extrabold text-slate-800 text-lg flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">id_card</span>
+                    <span>Student Details</span>
+                </h3>
+                <button id="btn-close-more-info" class="material-symbols-outlined text-slate-400 hover:bg-slate-100 p-1.5 rounded-full transition-colors">close</button>
+            </div>
+            <div id="student-more-info-body" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-verify-result" class="fixed top-5 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center space-x-3 translate-y-[-120px] opacity-0 transition-all duration-300 z-[200]">
+        <span id="toast-verify-icon" class="material-symbols-outlined text-green-400 text-2xl" style="font-variation-settings:'FILL' 1;">check_circle</span>
+        <div>
+            <p id="toast-verify-title" class="font-extrabold text-sm">Pass Verified</p>
+            <p id="toast-verify-msg" class="text-xs text-slate-400 mt-0.5">Verified successfully.</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../db-helper.js"></script>
+    <script src="../../optimal-route-optimizer/engine/CambusPassVerificationSystem.js"></script>
+    <script src="scan-pass.js"></script>
+</body>
+
+</html>

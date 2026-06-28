@@ -2,6 +2,46 @@
 import crypto from 'crypto';
 import { tenantConfigs } from "../tenant-config.js";
 
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 30;
+const rateLimitBuckets = new Map();
+
+function getClientKey(req) {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const ip = Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : String(forwardedFor || req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown')
+            .split(',')[0]
+            .trim();
+    const busId = req.query?.busId || 'unknown';
+    return `${ip}:${(req.headers.host || 'unknown').toLowerCase()}:${busId}`;
+}
+
+function applyRateLimit(req, res) {
+    const key = getClientKey(req);
+    const now = Date.now();
+    let bucket = rateLimitBuckets.get(key);
+
+    if (!bucket || now >= bucket.resetAt) {
+        bucket = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+    }
+
+    bucket.count += 1;
+    rateLimitBuckets.set(key, bucket);
+
+    res.setHeader('X-RateLimit-Limit', String(RATE_LIMIT_MAX_REQUESTS));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(0, RATE_LIMIT_MAX_REQUESTS - bucket.count)));
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(bucket.resetAt / 1000)));
+
+    if (bucket.count > RATE_LIMIT_MAX_REQUESTS) {
+        const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+        res.setHeader('Retry-After', String(retryAfter));
+        return { allowed: false, retryAfter };
+    }
+
+    return { allowed: true };
+}
+
 // Helper to decrypt MapmyIndia credentials
 function decrypt(text, key) {
     const parts = text.split(':');
@@ -66,6 +106,14 @@ export default async function handler(req, res) {
         return res.status(455).json({ error: `Method ${req.method} not allowed` });
     }
 
+    const limitCheck = applyRateLimit(req, res);
+    if (!limitCheck.allowed) {
+        return res.status(429).json({
+            error: 'Too many requests. Please slow down and try again later.',
+            retryAfterSeconds: limitCheck.retryAfter
+        });
+    }
+
     const { busId } = req.query;
     if (!busId) {
         return res.status(400).json({ error: "Missing parameter: busId" });
@@ -89,10 +137,33 @@ export default async function handler(req, res) {
     }
     const idToken = authHeader.split('Bearer ')[1];
 
+    let authUser;
     try {
-        await verifyFirebaseToken(idToken, firebaseApiKey);
+        authUser = await verifyFirebaseToken(idToken, firebaseApiKey);
     } catch (authError) {
         return res.status(401).json({ error: "Authentication failed: " + authError.message });
+    }
+
+    const userEmail = authUser.email || (authUser.providerUserInfo && authUser.providerUserInfo[0] && authUser.providerUserInfo[0].email);
+    if (!userEmail) {
+        return res.status(403).json({ error: "Missing email in authentication token." });
+    }
+
+    // Verify user authorization in Firestore
+    const userUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${userEmail}`;
+    const userRes = await fetch(userUrl, {
+        headers: { 'Authorization': `Bearer ${idToken}` }
+    });
+    
+    if (!userRes.ok) {
+        return res.status(403).json({ error: "Unauthorized: User profile not found." });
+    }
+    
+    const userDoc = await userRes.json();
+    const userFields = parseFirestoreFields(userDoc.fields);
+    
+    if (!userFields || !userFields.role) {
+        return res.status(403).json({ error: "Unauthorized access: Invalid role or incomplete profile." });
     }
 
     try {
