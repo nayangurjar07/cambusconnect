@@ -77,13 +77,23 @@ function parseFirestoreFields(fields) {
 function resolveTenant(req) {
     const hostHeader = req.headers['x-forwarded-host'] || req.headers.host || "";
     const host = hostHeader.toLowerCase().split(':')[0];
+    
+    // 1. Direct match (e.g. "iist", "medicaps", "owner")
     if (tenantConfigs[host]) {
         return { tenantKey: host, ...tenantConfigs[host] };
     }
-    if (host.includes('127.0.0.1')) {
-        return { tenantKey: '127.0.0.1', ...tenantConfigs['127.0.0.1'] };
+    
+    // 2. Subdomain check (e.g. "iist.cambusconnect.in" or "medicaps.localhost")
+    const parts = host.split('.');
+    if (parts.length > 1) {
+        const subdomain = parts[0];
+        if (tenantConfigs[subdomain]) {
+            return { tenantKey: subdomain, ...tenantConfigs[subdomain] };
+        }
     }
-    return { tenantKey: 'localhost', ...tenantConfigs['localhost'] };
+    
+    // 3. Fallback for localhost / direct IP testing
+    return { tenantKey: "iist", ...tenantConfigs["iist"] };
 }
 
 // Token verification via Firebase Auth REST API
