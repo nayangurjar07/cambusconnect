@@ -1,12 +1,14 @@
 // notifications.js - Notification Broadcast Logic for Cambus Connect
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if firebase is available (loaded as modular import/global)
-    const initInterval = setInterval(() => {
-        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-            clearInterval(initInterval);
-            initNotificationsPanel();
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            await authGuard();
         }
-    }, 100);
+    } catch (err) {
+        console.error("❌ Firebase/Auth unavailable on notifications panel:", err);
+    }
+    initNotificationsPanel();
 
     function initNotificationsPanel() {
         const auth = firebase.auth();
@@ -19,9 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (adminName) adminNameDisplay.textContent = adminName;
         }
 
-        // Support Queries Badge
+        // Support Queries Badge (one-time fetch for efficiency)
         const pendingBadge = document.getElementById('pending-badge');
-        dbHelper.getSupportQueriesCol().where('status', '==', 'Pending').onSnapshot(snapshot => {
+        dbHelper.getSupportQueriesCol().where('status', '==', 'Pending').get().then(snapshot => {
             const pendingCount = snapshot.size;
             if (pendingBadge) {
                 if (pendingCount > 0) {
@@ -31,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pendingBadge.classList.add('hidden');
                 }
             }
-        }, err => {
+        }).catch(err => {
             console.error("Error loading pending queries badge:", err);
         });
 

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Empty State Directory | Cambus Connect</title>
+    <meta name="description" content="Transit status, scheduled off-peak notifications, and empty state guides for Cambus Connect."/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+    
+    <link rel="stylesheet" href="../../tailwind.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        .empty-card {
+            transition: all 0.25s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="w-full bg-white border-b border-slate-200 py-4 px-6 sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto flex items-center justify-between">
+            <a href="/" class="flex items-center gap-2.5">
+                <div class="bg-[#0037b0] p-2 rounded-xl text-white">
+                    <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">directions_bus</span>
+                </div>
+                <span class="font-extrabold text-xl text-[#0037b0] tracking-tight">Cambus Connect</span>
+            </a>
+            <div class="flex items-center gap-3">
+                <a href="/portals/student/track/track.html" class="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0037b0] hover:bg-[#002b8a] px-4 py-2 rounded-xl transition-all shadow-sm">
+                    <span class="material-symbols-outlined text-sm">map</span> Live Track
+                </a>
+                <a href="/portals/student/student-login.html" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl transition-all">
+                    Login
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-4xl mx-auto px-6 py-10 w-full">
+        <div class="text-center max-w-xl mx-auto mb-8">
+            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-2">Transit Status &amp; Empty States</h1>
+            <p class="text-sm text-slate-500">Representative states when fleet data, routes, alerts, or student records have no active entries.</p>
+        </div>
+
+        <!-- Filter / Tabs -->
+        <div class="flex flex-wrap items-center justify-center gap-2 mb-8" id="tab-container">
+            <button class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-[#0037b0] text-white transition-all shadow-sm" data-target="state-buses">
+                No Active Buses
+            </button>
+            <button class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition-all" data-target="state-search">
+                No Search Results
+            </button>
+            <button class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition-all" data-target="state-alerts">
+                No Alerts (All Clear)
+            </button>
+            <button class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition-all" data-target="state-passes">
+                No Pass Found
+            </button>
+        </div>
+
+        <!-- State Card 1: No Active Buses -->
+        <div id="state-buses" class="state-panel bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 text-center shadow-sm max-w-xl mx-auto">
+            <div class="w-20 h-20 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-amber-600">
+                <span class="material-symbols-outlined text-4xl">nightlight_round</span>
+            </div>
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-amber-600 bg-amber-50 px-3 py-1 rounded-full">Off-Peak / Night Transit</span>
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mt-3 mb-2">No Active Buses on This Route</h2>
+            <p class="text-sm text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
+                Campus shuttles on this line have concluded their scheduled service for the evening. Regular morning service resumes at <strong>06:00 AM</strong>.
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <a href="/portals/student/track/track.html" class="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0037b0] hover:bg-[#002b8a] px-5 py-3 rounded-xl transition-all shadow-sm">
+                    <span class="material-symbols-outlined text-sm">explore</span> View All Operating Routes
+                </a>
+                <a href="tel:+18005552262" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-5 py-3 rounded-xl transition-all">
+                    <span class="material-symbols-outlined text-sm">call</span> Call SafeRide Dispatch
+                </a>
+            </div>
+        </div>
+
+        <!-- State Card 2: No Search Results (Hidden by default) -->
+        <div id="state-search" class="state-panel hidden bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 text-center shadow-sm max-w-xl mx-auto">
+            <div class="w-20 h-20 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-[#0037b0]">
+                <span class="material-symbols-outlined text-4xl">search_off</span>
+            </div>
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#0037b0] bg-blue-50 px-3 py-1 rounded-full">Search Empty</span>
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mt-3 mb-2">No Transit Vehicles Found</h2>
+            <p class="text-sm text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
+                We couldn't find any buses, routes, or campus stops matching your query. Check spelling or clear your filters to view the full fleet.
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <button onclick="window.location.href='/portals/student/track/track.html'" class="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0037b0] hover:bg-[#002b8a] px-5 py-3 rounded-xl transition-all shadow-sm">
+                    <span class="material-symbols-outlined text-sm">refresh</span> Reset Filters &amp; Reload
+                </button>
+            </div>
+        </div>
+
+        <!-- State Card 3: No Alerts (Hidden by default) -->
+        <div id="state-alerts" class="state-panel hidden bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 text-center shadow-sm max-w-xl mx-auto">
+            <div class="w-20 h-20 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-emerald-600">
+                <span class="material-symbols-outlined text-4xl">verified</span>
+            </div>
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">System Normal</span>
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mt-3 mb-2">All Routes Running Smoothly</h2>
+            <p class="text-sm text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
+                There are no active traffic delays, detours, or transit disruptions reported across the university network.
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <a href="/portals/student/track/track.html" class="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0037b0] hover:bg-[#002b8a] px-5 py-3 rounded-xl transition-all shadow-sm">
+                    <span class="material-symbols-outlined text-sm">map</span> Check Live Map
+                </a>
+            </div>
+        </div>
+
+        <!-- State Card 4: No Pass Found (Hidden by default) -->
+        <div id="state-passes" class="state-panel hidden bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 text-center shadow-sm max-w-xl mx-auto">
+            <div class="w-20 h-20 bg-purple-50 border border-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-purple-600">
+                <span class="material-symbols-outlined text-4xl">badge</span>
+            </div>
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-purple-600 bg-purple-50 px-3 py-1 rounded-full">Digital ID</span>
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mt-3 mb-2">No Active Bus Pass on Record</h2>
+            <p class="text-sm text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
+                Your student profile does not currently have an active transit pass assigned for this semester. You can request renewal through student transport services.
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <a href="/portals/student/student-login.html" class="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0037b0] hover:bg-[#002b8a] px-5 py-3 rounded-xl transition-all shadow-sm">
+                    <span class="material-symbols-outlined text-sm">login</span> Sign In to Renew
+                </a>
+                <a href="mailto:support@cambusconnect.edu" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-5 py-3 rounded-xl transition-all">
+                    <span class="material-symbols-outlined text-sm">mail</span> Contact Transport Office
+                </a>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer with Clickable Phone & Email -->
+    <footer class="w-full bg-white border-t border-slate-200 py-6 px-6 mt-12">
+        <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <div>&copy; 2026 Cambus Connect. Campus Mobility Solutions.</div>
+            <div class="flex flex-wrap items-center justify-center gap-6 font-semibold">
+                <a href="/privacy.html" class="hover:text-slate-600 transition-colors">Privacy Policy</a>
+                <a href="/terms.html" class="hover:text-slate-600 transition-colors">Terms of Service</a>
+                <a href="tel:+18005552262" class="flex items-center gap-1.5 text-slate-700 hover:text-[#0037b0] transition-colors">
+                    <span class="material-symbols-outlined text-[16px] text-[#e85d2a]">call</span>
+                    <span>+1 (800) 555-CAMBUS</span>
+                </a>
+                <a href="mailto:support@cambusconnect.edu" class="flex items-center gap-1.5 text-slate-700 hover:text-[#0037b0] transition-colors">
+                    <span class="material-symbols-outlined text-[16px] text-[#0037b0]">mail</span>
+                    <span>support@cambusconnect.edu</span>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update active tab styles
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('bg-[#0037b0]', 'text-white');
+                    b.classList.add('bg-white', 'text-slate-600');
+                });
+                btn.classList.remove('bg-white', 'text-slate-600');
+                btn.classList.add('bg-[#0037b0]', 'text-white');
+
+                // Toggle panels
+                const target = btn.getAttribute('data-target');
+                document.querySelectorAll('.state-panel').forEach(p => p.classList.add('hidden'));
+                const activePanel = document.getElementById(target);
+                if (activePanel) activePanel.classList.remove('hidden');
+            });
+        });
+    </script>
+</body>
+</html>
+

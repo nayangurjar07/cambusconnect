@@ -120,5 +120,28 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    console.log(`Auth guard passed for ${page}`);
+    console.log(`Auth guard passed initial sync check for ${page}`);
+
+    // RULE 8: Asynchronously verify Firebase Auth session has not expired or desynchronized
+    if (isLoggedIn === 'true' && isStudentPage && !isPublicPage) {
+        (async () => {
+            try {
+                const checkGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+                if (typeof checkGuard === 'function') {
+                    const user = await checkGuard(6000);
+                    if (!user) {
+                        console.warn("⚠️ Firebase Auth session missing or expired while localStorage was set. Redirecting to student login.");
+                        localStorage.removeItem('isLoggedIn');
+                        localStorage.removeItem('student');
+                        localStorage.removeItem('userEmail');
+                        window.location.href = loginPath;
+                    } else {
+                        console.log("✅ Firebase Auth session confirmed for:", user.email || user.uid);
+                    }
+                }
+            } catch (err) {
+                console.warn("⚠️ Auth guard async session check warning:", err);
+            }
+        })();
+    }
 });

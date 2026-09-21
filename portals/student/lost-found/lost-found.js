@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const student = JSON.parse(localStorage.getItem('student'));
     
     if (!student) {
@@ -6,14 +6,43 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const currentUserId = student.collegeId;
-    const currentUserName = student.name;
-    const currentUserEmail = student.email || '';
+    let authUser = null;
+    const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+    if (typeof authGuard === 'function') {
+        try {
+            authUser = await authGuard();
+        } catch (e) {
+            console.error('Firebase Auth readiness failed in lost-found.js:', e);
+        }
+    }
+
+    const currentAuthUser = authUser ||
+                             (window.auth && window.auth.currentUser) ||
+                             (typeof getFirebase === 'function' && getFirebase()?.auth ? getFirebase().auth().currentUser : null);
+    const currentUserEmail = (currentAuthUser && currentAuthUser.email) ||
+                             student.email ||
+                             (student.id && String(student.id).includes('@') ? student.id : '') ||
+                             localStorage.getItem('userEmail') ||
+                             '';
+    const currentUserId = student.collegeId || student.enrollment || student.id || currentUserEmail || '';
+    const currentUserName = student.name || 'Student';
+
+    if (!student.email && currentUserEmail) {
+        student.email = currentUserEmail;
+        localStorage.setItem('student', JSON.stringify(student));
+    }
 
     const listContainer = document.getElementById('lost-items-list');
     const form = document.getElementById('lost-item-form');
     const submitButton = document.getElementById('submit-report-button');
     const loader = document.getElementById('list-loader');
+    const searchInput = document.getElementById('lost-search-input');
+    const statusFilterChips = document.querySelectorAll('.lost-filter-chip');
+    const countDisplay = document.getElementById('lost-items-count');
+
+    let allLoadedItems = [];
+    let currentSearchTerm = '';
+    let currentStatusFilter = 'all';
 
     if (!listContainer || !form || !submitButton) {
         console.error('Lost & Found UI elements missing.');
@@ -28,8 +57,86 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function isOwnedByCurrentUser(item) {
-        return item.userId === currentUserId || (currentUserEmail && item.userEmail === currentUserEmail);
+        return (currentUserId && item.userId === currentUserId) || (currentUserEmail && item.userEmail === currentUserEmail);
     }
+
+    function filterAndRender() {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        let filtered = allLoadedItems.filter(item => {
+            if (item.isDeleted === true) return false;
+            const createdDate = getItemDate(item);
+            // If date is pending (serverTimestamp) or within 30 days, keep it
+            if (createdDate && createdDate < thirtyDaysAgo) return false;
+
+            // Status filter
+            if (currentStatusFilter !== 'all') {
+                const itemStatus = (item.status || 'Lost').toLowerCase();
+                if (itemStatus !== currentStatusFilter.toLowerCase()) return false;
+            }
+
+            // Search filter
+            if (currentSearchTerm) {
+                const term = currentSearchTerm.toLowerCase();
+                const itemName = (item.item || item.itemName || '').toLowerCase();
+                const desc = (item.description || '').toLowerCase();
+                const route = (item.route || '').toLowerCase();
+                const reporter = (item.userName || '').toLowerCase();
+                if (!itemName.includes(term) && !desc.includes(term) && !route.includes(term) && !reporter.includes(term)) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        if (countDisplay) {
+            countDisplay.textContent = `Showing ${filtered.length} of ${allLoadedItems.length} items`;
+        }
+
+        renderList(filtered);
+    }
+
+    // Search input listener
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            currentSearchTerm = e.target.value.trim();
+            filterAndRender();
+        });
+    }
+
+    // Status filter chips
+    statusFilterChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            statusFilterChips.forEach(c => {
+                c.classList.remove('bg-primary', 'text-white', 'shadow-sm');
+                c.classList.add('bg-slate-100', 'text-slate-600');
+            });
+            chip.classList.add('bg-primary', 'text-white', 'shadow-sm');
+            chip.classList.remove('bg-slate-100', 'text-slate-600');
+            currentStatusFilter = chip.dataset.status;
+            filterAndRender();
+        });
+    });
+
+    // Location Type Toggle
+    const locTypeBus = document.getElementById('loc-type-bus');
+    const locTypeCampus = document.getElementById('loc-type-campus');
+    const busContainer = document.getElementById('bus-location-container');
+    const campusContainer = document.getElementById('campus-location-container');
+
+    function updateLocationVisibility() {
+        if (locTypeCampus && locTypeCampus.checked) {
+            busContainer?.classList.add('hidden');
+            campusContainer?.classList.remove('hidden');
+        } else {
+            busContainer?.classList.remove('hidden');
+            campusContainer?.classList.add('hidden');
+        }
+    }
+    if (locTypeBus) locTypeBus.addEventListener('change', updateLocationVisibility);
+    if (locTypeCampus) locTypeCampus.addEventListener('change', updateLocationVisibility);
 
     // Handle form submission
     form.addEventListener('submit', async (e) => {
@@ -43,15 +150,45 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         
         const formData = new FormData(e.target);
+        const itemName = (formData.get('item') || '').trim();
+        const description = (formData.get('description') || '').trim();
+        const isCampus = locTypeCampus && locTypeCampus.checked;
+        
+        let locationString = '';
+        if (isCampus) {
+            const campusLoc = document.getElementById('campus-location-select')?.value || 'Campus Area';
+            const campusDetail = (document.getElementById('campus-location-detail')?.value || '').trim();
+            locationString = campusDetail ? `${campusLoc} (${campusDetail})` : campusLoc;
+        } else {
+            const selectedRoute = (formData.get('route') || '').trim();
+            locationString = selectedRoute || 'General Campus Bus';
+        }
+
+        const activeAuth = (window.auth && window.auth.currentUser) ||
+                           (typeof getFirebase === 'function' && getFirebase()?.auth ? getFirebase().auth().currentUser : null);
+        const submitEmail = (activeAuth && activeAuth.email) ||
+                            currentUserEmail ||
+                            student.email ||
+                            (student.id && String(student.id).includes('@') ? student.id : '') ||
+                            localStorage.getItem('userEmail') ||
+                            '';
+
+        const fbInstance = typeof getFirebase === 'function' ? getFirebase() : (window.firebase || globalThis.firebase);
+        const serverTs = fbInstance?.firestore?.FieldValue?.serverTimestamp ? fbInstance.firestore.FieldValue.serverTimestamp() : new Date();
+
         const newItem = {
-            item: formData.get('item'),
-            description: formData.get('description'),
-            route: formData.get('route'),
+            itemName: itemName,
+            item: itemName, // Canonical + backwards compatibility
+            description: description,
+            locationType: isCampus ? 'CAMPUS' : 'BUS',
+            location: locationString,
+            route: locationString, // Canonical + backwards compatibility
             status: 'Lost',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: serverTs,
             userId: currentUserId,
             userName: currentUserName,
-            userEmail: student.email || 'Not Available',
+            reportedBy: currentUserName, // Backwards compatibility for Admin
+            userEmail: submitEmail,
             userPhone: student.phone || 'Not Available',
             parentPhone: student.parentPhone || 'Not Available'
         };
@@ -78,6 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 2000);
             
             e.target.reset();
+            updateLocationVisibility();
         } catch (error) {
             console.error("Error adding document:", error);
             alert("Could not submit report: " + error.message);
@@ -86,12 +224,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Real-time listener for lost items
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
+    // Fetch lost items with limit (prevents unbounded reads at scale)
     dbHelper.getLostItemsCol()
         .orderBy('createdAt', 'desc')
+        .limit(30)
         .onSnapshot(snapshot => {
             if(loader) loader.remove();
             
@@ -100,14 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 items.push({ id: doc.id, ...doc.data() });
             });
             
-            const filteredItems = items.filter(item => {
-                if (item.isDeleted === true) return false;
-                const createdDate = getItemDate(item);
-                if (!createdDate) return false;
-                return createdDate >= thirtyDaysAgo;
-            });
-
-            renderList(filteredItems);
+            allLoadedItems = items;
+            filterAndRender();
         }, error => {
             console.error("Error listening to collection:", error);
             if(loader) loader.remove();
@@ -166,6 +296,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>` 
                 : '';
 
+            const isCampus = item.locationType === 'CAMPUS';
+            const locIcon = isCampus ? 'apartment' : 'directions_bus';
+            const locLabel = isCampus ? 'Campus Area' : 'Transit Route';
+            const locValue = item.location || item.route || (isCampus ? 'General Campus' : 'Campus Transit');
+            const displayName = item.itemName || item.item || 'Unnamed Item';
+
             const itemHtml = `
                 <div class="item-card glass-card rounded-3xl p-6 border-l-4 border-${statusConfig.color}-400 animate-slideIn" style="animation-delay: ${index * 0.1}s">
                     <div class="flex justify-between items-start mb-4">
@@ -174,38 +310,30 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ${statusConfig.icon}
                             </div>
                             <div>
-                                <h4 class="font-bold text-gray-900 text-xl">${item.item}</h4>
+                                <h4 class="font-bold text-gray-900 text-xl">${displayName}</h4>
                                 <span class="inline-block mt-1 px-3 py-1 bg-gradient-to-r ${statusConfig.gradient} text-white text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm">
-                                    ${item.status}
+                                    ${item.status || 'Lost'}
                                 </span>
                             </div>
                         </div>
                     </div>
                     
                     <p class="text-gray-700 font-medium mb-6 leading-relaxed bg-gradient-to-br from-gray-50 to-blue-50 p-4 rounded-2xl border border-gray-200">
-                        ${item.description}
+                        ${item.description || 'No description provided.'}
                     </p>
                     
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                         <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-3 border border-purple-100">
                             <div class="flex items-center gap-2 mb-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-600">
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                    <circle cx="12" cy="7" r="4"/>
-                                </svg>
+                                <span class="material-symbols-outlined text-[18px] text-purple-600">person</span>
                                 <p class="text-xs font-bold text-purple-700 uppercase tracking-wide">Reporter</p>
                             </div>
-                            <p class="text-sm font-bold text-gray-900">${item.userName || 'Anonymous'}</p>
+                            <p class="text-sm font-bold text-gray-900">${item.userName || item.reportedBy || 'Anonymous'}</p>
                         </div>
                         
                         <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-3 border border-blue-100">
                             <div class="flex items-center gap-2 mb-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600">
-                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                                    <line x1="16" y1="2" x2="16" y2="6"/>
-                                    <line x1="8" y1="2" x2="8" y2="6"/>
-                                    <line x1="3" y1="10" x2="21" y2="10"/>
-                                </svg>
+                                <span class="material-symbols-outlined text-[18px] text-blue-600">calendar_today</span>
                                 <p class="text-xs font-bold text-blue-700 uppercase tracking-wide">Date</p>
                             </div>
                             <p class="text-sm font-bold text-gray-900">${reportedDate}</p>
@@ -213,28 +341,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-3 border border-indigo-100">
                             <div class="flex items-center gap-2 mb-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-600">
-                                    <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 7.6 16 5 12 5s-6.7 2.6-8.5 6.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2"/>
-                                    <circle cx="7" cy="17.5" r="2.5"/>
-                                    <circle cx="17" cy="17.5" r="2.5"/>
-                                </svg>
-                                <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide">Route</p>
+                                <span class="material-symbols-outlined text-[18px] text-indigo-600">${locIcon}</span>
+                                <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide">${locLabel}</p>
                             </div>
-                            <p class="text-sm font-bold text-gray-900">${item.route}</p>
+                            <p class="text-sm font-bold text-gray-900 truncate">${locValue}</p>
                         </div>
                     </div>
                     
                     <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t-2 border-gray-100">
-                        <button class="contact-button flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-4 rounded-2xl text-sm font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2" data-item='${JSON.stringify({
-                            userName: item.userName,
-                            userEmail: item.userEmail,
-                            userPhone: item.userPhone,
-                            parentPhone: item.parentPhone,
-                            userId: item.userId
-                        }).replace(/'/g, "&apos;")}'>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-                            </svg>
+                        <button class="contact-button flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-4 rounded-2xl text-sm font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 cursor-pointer" data-id="${item.id}">
+                            <span class="material-symbols-outlined text-[18px]">contact_phone</span>
                             Contact Reporter
                         </button>
                         ${deleteButton}
@@ -287,47 +403,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 
                 <div class="space-y-3">
-                    <div class="bg-white border-2 border-gray-200 rounded-2xl p-4 hover:border-purple-300 transition-all">
-                        <div class="flex items-center gap-2 mb-2">
+                    <div class="bg-white border-2 border-gray-200 rounded-2xl p-4 hover:border-purple-300 transition-all min-w-0">
+                        <div class="flex items-center gap-2 mb-2 shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-600">
                                 <rect x="2" y="4" width="20" height="16" rx="2"/>
                                 <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                             </svg>
                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Email Address</p>
                         </div>
-                        <p class="text-gray-900 font-semibold">${itemData.userEmail || 'Not Available'}</p>
+                        <p class="text-gray-900 font-semibold break-all text-xs sm:text-sm">${itemData.userEmail || 'Not Available'}</p>
                         ${itemData.userEmail && itemData.userEmail !== 'Not Available' ? `
-                            <a href="mailto:${itemData.userEmail}" class="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl text-sm font-bold hover:shadow-lg transition-all">
+                            <a href="mailto:${itemData.userEmail}" class="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:shadow-lg transition-all">
                                 Send Email →
                             </a>
                         ` : ''}
                     </div>
                     
-                    <div class="bg-white border-2 border-gray-200 rounded-2xl p-4 hover:border-blue-300 transition-all">
-                        <div class="flex items-center gap-2 mb-2">
+                    <div class="bg-white border-2 border-gray-200 rounded-2xl p-4 hover:border-blue-300 transition-all min-w-0">
+                        <div class="flex items-center gap-2 mb-2 shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600">
                                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                             </svg>
                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Student Phone</p>
                         </div>
-                        <p class="text-gray-900 font-semibold">${itemData.userPhone || 'Not Available'}</p>
+                        <p class="text-gray-900 font-semibold break-words-safe text-xs sm:text-sm">${itemData.userPhone || 'Not Available'}</p>
                         ${itemData.userPhone && itemData.userPhone !== 'Not Available' ? `
-                            <a href="tel:${itemData.userPhone}" class="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-bold hover:shadow-lg transition-all">
+                            <a href="tel:${itemData.userPhone}" class="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:shadow-lg transition-all">
                                 Call Now →
                             </a>
                         ` : ''}
                     </div>
                     
-                    <div class="bg-white border-2 border-gray-200 rounded-2xl p-4 hover:border-indigo-300 transition-all">
-                        <div class="flex items-center gap-2 mb-2">
+                    <div class="bg-white border-2 border-gray-200 rounded-2xl p-4 hover:border-indigo-300 transition-all min-w-0">
+                        <div class="flex items-center gap-2 mb-2 shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-600">
                                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                             </svg>
                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Parent/Guardian Phone</p>
                         </div>
-                        <p class="text-gray-900 font-semibold">${itemData.parentPhone || 'Not Available'}</p>
+                        <p class="text-gray-900 font-semibold break-words-safe text-xs sm:text-sm">${itemData.parentPhone || 'Not Available'}</p>
                         ${itemData.parentPhone && itemData.parentPhone !== 'Not Available' ? `
-                            <a href="tel:${itemData.parentPhone}" class="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-bold hover:shadow-lg transition-all">
+                            <a href="tel:${itemData.parentPhone}" class="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:shadow-lg transition-all">
                                 Call Parent →
                             </a>
                         ` : ''}
@@ -370,8 +486,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.contact-button').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const itemData = JSON.parse(button.dataset.item);
-                showContactInfo(itemData);
+                const itemId = button.dataset.id;
+                const itemData = allLoadedItems.find(it => it.id === itemId);
+                if (itemData) {
+                    showContactInfo(itemData);
+                } else {
+                    console.warn("Item not found in loaded items:", itemId);
+                }
             });
         });
     }
@@ -402,13 +523,13 @@ document.addEventListener('DOMContentLoaded', () => {
         dbHelper.getBusesCol().orderBy('number', 'asc').onSnapshot(
             snapshot => {
                 if (snapshot.empty) {
-                    routeSelect.innerHTML = '<option value="">No buses available</option>';
+                    routeSelect.innerHTML = '<option value="General Transit">General Transit (No registered buses)</option>';
                     console.warn("⚠️ No buses found in database");
                     return;
                 }
                 
                 const currentValue = routeSelect.value;
-                routeSelect.innerHTML = '<option value="">Select a route...</option>';
+                routeSelect.innerHTML = '<option value="">Select a route (optional)...</option>';
                 
                 snapshot.forEach(doc => {
                     const bus = doc.data();
@@ -426,7 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             error => {
                 console.error("❌ Error fetching buses:", error);
-                routeSelect.innerHTML = '<option value="">Error loading routes</option>';
+                routeSelect.innerHTML = '<option value="Campus Transit">Campus Transit (Routes offline)</option>';
             }
         );
     }

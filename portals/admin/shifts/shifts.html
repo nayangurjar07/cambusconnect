@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html class="light" lang="en">
 <head>
     <meta charset="utf-8"/>
@@ -8,7 +8,7 @@
     <!-- Auth Guard check -->
     <script src="../../../auth-guard.js"></script>
 
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="../../../tailwind.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
     
@@ -50,49 +50,7 @@
             background: #747686;
         }
     </style>
-    <script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            "colors": {
-              "primary-container": "var(--primary-color, #1d4ed8)",
-              "error": "#ba1a1a",
-              "outline": "#747686",
-              "outline-variant": "#c4c5d7",
-              "on-background": "var(--text-color, #0b1c30)",
-              "primary": "var(--primary-color, #0037b0)",
-              "surface": "#f8f9ff",
-              "on-surface": "var(--text-color, #0b1c30)",
-              "background": "var(--bg-color, #f8f9ff)"
-            },
-            "spacing": {
-              "margin-desktop": "32px",
-              "margin-mobile": "16px",
-              "xs": "4px",
-              "base": "4px",
-              "sm": "8px",
-              "md": "16px",
-              "lg": "24px"
-            },
-            "fontFamily": {
-              "headline-md": ["Inter"],
-              "label-sm": ["Inter"],
-              "label-md": ["Inter"],
-              "body-md": ["Inter"],
-              "headline-lg": ["Inter"]
-            },
-            "fontSize": {
-              "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
-              "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
-              "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
-              "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
-              "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
-            }
-          },
-        },
-      }
-    </script>
+    
 </head>
 <body class="bg-background text-on-surface">
     <!-- Enhanced Sidebar -->
@@ -128,11 +86,7 @@
                 <span class="material-symbols-outlined">explore</span>
                 <span class="font-label-md text-label-md">Live Tracking</span>
             </a>
-            <!-- Route Optimizer Tab -->
-            <a href="../route-optimizer/optimizer.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
-                <span class="material-symbols-outlined">settings_suggest</span>
-                <span class="font-label-md text-label-md">Route Optimizer</span>
-            </a>
+
             
             
             
@@ -409,3 +363,4 @@
     </script>
 </body>
 </html>
+

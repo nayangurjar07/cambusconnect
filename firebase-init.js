@@ -24,7 +24,8 @@ import {
     arrayUnion,
     arrayRemove,
     writeBatch,
-    increment
+    increment,
+    getCountFromServer
 } from "firebase/firestore";
 import {
     signInWithEmailAndPassword,
@@ -138,6 +139,13 @@ class CompatQuery {
             : collection(this.db, this.path);
         const q = query(base, ...this.constraints);
         return getDocs(q).then(snap => new CompatQuerySnap(snap));
+    }
+    count() {
+        const base = this.isCollectionGroup 
+            ? collectionGroup(this.db, this.collectionGroupId)
+            : collection(this.db, this.path);
+        const q = query(base, ...this.constraints);
+        return getCountFromServer(q).then(snap => snap.data().count);
     }
     onSnapshot(onNext, onError) {
         const base = this.isCollectionGroup 
@@ -258,6 +266,14 @@ window.firebase = {
         }
     })
 };
+globalThis.firebase = window.firebase;
+
+export function getFirebase() {
+    return window.firebase || globalThis.firebase;
+}
+window.getFirebase = getFirebase;
+globalThis.getFirebase = getFirebase;
+
 window.tenantConfigs = tenantConfigs;
 window.getSubdomain = getSubdomain;
 
@@ -279,6 +295,10 @@ export function reinitializeFirebase(tenantKey) {
 
         window.firebase.apps = [app];
         window.firebase.app = () => app;
+        globalThis.firebase = window.firebase;
+        if (typeof window.resetFirebaseAuthGuard === 'function') {
+            window.resetFirebaseAuthGuard();
+        }
 
         console.log(`📡 Re-initialized Firebase dynamically for tenant: ${currentTenant.branding.shortName}`);
         return true;

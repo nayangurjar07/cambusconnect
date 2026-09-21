@@ -118,12 +118,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     loadMyQueries();
 
-    function loadMyQueries() {
+    async function loadMyQueries() {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            try {
+                await authGuard();
+            } catch (e) {
+                console.error("Firebase not ready for support queries:", e);
+                return;
+            }
+        }
         const studentEmail = studentData.email || studentData.collegeId;
         
         dbHelper.getSupportQueriesCol()
             .where('studentEmail', '==', studentEmail)
             .orderBy('createdAt', 'desc')
+            .limit(20)
             .onSnapshot(snapshot => {
                 allQueries = [];
                 snapshot.forEach(doc => {
@@ -165,22 +175,38 @@ document.addEventListener('DOMContentLoaded', () => {
         if(statPending) statPending.textContent = pending;
         if(statResolved) statResolved.textContent = resolved;
         
-        // NEW FEATURE: Calculate average response time
+        // Calculate average response time safely
+        const toDateSafe = (d) => {
+            if (!d) return null;
+            if (typeof d.toDate === 'function') return d.toDate();
+            const parsed = new Date(d);
+            return Number.isNaN(parsed.getTime()) ? null : parsed;
+        };
+
         const respondedQueries = allQueries.filter(q => q.respondedAt && q.createdAt);
         if(respondedQueries.length > 0 && statResponse) {
-            const avgHours = respondedQueries.reduce((sum, q) => {
-                const created = q.createdAt.toDate();
-                const responded = q.respondedAt.toDate();
-                const hours = (responded - created) / (1000 * 60 * 60);
-                return sum + hours;
-            }, 0) / respondedQueries.length;
+            let validCount = 0;
+            const totalHours = respondedQueries.reduce((sum, q) => {
+                const created = toDateSafe(q.createdAt);
+                const responded = toDateSafe(q.respondedAt);
+                if (created && responded) {
+                    validCount++;
+                    return sum + Math.max(0, (responded - created) / (1000 * 60 * 60));
+                }
+                return sum;
+            }, 0);
             
-            if(avgHours < 1) {
-                statResponse.textContent = `${Math.round(avgHours * 60)}m`;
-            } else if(avgHours < 24) {
-                statResponse.textContent = `${Math.round(avgHours)}h`;
+            if (validCount > 0) {
+                const avgHours = totalHours / validCount;
+                if(avgHours < 1) {
+                    statResponse.textContent = `${Math.max(1, Math.round(avgHours * 60))}m`;
+                } else if(avgHours < 24) {
+                    statResponse.textContent = `${Math.round(avgHours)}h`;
+                } else {
+                    statResponse.textContent = `${Math.round(avgHours / 24)}d`;
+                }
             } else {
-                statResponse.textContent = `${Math.round(avgHours / 24)}d`;
+                statResponse.textContent = 'N/A';
             }
         } else if(statResponse) {
             statResponse.textContent = 'N/A';
@@ -308,38 +334,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }) : 'Just now';
 
         card.innerHTML = `
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex-1">
+            <div class="flex items-start justify-between mb-4 gap-2 min-w-0">
+                <div class="flex-1 min-w-0">
                     <div class="flex items-center flex-wrap gap-2 mb-3">
-                        <span class="px-4 py-1.5 rounded-full text-xs font-bold border-2 ${status.class} flex items-center space-x-1">
+                        <span class="px-4 py-1.5 rounded-full text-xs font-bold border-2 ${status.class} flex items-center space-x-1 shrink-0">
                             <span>${status.icon}</span>
                             <span>${query.status}</span>
                         </span>
-                        <span class="px-4 py-1.5 rounded-full text-xs font-bold border-2 ${priority.class} flex items-center space-x-1">
+                        <span class="px-4 py-1.5 rounded-full text-xs font-bold border-2 ${priority.class} flex items-center space-x-1 shrink-0">
                             <span>${priority.emoji}</span>
                             <span>${query.priority}</span>
                         </span>
-                        <span class="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        <span class="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 shrink-0">
                             ${query.category}
                         </span>
                     </div>
-                    <h4 class="font-bold text-gray-800 text-xl mb-2">${query.subject}</h4>
+                    <h4 class="font-bold text-gray-800 text-lg sm:text-xl mb-2 break-words-safe">${query.subject}</h4>
                 </div>
                 ${isUrgent ? `
-                    <div class="ml-3 px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold border border-red-200">
+                    <div class="ml-2 px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold border border-red-200 shrink-0">
                         URGENT
                     </div>
                 ` : ''}
             </div>
             
-            <div class="bg-white rounded-xl p-5 mb-4 border-2 border-gray-100">
-                <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">${query.description}</p>
+            <div class="bg-white rounded-xl p-4 sm:p-5 mb-4 border-2 border-gray-100 min-w-0">
+                <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words-safe">${query.description}</p>
             </div>
             
             ${query.response ? `
-                <div class="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-5 mb-4">
-                    <div class="flex items-center space-x-2 mb-3">
-                        <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4 sm:p-5 mb-4 min-w-0">
+                    <div class="flex items-center space-x-2 mb-3 shrink-0">
+                        <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                             </svg>
@@ -347,10 +373,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="text-sm font-bold text-green-700">Admin Response</span>
                         ${query.respondedBy ? `<span class="text-xs text-green-600">by ${query.respondedBy}</span>` : ''}
                     </div>
-                    <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${query.response}</p>
+                    <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap break-words-safe">${query.response}</p>
                     ${query.respondedAt ? `
                         <div class="flex items-center space-x-2 mt-3 pt-3 border-t border-green-200">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600 shrink-0">
                                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                             </svg>
                             <p class="text-xs text-green-600 font-medium">
@@ -374,23 +400,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `}
             
-            <div class="flex items-center justify-between pt-4 border-t-2 border-gray-100">
-                <div class="flex items-center space-x-2 text-sm text-gray-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="flex items-center justify-between pt-4 border-t-2 border-gray-100 flex-wrap gap-2">
+                <div class="flex items-center space-x-2 text-xs sm:text-sm text-gray-500 min-w-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
                         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                     </svg>
-                    <span>Submitted: ${date}</span>
+                    <span class="truncate">Submitted: ${date}</span>
                 </div>
                 <div class="flex items-center space-x-2">
                     ${query.status !== 'Closed' ? `
-                        <button onclick="editQuery('${query.id}')" class="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg font-semibold text-sm transition flex items-center space-x-1">
+                        <button onclick="editQuery('${query.id}')" class="px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg font-semibold text-xs transition flex items-center space-x-1">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
                             </svg>
                             <span>Edit</span>
                         </button>
                     ` : ''}
-                    <button onclick="deleteQuery('${query.id}')" class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-semibold text-sm transition flex items-center space-x-1">
+                    <button onclick="deleteQuery('${query.id}')" class="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg font-semibold text-xs transition flex items-center space-x-1">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                         </svg>
@@ -437,8 +463,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Metadata
             status: 'Pending',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: (typeof getFirebase === 'function' ? getFirebase() : (window.firebase || globalThis.firebase))?.firestore?.FieldValue?.serverTimestamp() || new Date(),
+            updatedAt: (typeof getFirebase === 'function' ? getFirebase() : (window.firebase || globalThis.firebase))?.firestore?.FieldValue?.serverTimestamp() || new Date(),
             response: null,
             respondedBy: null,
             respondedAt: null
@@ -489,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dbHelper.getSupportQueriesCol().doc(queryId).update({
                 subject: newSubject,
                 description: newDescription,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                updatedAt: (typeof getFirebase === 'function' ? getFirebase() : (window.firebase || globalThis.firebase))?.firestore?.FieldValue?.serverTimestamp() || new Date()
             })
             .then(() => {
                 console.log("✅ Query updated");

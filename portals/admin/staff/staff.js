@@ -1,12 +1,14 @@
 // staff.js - Staff Management Logic for Cambus Connect
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if firebase is available (loaded as modular import/global)
-    const initInterval = setInterval(() => {
-        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-            clearInterval(initInterval);
-            initStaffPanel();
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            await authGuard();
         }
-    }, 100);
+    } catch (err) {
+        console.error("❌ Firebase/Auth unavailable on staff panel:", err);
+    }
+    initStaffPanel();
 
     function initStaffPanel() {
         const auth = firebase.auth();
@@ -19,9 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (adminName) adminNameDisplay.textContent = adminName;
         }
 
-        // Support Queries Badge
+        // Support Queries Badge (one-time fetch for efficiency)
         const pendingBadge = document.getElementById('pending-badge');
-        dbHelper.getSupportQueriesCol().where('status', '==', 'Pending').onSnapshot(snapshot => {
+        dbHelper.getSupportQueriesCol().where('status', '==', 'Pending').get().then(snapshot => {
             const pendingCount = snapshot.size;
             if (pendingBadge) {
                 if (pendingCount > 0) {
@@ -31,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pendingBadge.classList.add('hidden');
                 }
             }
-        }, err => {
+        }).catch(err => {
             console.error("Error loading pending queries badge:", err);
         });
 
@@ -56,6 +58,12 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Error fetching buses:", err);
         });
 
+        const modalEditStaff = document.getElementById('modal-edit-staff');
+        const closeEditStaffModalBtn = document.getElementById('close-edit-staff-modal-btn');
+        const cancelEditStaffModalBtn = document.getElementById('cancel-edit-staff-modal-btn');
+        const formEditStaff = document.getElementById('form-edit-staff');
+        const editStaffBusSelect = document.getElementById('edit-staff-bus-select');
+
         function updateBusOptions() {
             if (staffBusSelect) {
                 staffBusSelect.innerHTML = '<option value="">Select a bus...</option>';
@@ -64,6 +72,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     option.value = bus.id;
                     option.textContent = `Bus ${bus.number} - ${bus.route}`;
                     staffBusSelect.appendChild(option);
+                });
+            }
+            if (editStaffBusSelect) {
+                editStaffBusSelect.innerHTML = '<option value="">No Bus Assigned</option>';
+                buses.forEach(bus => {
+                    const option = document.createElement('option');
+                    option.value = bus.id;
+                    option.textContent = `Bus ${bus.number} - ${bus.route}`;
+                    editStaffBusSelect.appendChild(option);
                 });
             }
         }
@@ -95,39 +112,145 @@ document.addEventListener('DOMContentLoaded', () => {
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-slate-50 transition-colors';
                 row.innerHTML = `
-                    <td class="px-6 py-4">
-                       <div class="flex items-center gap-3">
-                           <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                    <td class="px-6 py-4 min-w-0">
+                       <div class="flex items-center gap-3 min-w-0">
+                           <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shrink-0">
                                ${staff.name ? staff.name.charAt(0).toUpperCase() : 'S'}
                            </div>
-                           <div>
-                               <p class="font-bold text-slate-800">${staff.name || 'Unknown'}</p>
+                           <div class="min-w-0">
+                               <p class="font-bold text-slate-800 break-words-safe">${staff.name || 'Unknown'}</p>
                            </div>
                        </div>
                     </td>
-                    <td class="px-6 py-4 text-slate-700 font-medium">${staff.email || 'N/A'}</td>
-                    <td class="px-6 py-4 text-slate-700 font-medium">${staff.phone || 'N/A'}</td>
+                    <td class="px-6 py-4 text-slate-700 font-medium break-email max-w-[200px]">${staff.email || 'N/A'}</td>
+                    <td class="px-6 py-4 text-slate-700 font-medium break-words-safe">${staff.phone || 'N/A'}</td>
                     <td class="px-6 py-4">
                         <span class="px-2 py-1 text-xs font-bold rounded-lg ${staff.role === 'driver' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">
                             ${staff.role ? staff.role.toUpperCase() : 'N/A'}
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-slate-700 text-sm font-semibold">${busInfo}</td>
-                    <td class="px-6 py-4 text-right">
-                        <button class="btn-delete-staff px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded-lg transition-colors" data-id="${staff.id}">
-                            Delete
-                        </button>
+                    <td class="px-6 py-4 text-slate-700 text-sm font-semibold break-words-safe max-w-[180px]">${busInfo}</td>
+                    <td class="px-6 py-4 text-right shrink-0">
+                        <div class="flex items-center justify-end gap-2">
+                            <button class="btn-edit-staff px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg transition-colors cursor-pointer whitespace-nowrap" data-id="${staff.id}">
+                                Edit
+                            </button>
+                            <button class="btn-delete-staff px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded-lg transition-colors cursor-pointer whitespace-nowrap" data-id="${staff.id}">
+                                Delete
+                            </button>
+                        </div>
                     </td>
                 `;
                 staffTableBody.appendChild(row);
             });
 
+            // Bind edit events
+            document.querySelectorAll('.btn-edit-staff').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.currentTarget.getAttribute('data-id');
+                    if (id) openEditModal(id);
+                });
+            });
+
             // Bind delete events
             document.querySelectorAll('.btn-delete-staff').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const id = e.target.getAttribute('data-id');
+                    const id = e.currentTarget.getAttribute('data-id');
                     if (id) deleteStaff(id);
                 });
+            });
+        }
+
+        function openEditModal(staffId) {
+            const staff = staffList.find(s => s.id === staffId);
+            if (!staff || !modalEditStaff) return;
+
+            document.getElementById('edit-staff-doc-id').value = staff.id;
+            document.getElementById('edit-staff-original-email').value = staff.email || '';
+            document.getElementById('edit-staff-original-bus-id').value = staff.assignedBusId || '';
+            document.getElementById('edit-staff-original-role').value = staff.role || 'driver';
+            document.getElementById('edit-staff-name').value = staff.name || '';
+            document.getElementById('edit-staff-role').value = staff.role || 'driver';
+            document.getElementById('edit-staff-email').value = staff.email || '';
+            document.getElementById('edit-staff-phone').value = staff.phone || '';
+            if (editStaffBusSelect) {
+                editStaffBusSelect.value = staff.assignedBusId || '';
+            }
+
+            modalEditStaff.classList.remove('hidden');
+            modalEditStaff.classList.add('flex');
+        }
+
+        function closeEditModal() {
+            if (modalEditStaff) {
+                modalEditStaff.classList.add('hidden');
+                modalEditStaff.classList.remove('flex');
+            }
+        }
+        if (closeEditStaffModalBtn) closeEditStaffModalBtn.addEventListener('click', closeEditModal);
+        if (cancelEditStaffModalBtn) cancelEditStaffModalBtn.addEventListener('click', closeEditModal);
+
+        if (formEditStaff) {
+            formEditStaff.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const docId = formData.get('staffDocId');
+                const origEmail = formData.get('originalEmail');
+                const origBusId = formData.get('originalBusId');
+                const origRole = formData.get('originalRole');
+                const newName = formData.get('name').trim();
+                const newRole = formData.get('role');
+                const newPhone = formData.get('phone').trim();
+                const newBusId = formData.get('assignedBusId') || '';
+
+                try {
+                    // Update user doc
+                    await dbHelper.getUsersCol().doc(docId).update({
+                        name: newName,
+                        role: newRole,
+                        phone: newPhone,
+                        assignedBusId: newBusId,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    // Sync old bus if unassigned or changed
+                    if (origBusId && (origBusId !== newBusId || origRole !== newRole)) {
+                        const oldBusRef = dbHelper.getBusesCol().doc(origBusId);
+                        if (origRole === 'driver') {
+                            await oldBusRef.update({
+                                driverEmails: firebase.firestore.FieldValue.arrayRemove(origEmail)
+                            }).catch(() => {});
+                        } else {
+                            await oldBusRef.update({
+                                conductorEmails: firebase.firestore.FieldValue.arrayRemove(origEmail)
+                            }).catch(() => {});
+                        }
+                    }
+
+                    // Sync new bus if assigned
+                    if (newBusId && (newBusId !== origBusId || newRole !== origRole)) {
+                        const newBusRef = dbHelper.getBusesCol().doc(newBusId);
+                        if (newRole === 'driver') {
+                            await newBusRef.update({
+                                driverEmails: firebase.firestore.FieldValue.arrayUnion(origEmail),
+                                driver: newName,
+                                phone: newPhone
+                            }).catch(() => {});
+                        } else {
+                            await newBusRef.update({
+                                conductorEmails: firebase.firestore.FieldValue.arrayUnion(origEmail),
+                                conductor: newName,
+                                conductorPhone: newPhone
+                            }).catch(() => {});
+                        }
+                    }
+
+                    alert('✅ Staff member updated successfully!');
+                    closeEditModal();
+                } catch (err) {
+                    console.error("Error updating staff:", err);
+                    alert("❌ Update failed: " + err.message);
+                }
             });
         }
 

@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('userEmail', email);
             localStorage.setItem('userRole', 'student');
-            localStorage.setItem('student', JSON.stringify({ id: email, ...userData }));
+            localStorage.setItem('student', JSON.stringify({ id: email, email: email, ...userData }));
 
             loginButton.textContent = "Login Successful!";
             loginButton.classList.remove('bg-blue-600');

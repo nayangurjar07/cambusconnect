@@ -1,4 +1,29 @@
 // =============================================================================
+// GLOBAL UTILITY FUNCTIONS
+// These are defined at module scope (not inside DOMContentLoaded) so they are
+// available synchronously to all scripts loaded after main.js.
+// =============================================================================
+
+/**
+ * Canonical XSS-safe HTML escape utility.
+ * Use this whenever inserting user- or database-controlled text into innerHTML.
+ * Escapes: & < > " ' `
+ *
+ * @param {*} value - The value to escape. Non-strings are coerced to string.
+ * @returns {string} HTML-safe string.
+ */
+window.escapeHTML = function escapeHTML(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;')
+        .replace(/`/g, '&#x60;');
+};
+
+// =============================================================================
 // MAIN.JS - CAMBUS CONNECT Shared Components & Logic
 // =============================================================================
 // This file is loaded on ALL student pages (home, bus-pass, track, etc.)

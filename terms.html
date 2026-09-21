@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms and Conditions - Cambus Connect</title>
+    <meta name="description" content="Terms and Conditions for Cambus Connect - Intelligent Campus Transit Platform">
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="/style.css" rel="stylesheet">
+    <!-- Tailwind CSS (Include your built CSS here) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased min-h-screen flex flex-col">
+    <!-- Header/Nav placeholder -->
+    <header class="bg-white border-b border-slate-200 py-4 px-6 md:px-12 flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center gap-2">
+            <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Cambus Connect</span>
+        </div>
+        <a href="/" class="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Back to Home</a>
+    </header>
+
+    <main class="flex-grow container mx-auto px-6 md:px-12 py-12 max-w-4xl">
+        <h1 class="text-4xl font-bold mb-8 text-slate-900">Terms and Conditions</h1>
+        
+        <div class="prose prose-slate max-w-none text-slate-600 space-y-6">
+            <p><strong>Last Updated:</strong> <span id="current-date"></span></p>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4 mt-8">1. Acceptance of Terms</h2>
+                <p>By accessing or using the Cambus Connect platform, you agree to be bound by these Terms and Conditions. If you disagree with any part of the terms, then you may not access the service.</p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4 mt-8">2. Use of Service</h2>
+                <p>You agree to use the service only for lawful purposes and in a way that does not infringe the rights of, restrict or inhibit anyone else's use and enjoyment of the service. Prohibited behavior includes harassing or causing distress or inconvenience to any other user, transmitting obscene or offensive content, or disrupting the normal flow of dialogue within our service.</p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4 mt-8">3. User Accounts</h2>
+                <p>To access certain features of the service, you may be required to create an account. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.</p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4 mt-8">4. Intellectual Property</h2>
+                <p>The service and its original content, features, and functionality are and will remain the exclusive property of Cambus Connect and its licensors. The service is protected by copyright, trademark, and other laws.</p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4 mt-8">5. Limitation of Liability</h2>
+                <p>In no event shall Cambus Connect, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the service.</p>
+            </section>
+            
+            <section>
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4 mt-8">6. Changes to Terms</h2>
+                <p>We reserve the right, at our sole discretion, to modify or replace these Terms at any time. We will provide notice of any material changes by posting the new Terms on this site.</p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4 mt-8">7. Contact Us</h2>
+                <p>If you have any questions about these Terms, please contact us.</p>
+            </section>
+        </div>
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 py-8 border-t border-slate-800 mt-12">
+        <div class="container mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p class="text-sm">© <span id="year"></span> Cambus Connect. All rights reserved.</p>
+            <div class="flex gap-6 text-sm">
+                <a href="/privacy.html" class="hover:text-white transition-colors">Privacy Policy</a>
+                <a href="/terms.html" class="hover:text-white transition-colors">Terms of Service</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+</body>
+</html>

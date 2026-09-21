@@ -35,7 +35,8 @@ async function refreshLocation() {
     if (!trackedBusId) return;
 
     try {
-        const currentUser = firebase.auth().currentUser;
+        const authObj = window.auth || (typeof getFirebase === 'function' && getFirebase()?.auth ? getFirebase().auth() : null);
+        const currentUser = authObj ? authObj.currentUser : null;
         if (!currentUser) {
             console.log("Auth not ready yet for live location fetch.");
             return;
@@ -93,7 +94,33 @@ async function refreshLocation() {
 // ========================================
 // 2. INITIALIZE MAP
 // ========================================
-window.initMap = function() {
+
+/**
+ * Waits for window.db (set by firebase-init.js ESM module) to be available.
+ * Firebase is loaded as an ES module (async), while Google Maps fires initMap
+ * via a non-module callback — creating a race condition.
+ * This resolves the race by polling with a 50ms interval and a 5s timeout.
+ */
+function waitForFirebase(timeoutMs = 5000) {
+    return new Promise((resolve, reject) => {
+        if (window.db) {
+            resolve();
+            return;
+        }
+        const start = Date.now();
+        const interval = setInterval(() => {
+            if (window.db) {
+                clearInterval(interval);
+                resolve();
+            } else if (Date.now() - start > timeoutMs) {
+                clearInterval(interval);
+                reject(new Error('Firebase did not initialize within ' + timeoutMs + 'ms'));
+            }
+        }, 50);
+    });
+}
+
+window.initMap = async function() {
     const defaultCenter = { lat: 22.7196, lng: 75.8577 };
 
     map = new google.maps.Map(document.getElementById('map'), {
@@ -117,7 +144,22 @@ window.initMap = function() {
         ]
     });
 
-    startBusTracking();
+    // Map is rendered immediately. Now wait for Firebase & Auth before subscribing.
+    try {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            await authGuard();
+        }
+        console.log('✅ Firebase and Auth ready — starting bus tracking.');
+        startBusTracking();
+    } catch (err) {
+        console.error('❌ Firebase failed to initialize before map callback:', err);
+        const mapEl = document.getElementById('map');
+        if (mapEl) {
+            mapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6b7280;font-size:14px;">Unable to connect to live data. Please refresh.</div>';
+        }
+    }
+
     setupMapControls();
 };
 
@@ -132,9 +174,16 @@ function startBusTracking() {
         return;
     }
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramBus = urlParams.get('bus') || urlParams.get('busId');
     const userKey = studentData.email || localStorage.getItem('userEmail') || 'student';
-    const savedTrackBusId = localStorage.getItem(`defaultTrackedBusId:${userKey}`) || localStorage.getItem(`trackBusOverride:${userKey}`);
-    selectedTrackBusId = savedTrackBusId || studentData.assignedBusId || null;
+
+    if (paramBus) {
+        selectedTrackBusId = paramBus;
+    } else {
+        const savedTrackBusId = localStorage.getItem(`defaultTrackedBusId:${userKey}`) || localStorage.getItem(`trackBusOverride:${userKey}`);
+        selectedTrackBusId = savedTrackBusId || studentData.assignedBusId || null;
+    }
 
     setupTrackBusSelector();
 
@@ -162,68 +211,14 @@ function startBusTracking() {
             updateBusMarker(bus);
         });
 
-        // Demo Simulation Fallback when database is empty
+        // Clean up any residual demo simulation intervals
+        if (window.demoInterval) {
+            clearInterval(window.demoInterval);
+            window.demoInterval = null;
+        }
+
         if (busesData.length === 0) {
-            console.log("ℹ️ No active buses found in Firestore. Injecting simulated demo fleet...");
-            busesData = [
-                {
-                    id: 'demo-bus-101',
-                    number: '101',
-                    route: 'Main Campus Loop (Via Geeta Bhawan)',
-                    driver: 'Rajesh Sharma',
-                    conductor: 'Amit Kumar',
-                    phone: '+91 98765 43210',
-                    status: 'On Time',
-                    lastUpdate: 'Just now',
-                    locationSource: 'driver_phone',
-                    location: { lat: 22.7153, lng: 75.8797 }
-                },
-                {
-                    id: 'demo-bus-202',
-                    number: '202',
-                    route: 'Rajwada Express (Via Vijay Nagar)',
-                    driver: 'Manish Verma',
-                    conductor: 'Sanjay Singh',
-                    phone: '+91 98765 43211',
-                    status: 'Delayed',
-                    lastUpdate: '2 mins ago',
-                    locationSource: 'tracking_device',
-                    location: { lat: 22.7533, lng: 75.8937 }
-                },
-                {
-                    id: 'demo-bus-303',
-                    number: '303',
-                    route: 'Bhawarkua Shuttle (Via Palasia)',
-                    driver: 'Sunil Mehta',
-                    conductor: 'Vijay Yadav',
-                    phone: '+91 98765 43212',
-                    status: 'Breakdown',
-                    lastUpdate: '5 mins ago',
-                    locationSource: 'conductor_phone',
-                    location: { lat: 22.6926, lng: 75.8677 }
-                }
-            ];
-
-            busesData.forEach(bus => {
-                if (bus.status === 'On Time' || bus.status === 'Delayed') {
-                    activeBuses++;
-                }
-                updateBusMarker(bus);
-            });
-
-            if (!window.demoInterval) {
-                window.demoInterval = setInterval(() => {
-                    busesData.forEach(bus => {
-                        if (bus.status !== 'Breakdown' && bus.location) {
-                            bus.location.lat += (Math.random() - 0.5) * 0.0006;
-                            bus.location.lng += (Math.random() - 0.5) * 0.0006;
-                            updateBusMarker(bus);
-                        }
-                    });
-                    renderBusList([...busesData]);
-                    updateTrackedBusDisplay();
-                }, 3000);
-            }
+            console.log("ℹ️ No active fleet records currently broadcasting from Firestore.");
         }
 
         const activeBusesEl = document.getElementById('active-buses-count');
@@ -242,6 +237,10 @@ function startBusTracking() {
         calculateETA();
         renderBusList([...busesData]);
         checkTrackedBusStatus();
+
+        if (paramBus) {
+            focusMyBus();
+        }
     }, () => {
         const busListEl = document.getElementById('bus-list');
         if (busListEl) {
@@ -258,11 +257,14 @@ function startBusTracking() {
         clearInterval(trackingInterval);
     }
     
-    firebase.auth().onAuthStateChanged(user => {
-        if (user) {
-            refreshLocation();
-        }
-    });
+    const authHandler = window.auth || (typeof getFirebase === 'function' && getFirebase()?.auth ? getFirebase().auth() : null);
+    if (authHandler && typeof authHandler.onAuthStateChanged === 'function') {
+        authHandler.onAuthStateChanged(user => {
+            if (user) {
+                refreshLocation();
+            }
+        });
+    }
     trackingInterval = setInterval(refreshLocation, 10000);
 }
 
@@ -403,16 +405,30 @@ function calculateETA() {
 
     if (!etaEl) return;
     if (!trackedBusId) {
-        etaEl.textContent = 'N/A';
+        etaEl.textContent = 'ETA unavailable';
         return;
     }
 
     const trackedBus = busesData.find(b => b.id === trackedBusId);
-    if (trackedBus && trackedBus.location) {
-        const randomETA = Math.floor(Math.random() * 15) + 3;
-        etaEl.textContent = `${randomETA}m`;
+    if (trackedBus && (trackedBus.etaMinutes || trackedBus.eta)) {
+        const val = parseInt(trackedBus.etaMinutes || trackedBus.eta, 10);
+        etaEl.textContent = isNaN(val) ? (trackedBus.etaMinutes || trackedBus.eta) : `${val}m`;
+    } else if (trackedBus && trackedBus.location && (trackedBus.location.lat || trackedBus.location.latitude)) {
+        const lat = trackedBus.location.lat || trackedBus.location.latitude;
+        const lng = trackedBus.location.lng || trackedBus.location.longitude;
+        // Campus reference coords (22.7196, 75.8577)
+        const dLat = (lat - 22.7196) * 111;
+        const dLng = (lng - 75.8577) * 102;
+        const distKm = Math.sqrt(dLat * dLat + dLng * dLng);
+        const speed = trackedBus.speed || (trackedBus.telemetry && trackedBus.telemetry.speed);
+        if (speed && speed > 5) {
+            const min = Math.max(1, Math.round((distKm / speed) * 60));
+            etaEl.textContent = `${min}m`;
+        } else {
+            etaEl.textContent = 'ETA unavailable';
+        }
     } else {
-        etaEl.textContent = 'N/A';
+        etaEl.textContent = 'ETA unavailable';
     }
 }
 
@@ -426,12 +442,34 @@ function renderBusList(buses) {
     listContainer.innerHTML = '';
 
     if (buses.length === 0) {
+        const isSearch = document.getElementById('search-input')?.value?.trim();
+        const emptyTitle = isSearch ? "No Matching Transit Vehicles" : "No Active Buses on Route";
+        const emptyDesc = isSearch 
+            ? "No active campus shuttles match your search criteria. Check your spelling or view all operating routes."
+            : "There are currently no active buses broadcasting telemetry for your route. Please verify your assigned bus with campus transit administration.";
+
         listContainer.innerHTML = `
-            <div class="glass-effect rounded-xl p-12 text-center">
-                <p class="text-gray-600 font-semibold mb-1">No buses available</p>
-                <p class="text-gray-500 text-sm">Buses will appear here when they're active</p>
+            <div class="bg-white rounded-2xl p-6 sm:p-8 text-center border border-gray-200 shadow-sm space-y-3" id="empty-fleet-state">
+                <div class="w-12 h-12 rounded-2xl bg-blue-50 text-primary flex items-center justify-center mx-auto">
+                    <span class="material-symbols-outlined text-3xl">${isSearch ? 'search_off' : 'directions_bus'}</span>
+                </div>
+                <h4 class="font-bold text-slate-800 text-sm sm:text-base">${emptyTitle}</h4>
+                <p class="text-xs text-gray-500 max-w-xs mx-auto leading-relaxed">${emptyDesc}</p>
+                ${isSearch ? `
+                <button id="clear-search-btn" class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary-dark transition-all shadow-sm active:scale-95">
+                    <span class="material-symbols-outlined text-sm">refresh</span> Show All Active Buses
+                </button>
+                ` : ''}
             </div>
         `;
+        const clearBtn = document.getElementById('clear-search-btn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                const searchInput = document.getElementById('search-input');
+                if (searchInput) searchInput.value = '';
+                renderBusList([...busesData]);
+            });
+        }
         return;
     }
 
@@ -450,35 +488,39 @@ function renderBusList(buses) {
         const sourceLabel = getSourceLabel(bus.locationSource || bus.tracking?.sourceType);
 
         const card = document.createElement('div');
-        card.className = `glass-effect rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border-l-4 ${
-            isTrackedBus ? 'border-indigo-600' : 'border-gray-200'
-        } card-hover`;
+        card.className = `bg-white rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all border ${
+            isTrackedBus ? 'border-primary ring-2 ring-blue-100' : 'border-gray-200'
+        }`;
 
         card.innerHTML = `
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4 flex-1">
-                    <div class="w-14 h-14 rounded-xl flex items-center justify-center font-bold text-white shadow-lg" style="background: linear-gradient(135deg, ${statusColor}, ${adjustColor(statusColor, -20)})">
-                        <span class="text-lg">${bus.number}</span>
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-start space-x-3 flex-1 min-w-0">
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center font-extrabold text-white shadow-sm shrink-0" style="background: linear-gradient(135deg, ${statusColor}, ${adjustColor(statusColor, -20)})">
+                        <span class="text-base font-mono">${bus.number}</span>
                     </div>
-                    <div class="flex-1">
-                        <div class="flex items-center space-x-2 mb-1">
-                            <h4 class="font-bold text-gray-800 text-lg">Bus ${bus.number}</h4>
-                            ${isTrackedBus ? '<span class="bg-blue-100 text-blue-600 text-xs px-3 py-1 rounded-full font-bold">TRACKING</span>' : ''}
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                            <h4 class="font-bold text-slate-800 text-sm truncate">Shuttle ${bus.number}</h4>
+                            ${isTrackedBus ? '<span class="bg-blue-100 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">FOLLOWING</span>' : ''}
                         </div>
-                        <p class="text-sm text-gray-600 mb-1">${bus.route}</p>
-                        <p class="text-xs text-gray-500">Driver: ${bus.driver || 'N/A'}</p>
-                        <p class="text-xs text-gray-500 mt-1">Source: ${sourceLabel}</p>
+                        <p class="text-xs text-gray-600 truncate mb-1 font-medium">${bus.route}</p>
+                        <div class="flex items-center gap-3 text-[11px] text-gray-400">
+                            <span>Driver: <strong class="text-gray-600">${bus.driver || 'Assigned'}</strong></span>
+                            <span>•</span>
+                            <span class="text-emerald-700">${sourceLabel}</span>
+                        </div>
                     </div>
                 </div>
-                <div class="text-right flex flex-col items-end space-y-2">
-                    <span class="inline-block px-4 py-2 rounded-xl text-xs font-bold shadow-sm" style="background-color: ${statusColor}20; color: ${statusColor}">
+                <div class="flex flex-col items-end shrink-0 gap-2">
+                    <span class="inline-block px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide uppercase" style="background-color: ${statusColor}18; color: ${statusColor}">
                         ${bus.status}
                     </span>
                     ${hasLocation ? `
-                        <button onclick="focusBus('${bus.id}')" class="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 text-sm font-semibold flex items-center space-x-2 shadow-md transition-all">
-                            <span>Locate</span>
+                        <button onclick="focusBus('${bus.id}')" class="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition-all active:scale-95">
+                            <span class="material-symbols-outlined text-sm">my_location</span>
+                            <span>Follow</span>
                         </button>
-                    ` : '<p class="text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-lg">No GPS data</p>'}
+                    ` : '<span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-lg font-medium">Offline</span>'}
                 </div>
             </div>
         `;
@@ -561,6 +603,45 @@ function setupMapControls() {
             }
         });
     }
+
+    // Mobile Drawer Toggle
+    const menuBtn = document.getElementById('menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const menuIcon = document.getElementById('menu-button-icon');
+
+    if (menuBtn && mobileMenu) {
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isHidden = mobileMenu.classList.contains('hidden');
+            if (isHidden) {
+                mobileMenu.classList.remove('hidden');
+                menuBtn.setAttribute('aria-expanded', 'true');
+                if (menuIcon) menuIcon.textContent = 'close';
+            } else {
+                mobileMenu.classList.add('hidden');
+                menuBtn.setAttribute('aria-expanded', 'false');
+                if (menuIcon) menuIcon.textContent = 'menu';
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+                if (!mobileMenu.classList.contains('hidden')) {
+                    mobileMenu.classList.add('hidden');
+                    menuBtn.setAttribute('aria-expanded', 'false');
+                    if (menuIcon) menuIcon.textContent = 'menu';
+                }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !mobileMenu.classList.contains('hidden')) {
+                mobileMenu.classList.add('hidden');
+                menuBtn.setAttribute('aria-expanded', 'false');
+                if (menuIcon) menuIcon.textContent = 'menu';
+            }
+        });
+    }
 }
 
 function renderTrackBusOptions() {
@@ -587,9 +668,11 @@ function renderTrackBusOptions() {
         selectEl.appendChild(option);
     });
 
-    if (current && sorted.some(b => b.id === current)) {
-        selectEl.value = current;
-    } else {
+    const matchingBus = current ? sorted.find(b => b.id === current || String(b.number) === String(current)) : null;
+    if (matchingBus) {
+        selectedTrackBusId = matchingBus.id;
+        selectEl.value = matchingBus.id;
+    } else if (sorted.length > 0) {
         selectedTrackBusId = sorted[0].id;
         selectEl.value = sorted[0].id;
     }

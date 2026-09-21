@@ -1,12 +1,14 @@
 // shifts.js - Shift Management & Live Fleet Monitoring for Cambus Connect
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if firebase is available
-    const initInterval = setInterval(() => {
-        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-            clearInterval(initInterval);
-            initShiftPanel();
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            await authGuard();
         }
-    }, 100);
+    } catch (err) {
+        console.error("❌ Firebase/Auth unavailable on shifts panel:", err);
+    }
+    initShiftPanel();
 
     function initShiftPanel() {
         const db = firebase.firestore();
@@ -178,22 +180,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let shiftSessions = [];
 
-        // Setup real-time listener for history log
-        dbHelper.getDriverSessionsCol().onSnapshot(snapshot => {
+        // Setup real-time listener for history log (scoped query - only 'Stopped' sessions, limited)
+        dbHelper.getDriverSessionsCol()
+            .where('status', '==', 'Stopped')
+            .orderBy('startTime', 'desc')
+            .limit(50)
+            .onSnapshot(snapshot => {
             shiftSessions = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
-                if (data.status === 'Stopped') {
-                    shiftSessions.push({ id: doc.id, ...data });
-                }
+                shiftSessions.push({ id: doc.id, ...data });
             });
 
-            // Sort by startTime descending in memory
-            shiftSessions.sort((a, b) => {
-                const tA = a.startTime ? a.startTime.toDate() : new Date(0);
-                const tB = b.startTime ? b.startTime.toDate() : new Date(0);
-                return tB - tA;
-            });
+            // Already sorted by Firestore query (startTime desc)
 
             renderHistoryLogs();
         }, err => {
@@ -416,19 +415,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let submittedRecords = [];
 
-        db.collection('submitted-boardings').onSnapshot(snapshot => {
+        db.collection('submitted-boardings')
+            .orderBy('submittedAt', 'desc')
+            .limit(50)
+            .onSnapshot(snapshot => {
             submittedRecords = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
                 submittedRecords.push({ id: doc.id, ...data });
             });
 
-            // Sort by submittedAt descending
-            submittedRecords.sort((a, b) => {
-                const tA = a.submittedAt ? (a.submittedAt.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)) : new Date(0);
-                const tB = b.submittedAt ? (b.submittedAt.toDate ? b.submittedAt.toDate() : new Date(b.submittedAt)) : new Date(0);
-                return tB - tA;
-            });
+            // Already sorted by Firestore query (submittedAt desc)
 
             renderSubmittedBoardings();
         }, err => {

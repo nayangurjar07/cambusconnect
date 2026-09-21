@@ -1,0 +1,48 @@
+{
+  "name": "cambus-saas-web-dev-webiste",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node server.js",
+    "tw:build": "node_modules\\.bin\\tailwindcss -i ./tailwind-input.css -o ./tailwind.css",
+    "tw:watch": "node_modules\\.bin\\tailwindcss -i ./tailwind-input.css -o ./tailwind.css --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nayangurjar07/cambusconnect.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/nayangurjar07/cambusconnect/issues"
+  },
+  "homepage": "https://github.com/nayangurjar07/cambusconnect#readme",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "firebase": "^12.18.0",
+    "html5-qrcode": "^2.3.8",
+    "jsqr": "^1.4.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^1.41.0",
+    "pngjs": "^7.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.3",
+    "tailwind-merge": "^3.6.0"
+  }
+}

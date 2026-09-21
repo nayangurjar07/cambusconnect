@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html class="light" lang="en">
 <head>
     <meta charset="utf-8"/>
@@ -8,7 +8,7 @@
     <!-- Auth Guard check -->
     <script src="../../../auth-guard.js"></script>
 
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="../../../tailwind.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -63,101 +63,7 @@
             display: flex !important;
         }
     </style>
-    <script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            "colors": {
-              "primary-container": "var(--primary-color, #1d4ed8)",
-              "error": "#ba1a1a",
-              "tertiary": "#004f35",
-              "on-tertiary-container": "#60eeb1",
-              "error-container": "#ffdad6",
-              "on-primary-fixed-variant": "#0039b5",
-              "outline": "#747686",
-              "outline-variant": "#c4c5d7",
-              "on-background": "var(--text-color, #0b1c30)",
-              "primary": "var(--primary-color, #0037b0)",
-              "inverse-primary": "#b7c4ff",
-              "secondary-fixed-dim": "#ffb690",
-              "secondary": "var(--secondary-color, #9d4300)",
-              "on-secondary": "#ffffff",
-              "on-primary-container": "#cad3ff",
-              "on-surface-variant": "#434655",
-              "on-secondary-fixed-variant": "#783200",
-              "tertiary-fixed-dim": "#4edea3",
-              "on-primary-fixed": "#001551",
-              "on-tertiary-fixed": "#002113",
-              "on-secondary-fixed": "#341100",
-              "surface-tint": "#2151da",
-              "primary-fixed": "#dce1ff",
-              "on-error": "#ffffff",
-              "surface": "#f8f9ff",
-              "surface-container-high": "#dce9ff",
-              "secondary-fixed": "#ffdbca",
-              "on-surface": "var(--text-color, #0b1c30)",
-              "secondary-container": "#fd761a",
-              "surface-variant": "#d3e4fe",
-              "tertiary-fixed": "#6ffbbe",
-              "surface-dim": "#cbdbf5",
-              "inverse-surface": "#213145",
-              "inverse-on-surface": "#eaf1ff",
-              "background": "var(--bg-color, #f8f9ff)",
-              "surface-bright": "#f8f9ff",
-              "on-secondary-container": "#5c2400",
-              "surface-container": "#e5eeff",
-              "on-primary": "#ffffff",
-              "surface-container-lowest": "#ffffff",
-              "surface-container-highest": "#d3e4fe",
-              "surface-container-low": "#eff4ff",
-              "primary-fixed-dim": "#b7c4ff",
-              "on-tertiary": "#ffffff",
-              "tertiary-container": "#006a48",
-              "on-tertiary-fixed-variant": "#005236",
-              "on-error-container": "#93000a"
-            },
-            "borderRadius": {
-              "DEFAULT": "0.25rem",
-              "lg": "0.5rem",
-              "xl": "0.75rem",
-              "full": "9999px"
-            },
-            "spacing": {
-              "xl": "48px",
-              "margin-desktop": "32px",
-              "margin-mobile": "16px",
-              "base": "4px",
-              "xs": "4px",
-              "gutter": "16px",
-              "sm": "8px",
-              "md": "16px",
-              "lg": "24px"
-            },
-            "fontFamily": {
-              "headline-md": ["Inter"],
-              "label-sm": ["Inter"],
-              "label-md": ["Inter"],
-              "body-lg": ["Inter"],
-              "headline-lg-mobile": ["Inter"],
-              "body-md": ["Inter"],
-              "mono-data": ["Inter"],
-              "headline-lg": ["Inter"]
-            },
-            "fontSize": {
-              "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
-              "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
-              "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
-              "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
-              "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
-              "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
-              "mono-data": ["16px", { "lineHeight": "24px", "fontWeight": "700" }],
-              "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
-            }
-          },
-        },
-      }
-    </script>
+    
 </head>
 <body class="bg-background text-on-surface">
     <!-- Enhanced Sidebar -->
@@ -194,11 +100,7 @@
                 <span class="material-symbols-outlined">explore</span>
                 <span class="font-label-md text-label-md">Live Tracking</span>
             </a>
-            <!-- Route Optimizer Tab -->
-            <a href="../route-optimizer/optimizer.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
-                <span class="material-symbols-outlined">settings_suggest</span>
-                <span class="font-label-md text-label-md">Route Optimizer</span>
-            </a>
+
             
             
             
@@ -256,11 +158,7 @@
                     <span class="material-symbols-outlined text-[18px]">explore</span>
                     <span>Fleet Map View</span>
                 </a>
-                <!-- Route Optimizer Tab -->
-                <a href="../route-optimizer/optimizer.html" class="flex items-center gap-xs px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-label-md transition-all text-sm font-semibold">
-                    <span class="material-symbols-outlined text-[18px]">settings_suggest</span>
-                    <span>Route Optimizer</span>
-                </a>
+
             </div>
         </div>
     </header>
@@ -525,7 +423,7 @@
                 </button>
             </div>
             <form id="form-add-student" class="p-6 space-y-4">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Full Name *</label>
                         <input name="name" required placeholder="John Doe" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
@@ -535,7 +433,7 @@
                         <input name="enrollment" required placeholder="e.g. 0818CS221001" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Email Address *</label>
                         <input name="email" type="email" required placeholder="name@indoreinstitute.com" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
@@ -552,7 +450,7 @@
                     <label class="block text-xs font-bold text-on-surface mb-2">Pick-up/Drop Address</label>
                     <input name="address" placeholder="Residential colony / Landmark" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Student Phone</label>
                         <input name="phone" type="tel" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
@@ -562,7 +460,7 @@
                         <input name="parentPhone" type="tel" placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Department</label>
                         <input name="department" placeholder="e.g. CSE, IT, ME" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
@@ -577,7 +475,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Assign Bus Route *</label>
                         <select name="assignedBusId" id="input-assign-bus" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
@@ -589,7 +487,7 @@
                         <input name="passValidity" type="date" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary text-sm">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Sub-Institute / College Branch</label>
                         <select name="subInstitute" class="select-sub-institute w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
@@ -604,7 +502,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-outline-variant">
                     <button type="button" id="cancel-student-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
                     <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Register</button>
                 </div>
@@ -706,7 +604,7 @@
             </div>
             <form id="form-edit-student" class="p-6 space-y-4">
                 <input type="hidden" name="id">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Full Name *</label>
                         <input name="name" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
@@ -724,7 +622,7 @@
                     <label class="block text-xs font-bold text-on-surface mb-2">Pick-up/Drop Address</label>
                     <input name="address" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Student Phone</label>
                         <input name="phone" type="tel" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
@@ -734,7 +632,7 @@
                         <input name="parentPhone" type="tel" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Department</label>
                         <input name="department" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
@@ -749,7 +647,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Assign Bus Route</label>
                         <select name="assignedBusId" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
@@ -761,7 +659,7 @@
                         <input name="passValidity" type="date" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary text-sm">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Sub-Institute / College Branch</label>
                         <select name="subInstitute" class="select-sub-institute w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
@@ -776,7 +674,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-outline-variant">
                     <button type="button" id="cancel-edit-student-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
                     <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Save Changes</button>
                 </div>
@@ -806,3 +704,4 @@
     <script src="students.js"></script>
 </body>
 </html>
+

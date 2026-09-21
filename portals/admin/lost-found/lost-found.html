@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html class="light" lang="en">
 <head>
     <meta charset="utf-8"/>
@@ -8,7 +8,7 @@
     <!-- Auth Guard check -->
     <script src="../../../auth-guard.js"></script>
 
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="../../../tailwind.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
     
@@ -62,101 +62,7 @@
             display: flex !important;
         }
     </style>
-    <script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            "colors": {
-              "primary-container": "var(--primary-color, #1d4ed8)",
-              "error": "#ba1a1a",
-              "tertiary": "#004f35",
-              "on-tertiary-container": "#60eeb1",
-              "error-container": "#ffdad6",
-              "on-primary-fixed-variant": "#0039b5",
-              "outline": "#747686",
-              "outline-variant": "#c4c5d7",
-              "on-background": "var(--text-color, #0b1c30)",
-              "primary": "var(--primary-color, #0037b0)",
-              "inverse-primary": "#b7c4ff",
-              "secondary-fixed-dim": "#ffb690",
-              "secondary": "var(--secondary-color, #9d4300)",
-              "on-secondary": "#ffffff",
-              "on-primary-container": "#cad3ff",
-              "on-surface-variant": "#434655",
-              "on-secondary-fixed-variant": "#783200",
-              "tertiary-fixed-dim": "#4edea3",
-              "on-primary-fixed": "#001551",
-              "on-tertiary-fixed": "#002113",
-              "on-secondary-fixed": "#341100",
-              "surface-tint": "#2151da",
-              "primary-fixed": "#dce1ff",
-              "on-error": "#ffffff",
-              "surface": "#f8f9ff",
-              "surface-container-high": "#dce9ff",
-              "secondary-fixed": "#ffdbca",
-              "on-surface": "var(--text-color, #0b1c30)",
-              "secondary-container": "#fd761a",
-              "surface-variant": "#d3e4fe",
-              "tertiary-fixed": "#6ffbbe",
-              "surface-dim": "#cbdbf5",
-              "inverse-surface": "#213145",
-              "inverse-on-surface": "#eaf1ff",
-              "background": "var(--bg-color, #f8f9ff)",
-              "surface-bright": "#f8f9ff",
-              "on-secondary-container": "#5c2400",
-              "surface-container": "#e5eeff",
-              "on-primary": "#ffffff",
-              "surface-container-lowest": "#ffffff",
-              "surface-container-highest": "#d3e4fe",
-              "surface-container-low": "#eff4ff",
-              "primary-fixed-dim": "#b7c4ff",
-              "on-tertiary": "#ffffff",
-              "tertiary-container": "#006a48",
-              "on-tertiary-fixed-variant": "#005236",
-              "on-error-container": "#93000a"
-            },
-            "borderRadius": {
-              "DEFAULT": "0.25rem",
-              "lg": "0.5rem",
-              "xl": "0.75rem",
-              "full": "9999px"
-            },
-            "spacing": {
-              "xl": "48px",
-              "margin-desktop": "32px",
-              "margin-mobile": "16px",
-              "base": "4px",
-              "xs": "4px",
-              "gutter": "16px",
-              "sm": "8px",
-              "md": "16px",
-              "lg": "24px"
-            },
-            "fontFamily": {
-              "headline-md": ["Inter"],
-              "label-sm": ["Inter"],
-              "label-md": ["Inter"],
-              "body-lg": ["Inter"],
-              "headline-lg-mobile": ["Inter"],
-              "body-md": ["Inter"],
-              "mono-data": ["Inter"],
-              "headline-lg": ["Inter"]
-            },
-            "fontSize": {
-              "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
-              "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
-              "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
-              "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
-              "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
-              "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
-              "mono-data": ["16px", { "lineHeight": "24px", "fontWeight": "700" }],
-              "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
-            }
-          },
-        },
-      }
-    </script>
+    
 </head>
 <body class="bg-background text-on-surface">
     <!-- Enhanced Sidebar -->
@@ -193,11 +99,7 @@
                 <span class="material-symbols-outlined">explore</span>
                 <span class="font-label-md text-label-md">Live Tracking</span>
             </a>
-            <!-- Route Optimizer Tab -->
-            <a href="../route-optimizer/optimizer.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
-                <span class="material-symbols-outlined">settings_suggest</span>
-                <span class="font-label-md text-label-md">Route Optimizer</span>
-            </a>
+
             
             
             
@@ -255,11 +157,7 @@
                     <span class="material-symbols-outlined text-[18px]">explore</span>
                     <span>Fleet Map View</span>
                 </a>
-                <!-- Route Optimizer Tab -->
-                <a href="../route-optimizer/optimizer.html" class="flex items-center gap-xs px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-label-md transition-all text-sm font-semibold">
-                    <span class="material-symbols-outlined text-[18px]">settings_suggest</span>
-                    <span>Route Optimizer</span>
-                </a>
+
             </div>
         </div>
     </header>
@@ -268,9 +166,43 @@
     <main class="ml-64 p-margin-desktop min-h-screen">
         <!-- ==================== VIEW: LOST & FOUND ==================== -->
         <div id="view-lost-found" class="view-container space-y-lg">
-            <div>
-                <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Lost & Found Reports</h2>
-                <p class="font-body-md text-on-surface-variant mt-1">Resolve student belongings reported lost in vehicles</p>
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                    <h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Lost & Found Reports</h2>
+                    <p class="font-body-md text-on-surface-variant mt-1">Resolve student belongings reported lost in vehicles</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="admin-lost-count" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg">Loading...</span>
+                </div>
+            </div>
+
+            <!-- Stats Metric Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Reports</p>
+                    <p id="stat-total-items" class="text-2xl font-black text-slate-800 mt-1">0</p>
+                </div>
+                <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
+                    <p class="text-xs font-bold text-amber-600 uppercase tracking-wider">Active Lost</p>
+                    <p id="stat-active-lost" class="text-2xl font-black text-amber-600 mt-1">0</p>
+                </div>
+                <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
+                    <p class="text-xs font-bold text-emerald-600 uppercase tracking-wider">Found & Resolved</p>
+                    <p id="stat-found-resolved" class="text-2xl font-black text-emerald-600 mt-1">0</p>
+                </div>
+            </div>
+
+            <!-- Search & Filter Controls -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="relative flex-1 w-full">
+                    <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+                    <input id="admin-lost-search" type="text" placeholder="Search by item name, description, reporter, or route..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-primary focus:bg-white rounded-xl outline-none text-xs font-medium transition-all" />
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto shrink-0" id="admin-status-filters">
+                    <button type="button" class="admin-filter-chip px-4 py-2 rounded-xl font-bold bg-primary text-white text-xs shadow-sm transition-all cursor-pointer" data-status="all">All</button>
+                    <button type="button" class="admin-filter-chip px-4 py-2 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs transition-all cursor-pointer" data-status="Lost">Lost</button>
+                    <button type="button" class="admin-filter-chip px-4 py-2 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs transition-all cursor-pointer" data-status="Found">Found</button>
+                </div>
             </div>
             
             <div id="lost-found-list" class="space-y-4">
@@ -284,3 +216,4 @@
     <script src="lost-found.js"></script>
 </body>
 </html>
+

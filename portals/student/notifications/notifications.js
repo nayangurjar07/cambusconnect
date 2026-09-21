@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
     const notificationsList = document.getElementById('notifications-list');
 
@@ -15,6 +15,15 @@ document.addEventListener('DOMContentLoaded', () => {
             <p class="text-gray-500 text-sm mt-2">Please wait a moment</p>
         </div>
     `;
+
+    const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+    if (typeof authGuard === 'function') {
+        try {
+            await authGuard();
+        } catch (err) {
+            console.error("Firebase/Auth not ready for notifications:", err);
+        }
+    }
 
     // Fetch notifications in real-time
     dbHelper.getNotificationsCol()
@@ -36,59 +45,19 @@ document.addEventListener('DOMContentLoaded', () => {
             renderNotifications(filtered);
         }, error => {
             console.error("Error fetching notifications from Firestore:", error);
-            console.warn("⚠️ Firestore permissions restricted. Falling back to local sandbox notifications.");
             
-            // Highlight running in demo mode
-            const subTitle = document.querySelector('.max-w-3xl p.text-slate-500') || document.querySelector('p.text-slate-500');
-            if (subTitle) {
-                subTitle.innerHTML = `Running in Local Sandbox Mode (Firestore permissions restricted)`;
-                subTitle.className = "text-amber-600 text-xs font-semibold bg-amber-50 border border-amber-200 px-3 py-1 rounded-full inline-block mt-1";
-            }
-            
-            const mockNotifications = [
-                {
-                    id: 'mock-notif-1',
-                    type: 'delay',
-                    message: '⚠️ Route Delay: Bus #101 is delayed by 12 minutes on the Palasia Main Campus shuttle due to road maintenance near Geeta Bhawan.',
-                    createdAt: { toDate: () => new Date(Date.now() - 1000 * 60 * 15) }, // 15 mins ago
-                    read: false,
-                    actionable: false
-                },
-                {
-                    id: 'mock-notif-2',
-                    type: 'success',
-                    message: '✅ Yearly Student Pass verified and issued. Tap on the "Bus Pass" tab in the sidebar to check your dynamic boarding QR code.',
-                    createdAt: { toDate: () => new Date(Date.now() - 1000 * 60 * 60 * 2) }, // 2 hours ago
-                    read: true,
-                    actionable: false
-                },
-                {
-                    id: 'mock-notif-3',
-                    type: 'alert',
-                    message: '🚨 Emergency Alert: All night shuttle routes are moving to alternate boarding bay 4 starting tonight for campus lighting upgrades.',
-                    createdAt: { toDate: () => new Date(Date.now() - 1000 * 60 * 60 * 6) }, // 6 hours ago
-                    read: true,
-                    actionable: true
-                },
-                {
-                    id: 'mock-notif-4',
-                    type: 'crowd',
-                    message: '👥 Crowd Update: Main gate loop is experiencing heavy rush. 2 additional backup buses have been deployed on Route 101.',
-                    createdAt: { toDate: () => new Date(Date.now() - 1000 * 60 * 60 * 12) }, // 12 hours ago
-                    read: true,
-                    actionable: false
-                },
-                {
-                    id: 'mock-notif-5',
-                    type: 'info',
-                    message: 'ℹ️ Winter Transit Schedule: New schedule timings are now active. View route details under the "Search Buses" tab.',
-                    createdAt: { toDate: () => new Date(Date.now() - 1000 * 60 * 60 * 24 * 1.5) }, // 1.5 days ago
-                    read: true,
-                    actionable: false
-                }
-            ];
-            
-            renderNotifications(mockNotifications);
+            notificationsList.innerHTML = `
+                <div class="glass-card rounded-3xl p-12 text-center border-2 border-red-200 bg-white/80">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-2xl mb-4">
+                        <span class="material-symbols-outlined text-3xl text-red-600">sync_problem</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-red-700 mb-2">Unable to Load Notifications</h3>
+                    <p class="text-slate-600 text-sm max-w-md mx-auto mb-6">Could not retrieve recent transit alerts. Please check your connection or contact campus transit support.</p>
+                    <button onclick="window.location.reload()" class="px-6 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-container transition-all shadow-md active:scale-95">
+                        Retry Loading
+                    </button>
+                </div>
+            `;
         });
 
     function renderNotifications(notifications) {
@@ -172,32 +141,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const isUnread = !n.read;
 
             const notificationCard = `
-                <div class="notification-card glass-card rounded-3xl p-6 border-l-4 ${config.border} animate-slideIn" style="animation-delay: ${index * 0.1}s">
-                    <div class="flex items-start gap-4">
-                        <div class="flex-shrink-0">
-                            <div class="w-12 h-12 ${config.iconBg} rounded-2xl flex items-center justify-center text-2xl shadow-sm">
+                <div class="notification-card glass-card rounded-3xl p-4 sm:p-6 border-l-4 ${config.border} animate-slideIn min-w-0" style="animation-delay: ${index * 0.1}s">
+                    <div class="flex items-start gap-3 sm:gap-4 min-w-0">
+                        <div class="shrink-0">
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 ${config.iconBg} rounded-2xl flex items-center justify-center text-xl sm:text-2xl shadow-sm">
                                 ${config.icon}
                             </div>
                         </div>
                         
                         <div class="flex-1 min-w-0">
-                            <div class="flex items-start justify-between gap-4 mb-2">
-                                <div class="flex items-center gap-3">
-                                    <span class="px-3 py-1 bg-gradient-to-r ${config.gradient} text-white text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2.5 py-0.5 sm:px-3 sm:py-1 bg-gradient-to-r ${config.gradient} text-white text-[10px] sm:text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm">
                                         ${config.label}
                                     </span>
                                     ${isUnread ? '<span class="w-2 h-2 bg-red-500 rounded-full pulse-ring"></span>' : ''}
                                 </div>
-                                <span class="text-xs text-gray-500 font-medium whitespace-nowrap">${time}</span>
+                                <span class="text-[10px] sm:text-xs text-gray-500 font-medium">${time}</span>
                             </div>
-                            <p class="text-gray-800 font-medium leading-relaxed">${n.message}</p>
+                            <p class="text-gray-800 font-medium leading-relaxed text-xs sm:text-sm break-words-safe">${n.message}</p>
                             
                             ${n.actionable ? `
-                                <div class="mt-4 flex gap-2">
-                                    <button class="px-4 py-2 bg-gradient-to-r ${config.gradient} text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all">
+                                <div class="mt-4 flex flex-wrap gap-2">
+                                    <button class="px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r ${config.gradient} text-white rounded-xl text-xs sm:text-sm font-semibold hover:shadow-lg transition-all">
                                         View Details
                                     </button>
-                                    <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-semibold transition-all">
+                                    <button class="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs sm:text-sm font-semibold transition-all">
                                         Dismiss
                                     </button>
                                 </div>

@@ -2,6 +2,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 const PORT = 3000;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -12,9 +13,12 @@ const MIME_TYPES = {
     '.html': 'text/html',
     '.css': 'text/css',
     '.js': 'application/javascript',
+    '.mjs': 'application/javascript',
     '.json': 'application/json',
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
     '.gif': 'image/gif',
     '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon',
@@ -65,8 +69,78 @@ const server = http.createServer((req, res) => {
         return;
     }
     
+    function serve404() {
+        const notFoundPath = path.join(__dirname, '404.html');
+        if (fs.existsSync(notFoundPath)) {
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'text/html');
+            fs.createReadStream(notFoundPath).pipe(res);
+        } else {
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'text/html');
+            res.end(`<h1>404 Not Found</h1><p>The requested file could not be found on this server.</p>`);
+        }
+    }
+
     // Parse URL and strip query strings or hash parameters
     const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
+
+    // API endpoint router
+    if (parsedUrl.pathname.startsWith('/api/')) {
+        const apiName = parsedUrl.pathname.replace(/^\/api\//, '').replace(/\.js$/, '');
+        const apiFilePath = path.join(__dirname, 'api', `${apiName}.js`);
+        
+        if (!fs.existsSync(apiFilePath)) {
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: `API route /api/${apiName} not found` }));
+            return;
+        }
+
+        req.query = Object.fromEntries(parsedUrl.searchParams.entries());
+
+        res.status = function(code) {
+            this.statusCode = code;
+            return this;
+        };
+        res.json = function(data) {
+            this.setHeader('Content-Type', 'application/json');
+            this.end(JSON.stringify(data));
+            return this;
+        };
+
+        let bodyData = '';
+        req.on('data', chunk => { bodyData += chunk; });
+        req.on('end', async () => {
+            if (bodyData) {
+                try {
+                    req.body = JSON.parse(bodyData);
+                } catch (e) {
+                    req.body = bodyData;
+                }
+            } else {
+                req.body = {};
+            }
+
+            try {
+                const fileUrl = pathToFileURL(apiFilePath).href;
+                const mod = await import(fileUrl);
+                const handler = mod.default || mod;
+                if (typeof handler === 'function') {
+                    await handler(req, res);
+                } else {
+                    res.status(500).json({ error: `Invalid handler exported in ${apiName}.js` });
+                }
+            } catch (apiError) {
+                console.error(`[API Error] ${apiName}:`, apiError);
+                if (!res.headersSent) {
+                    res.status(500).json({ error: apiError.message });
+                }
+            }
+        });
+        return;
+    }
+
     let safePath = path.normalize(parsedUrl.pathname);
     
     // Avoid directory traversal attacks
@@ -81,24 +155,54 @@ const server = http.createServer((req, res) => {
         safePath = '/index.html';
     }
     
-    const filePath = path.join(__dirname, safePath);
-    
+    let filePath = path.join(__dirname, safePath);
+
+    function serveFile(targetPath) {
+        fs.stat(targetPath, (err, stats) => {
+            if (err || !stats.isFile()) {
+                serve404();
+                return;
+            }
+
+            const ext = path.extname(targetPath).toLowerCase();
+            const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+            res.statusCode = 200;
+
+            const stream = fs.createReadStream(targetPath);
+            stream.pipe(res);
+        });
+    }
+
     fs.stat(filePath, (err, stats) => {
-        if (err || !stats.isFile()) {
-            res.statusCode = 404;
-            res.setHeader('Content-Type', 'text/html');
-            res.end(`<h1>404 Not Found</h1><p>The file ${safePath} could not be found on this server.</p>`);
+        if (!err && stats.isDirectory()) {
+            const dirIndex = path.join(filePath, 'index.html');
+            const dirName = path.basename(filePath);
+            const dirNamedHtml = path.join(filePath, `${dirName}.html`);
+
+            if (fs.existsSync(dirIndex)) {
+                serveFile(dirIndex);
+            } else if (fs.existsSync(dirNamedHtml)) {
+                serveFile(dirNamedHtml);
+            } else {
+                serve404();
+            }
             return;
         }
-        
-        const ext = path.extname(filePath).toLowerCase();
-        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-        
-        res.setHeader('Content-Type', contentType);
-        res.statusCode = 200;
-        
-        const stream = fs.createReadStream(filePath);
-        stream.pipe(res);
+
+        if (err && !path.extname(filePath)) {
+            const withHtml = filePath + '.html';
+            if (fs.existsSync(withHtml)) {
+                serveFile(withHtml);
+                return;
+            }
+        }
+
+        serveFile(filePath);
     });
 });
 
@@ -109,7 +213,5 @@ server.listen(PORT, () => {
     console.log('================================================================\n');
     console.log(`To access the Admin Portal directly:`);
     console.log(`👉 http://localhost:${PORT}/portals/admin/admin-login.html\n`);
-    console.log(`To access the Route Optimizer Console directly:`);
-    console.log(`👉 http://localhost:${PORT}/portals/admin/route-optimizer/optimizer.html\n`);
     console.log('Press Ctrl+C to stop the server.\n');
 });

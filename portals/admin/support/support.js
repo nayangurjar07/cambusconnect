@@ -1,12 +1,14 @@
 // support.js - Support Desk queries logic for Cambus Connect
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if firebase is available (loaded as modular import/global)
-    const initInterval = setInterval(() => {
-        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-            clearInterval(initInterval);
-            initSupportPanel();
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            await authGuard();
         }
-    }, 100);
+    } catch (err) {
+        console.error("❌ Firebase/Auth unavailable on support panel:", err);
+    }
+    initSupportPanel();
 
     function initSupportPanel() {
         const auth = firebase.auth();
@@ -30,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadSupportQueries();
 
         function loadSupportQueries() {
-            dbHelper.getSupportQueriesCol().orderBy('createdAt', 'desc')
+            dbHelper.getSupportQueriesCol().orderBy('createdAt', 'desc').limit(50)
                 .onSnapshot(snapshot => {
                     allQueries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderSupportQueries();
@@ -196,13 +198,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!query) return;
 
             document.getElementById('modal-query-details').innerHTML = `
-                <div class="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200">
-                    <h4 class="font-black text-slate-800 text-xl mb-3">${query.subject}</h4>
-                    <p class="text-slate-700 mb-4">${query.description}</p>
-                    <div class="grid grid-cols-3 gap-3 text-sm">
-                        <div><span class="font-bold">Student:</span> ${query.studentName}</div>
-                        <div><span class="font-bold">Priority:</span> ${query.priority}</div>
-                        <div><span class="font-bold">Category:</span> ${query.category}</div>
+                <div class="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 min-w-0">
+                    <h4 class="font-black text-slate-800 text-lg sm:text-xl mb-3 break-words-safe">${query.subject}</h4>
+                    <p class="text-slate-700 mb-4 text-sm break-words-safe">${query.description}</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
+                        <div class="break-words-safe min-w-0"><span class="font-bold">Student:</span> ${query.studentName}</div>
+                        <div class="break-words-safe min-w-0"><span class="font-bold">Priority:</span> ${query.priority}</div>
+                        <div class="break-words-safe min-w-0"><span class="font-bold">Category:</span> ${query.category}</div>
                     </div>
                 </div>
             `;

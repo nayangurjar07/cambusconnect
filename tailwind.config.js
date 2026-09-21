@@ -1,0 +1,52 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: "class",
+  content: [
+    "./*.html",
+    "./portals/**/*.html",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        "on-primary-fixed-variant": "#0039b5",
+        "on-tertiary-fixed-variant": "#005236",
+        "secondary-fixed-dim": "#ffb690",
+        "on-tertiary-fixed": "#002113",
+        "inverse-primary": "#b7c4ff",
+        "surface-bright": "#f8f9ff",
+        "surface-variant": "#d3e4fe",
+        "secondary-container": "#fd761a",
+        "surface-container-lowest": "#ffffff",
+        "primary-fixed": "#dce1ff",
+        "tertiary-fixed": "#a8f4c8",
+        "surface-container-low": "#eef0fa",
+        "surface-container": "#e8eaf4",
+        "surface-container-high": "#e2e4ef",
+        "surface-container-highest": "#dde0ea",
+        "on-primary-container": "#001258",
+        "primary-container": "#dce1ff",
+        "on-secondary-container": "#300e00",
+        "on-tertiary-container": "#002113",
+        "on-surface": "#191c22",
+        "on-surface-variant": "#44474e",
+        "outline-variant": "#c3c6d0",
+        "outline": "#74777f",
+        "primary": "#0037b0",
+        "secondary": "#fd761a",
+        "tertiary": "#006c47",
+        "error": "#ba1a1a",
+        "error-container": "#ffdad6",
+        "on-error": "#ffffff",
+        "on-error-container": "#410002",
+        "surface": "#f8f9ff",
+        "brandOrange": "#fd761a",
+      },
+      fontFamily: {
+        sans: ["Inter", "ui-sans-serif", "system-ui"],
+      },
+    },
+  },
+  plugins: [
+    require("@tailwindcss/forms"),
+  ],
+};

@@ -53,62 +53,77 @@ document.addEventListener('DOMContentLoaded', () => {
     if (shortcutsContainer) {
         shortcutsContainer.innerHTML = `
             <!-- Show Bus Pass -->
-            <a href="../bus-pass/bus-pass.html" class="glass-effect rounded-xl p-6 shadow-md hover:shadow-xl transition-all border border-gray-100 group card-hover">
-                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <a href="../bus-pass/bus-pass.html" class="glass-effect rounded-xl p-4 sm:p-6 shadow-md hover:shadow-xl transition-all border border-gray-100 group card-hover min-w-0 flex flex-col items-start">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                         <line x1="16" y1="2" x2="16" y2="6"></line>
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
                 </div>
-                <h3 class="font-bold text-gray-800 text-sm">Show Pass</h3>
-                <p class="text-xs text-gray-500 mt-1">Digital Bus Pass</p>
+                <h3 class="font-bold text-gray-800 text-xs sm:text-sm break-words-safe">Show Pass</h3>
+                <p class="text-[11px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1 truncate w-full">Digital Bus Pass</p>
             </a>
             
             <!-- Track Bus -->
-            <a href="../track/track.html" class="glass-effect rounded-xl p-6 shadow-md hover:shadow-xl transition-all border border-gray-100 group card-hover">
-                <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <a href="../track/track.html" class="glass-effect rounded-xl p-4 sm:p-6 shadow-md hover:shadow-xl transition-all border border-gray-100 group card-hover min-w-0 flex flex-col items-start">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
                         <line x1="8" y1="2" x2="8" y2="18"></line>
                         <line x1="16" y1="6" x2="16" y2="22"></line>
                     </svg>
                 </div>
-                <h3 class="font-bold text-gray-800 text-sm">Track Bus</h3>
-                <p class="text-xs text-gray-500 mt-1">Live Location</p>
+                <h3 class="font-bold text-gray-800 text-xs sm:text-sm break-words-safe">Track Bus</h3>
+                <p class="text-[11px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1 truncate w-full">Live Location</p>
             </a>
             
-            <!-- My Routes (navigates to track.html since routes.html doesn't exist) -->
-            <a href="../track/track.html" class="glass-effect rounded-xl p-6 shadow-md hover:shadow-xl transition-all border border-gray-100 group card-hover">
-                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <!-- My Routes -->
+            <a href="../track/track.html" class="glass-effect rounded-xl p-4 sm:p-6 shadow-md hover:shadow-xl transition-all border border-gray-100 group card-hover min-w-0 flex flex-col items-start">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="10" r="3"/>
                         <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/>
                     </svg>
                 </div>
-                <h3 class="font-bold text-gray-800 text-sm">My Routes</h3>
-                <p class="text-xs text-gray-500 mt-1">View All Routes</p>
+                <h3 class="font-bold text-gray-800 text-xs sm:text-sm break-words-safe">My Routes</h3>
+                <p class="text-[11px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1 truncate w-full">View All Routes</p>
             </a>
             
-            <!-- Trip History (navigates to search.html since history.html doesn't exist) -->
-            <a href="../search/search.html" class="glass-effect rounded-xl p-6 shadow-md hover:shadow-xl transition-all border border-gray-100 group card-hover">
-                <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Trip History -->
+            <a href="../search/search.html" class="glass-effect rounded-xl p-4 sm:p-6 shadow-md hover:shadow-xl transition-all border border-gray-100 group card-hover min-w-0 flex flex-col items-start">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 3v18h18"/>
                         <path d="m19 9-5 5-4-4-3 3"/>
                     </svg>
                 </div>
-                <h3 class="font-bold text-gray-800 text-sm">Trip History</h3>
-                <p class="text-xs text-gray-500 mt-1">Past Journeys</p>
+                <h3 class="font-bold text-gray-800 text-xs sm:text-sm break-words-safe">Trip History</h3>
+                <p class="text-[11px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1 truncate w-full">Past Journeys</p>
             </a>
         `;
-        console.log("❌ Enhanced shortcuts rendered");
+        console.log("✅ Enhanced shortcuts rendered");
     }
 
     // ========================================
     // 5. FETCH REAL-TIME BUS STATUS
     // ========================================
+    // Firebase is loaded as an ES module (async). We must wait for window.db
+    // to be set before making any Firestore calls.
+    (async () => {
+        try {
+            const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+            if (typeof authGuard === 'function') {
+                await authGuard();
+            }
+        } catch (err) {
+            console.error('❌ Firebase/Auth unavailable on home page:', err);
+            const routeEl = document.getElementById('home-route');
+            if (routeEl) routeEl.textContent = 'Offline';
+            return;
+        }
+
     const routeDisplay = document.getElementById('home-route');
     const busStatusDisplay = document.getElementById('bus-status');
     const busId = studentData.assignedBusId;
@@ -128,6 +143,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (routeDisplay) {
                     routeDisplay.textContent = `${bus.number} - ${bus.route}`;
+                }
+
+                if (typeof updateLiveEta === 'function') {
+                    updateLiveEta(bus);
+                }
+                if (typeof renderDynamicSchedule === 'function') {
+                    renderDynamicSchedule(bus);
                 }
 
                 // NEW FEATURE: Update bus status with visual indicator
@@ -178,16 +200,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             } else {
-                console.warn("⚠️ Bus document not found");
+                // Bus document no longer exists — this student has an orphaned assignedBusId.
+                // Clear it from the local session so we stop re-fetching a deleted document.
+                console.info("ℹ️ Bus document not found for ID:", busId, "— likely deleted. Clearing stale reference from session.");
+                const storedStudent = JSON.parse(localStorage.getItem('student') || '{}');
+                delete storedStudent.assignedBusId;
+                localStorage.setItem('student', JSON.stringify(storedStudent));
+
                 if (routeDisplay) {
-                    routeDisplay.textContent = "Bus Not Found";
-                    routeDisplay.classList.add('text-red-400');
+                    routeDisplay.textContent = "Not Assigned";
+                    routeDisplay.classList.remove('text-red-400');
+                    routeDisplay.classList.add('text-gray-400');
                 }
                 if (busStatusDisplay) {
                     busStatusDisplay.innerHTML = `
-                        <span class="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
-                        Unknown
+                        <span class="w-2 h-2 bg-gray-300 rounded-full mr-2"></span>
+                        N/A
                     `;
+                    busStatusDisplay.className = 'font-bold text-lg flex items-center text-gray-400';
+                }
+                // Render fallback schedule so the widget isn't stuck on "Loading..."
+                if (typeof renderDynamicSchedule === 'function') {
+                    renderDynamicSchedule(null);
                 }
             }
         }, err => {
@@ -310,16 +344,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     const style = notifStyles[n.type] || notifStyles['info'];
 
                     const notificationCard = `
-                      <div class="flex items-start space-x-3 p-4 ${style.bg} rounded-xl border ${style.border} hover:shadow-md transition-all card-hover">
-                          <div class="w-8 h-8 ${style.icon} rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div class="flex items-start space-x-3 p-4 ${style.bg} rounded-xl border ${style.border} hover:shadow-md transition-all card-hover min-w-0">
+                          <div class="w-8 h-8 ${style.icon} rounded-lg flex items-center justify-center shrink-0">
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                   ${style.iconSvg}
                               </svg>
                           </div>
-                          <div class="flex-1">
-                              <p class="text-sm text-gray-800 font-medium leading-relaxed">${n.message}</p>
-                              <p class="text-xs text-gray-500 mt-1.5 flex items-center">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                          <div class="flex-1 min-w-0">
+                              <p class="text-sm text-gray-800 font-medium leading-relaxed break-words-safe">${n.message}</p>
+                              <p class="text-xs text-gray-500 mt-1.5 flex items-center shrink-0">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                   ${time}
                               </p>
                           </div>
@@ -369,22 +403,36 @@ document.addEventListener('DOMContentLoaded', () => {
             statCarbon.textContent = `${carbonSaved} kg`;
         }, 1000);
     }
+    })();
+
 
     // ========================================
-    // 8. TODAY'S SCHEDULE WIDGET
+    // 8. TODAY'S SCHEDULE WIDGET (DYNAMIC & BUS-AWARE)
     // ========================================
     const scheduleWidget = document.getElementById('schedule-widget');
 
-    if (scheduleWidget) {
-        const todaySchedule = [
-            { time: '07:30 AM', event: 'Morning Pickup', location: 'Main Gate', status: 'upcoming' },
-            { time: '02:45 PM', event: 'Afternoon Return', location: 'Campus Exit', status: 'upcoming' },
-            { time: '06:00 PM', event: 'Evening Pickup', location: 'Main Gate', status: 'upcoming' }
-        ];
-
+    function renderDynamicSchedule(busData) {
+        if (!scheduleWidget) return;
         scheduleWidget.innerHTML = '';
 
-        todaySchedule.forEach((item, index) => {
+        let scheduleItems = [];
+        if (busData && Array.isArray(busData.stops) && busData.stops.length > 0) {
+            scheduleItems = busData.stops.map((stop, idx) => ({
+                time: stop.time || `${7 + Math.floor(idx / 2)}:${(idx % 2) * 30 || '00'} AM`,
+                event: stop.name || `Stop ${idx + 1}`,
+                location: stop.landmark || busData.route || 'Route Stop',
+                status: idx === 0 ? 'next' : 'scheduled'
+            }));
+        } else {
+            const studentRoute = (busData && busData.route) || studentData.busRoute || 'Assigned Campus Route';
+            scheduleItems = [
+                { time: '07:30 AM', event: 'Morning Boarding Pickup', location: studentRoute, status: 'next' },
+                { time: '08:45 AM', event: 'Campus Arrival', location: 'College Main Gate', status: 'scheduled' },
+                { time: '04:30 PM', event: 'Evening Return Departure', location: 'Campus Bus Bay', status: 'scheduled' }
+            ];
+        }
+
+        scheduleItems.forEach((item, index) => {
             const isFirst = index === 0;
             const statusColor = isFirst ? 'bg-green-500' : 'bg-gray-300';
 
@@ -392,25 +440,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
                     <div class="flex flex-col items-center">
                         <div class="w-3 h-3 ${statusColor} rounded-full"></div>
-                        ${index < todaySchedule.length - 1 ? '<div class="w-0.5 h-8 bg-gray-200 mt-1"></div>' : ''}
+                        ${index < scheduleItems.length - 1 ? '<div class="w-0.5 h-8 bg-gray-200 mt-1"></div>' : ''}
                     </div>
                     <div class="flex-1">
                         <div class="flex items-center justify-between">
-                            <p class="font-medium text-gray-800 text-sm">${item.event}</p>
+                            <p class="font-medium text-gray-800 text-sm">${escapeHTML(item.event)}</p>
                             <span class="text-xs font-medium ${isFirst ? 'text-green-600 bg-green-50' : 'text-gray-500 bg-gray-50'} px-2 py-1 rounded-full">
                                 ${isFirst ? 'Next' : 'Scheduled'}
                             </span>
                         </div>
-                        <p class="text-xs text-gray-500 mt-1">${item.time} • ${item.location}</p>
+                        <p class="text-xs text-gray-500 mt-1">${escapeHTML(item.time)} • ${escapeHTML(item.location)}</p>
                     </div>
                 </div>
             `;
-
             scheduleWidget.insertAdjacentHTML('beforeend', scheduleItem);
         });
-
-        console.log("✅ Schedule widget rendered");
+        console.log("✅ Dynamic schedule rendered for:", busData?.number || "Route");
     }
+
+    renderDynamicSchedule(null);
 
     // ========================================
     // 9. QUICK ACTIONS PANEL TOGGLE
@@ -434,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("✅ Quick Actions panel opened");
             } else {
                 quickActionsPanel.classList.add('hidden');
-                console.log("❌ Quick Actions panel closed");
+                console.log("✅ Quick Actions panel closed");
             }
         });
 
@@ -473,10 +521,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (emergencyBtn) {
             emergencyBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                console.log("🚨 Emergency Contact clicked");
-                quickActionsPanel.classList.add('hidden');
-                panelOpen = false;
-                alert('Emergency Contact:\n\nCampus Security: +91-1234567890\nBus Coordinator: +91-0987654321\n\nFor immediate assistance, call these numbers.');
+                const parentContact = student?.parentPhone ? `Parent/Guardian: ${student.parentPhone}` : 'Parent/Guardian: Not set in profile';
+                alert(`Emergency Assistance:\n\n${parentContact}\nCampus Transport Desk: Contact your campus control room or transit coordinator.\n\nIn case of immediate transit emergency, please notify campus security directly.`);
             });
         }
 
@@ -495,23 +541,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const etaMinutes = document.getElementById('eta-minutes');
 
-    if (etaMinutes && busId) {
-        let currentEta = 8;
+    function updateLiveEta(busData) {
+        if (!etaMinutes) return;
+        if (!busData) {
+            etaMinutes.textContent = '--';
+            return;
+        }
 
-        setInterval(() => {
-            if (currentEta > 0) {
-                currentEta--;
-                etaMinutes.textContent = currentEta;
-
-                if (currentEta <= 2) {
-                    etaMinutes.classList.add('text-red-400', 'animate-pulse');
-                }
+        // Check if explicit ETA or telemetry exists on bus
+        if (busData.eta || busData.currentEta) {
+            const val = parseInt(busData.eta || busData.currentEta, 10);
+            etaMinutes.textContent = isNaN(val) ? busData.eta : val;
+            if (val <= 3) {
+                etaMinutes.className = 'text-red-400 font-extrabold animate-pulse';
             } else {
-                etaMinutes.textContent = '0';
-                etaMinutes.classList.add('text-green-400');
+                etaMinutes.className = 'text-green-400 font-extrabold';
             }
-        }, 60000);
+            return;
+        }
+
+        // Calculate dynamic ETA from status or telemetry
+        if (busData.status === 'Breakdown') {
+            etaMinutes.textContent = 'Alert';
+            etaMinutes.className = 'text-rose-500 font-extrabold text-sm';
+        } else if (busData.status === 'Delayed') {
+            etaMinutes.textContent = '25+';
+            etaMinutes.className = 'text-amber-400 font-extrabold';
+        } else if (busData.location && busData.location.lat && busData.location.lng) {
+            const dLat = (busData.location.lat - 22.7196) * 111;
+            const dLng = (busData.location.lng - 75.8577) * 102;
+            const distKm = Math.sqrt(dLat * dLat + dLng * dLng);
+            const speedKmH = Math.max(15, busData.speed || 25);
+            const estMin = Math.max(2, Math.round((distKm / speedKmH) * 60));
+            etaMinutes.textContent = estMin;
+            etaMinutes.className = estMin <= 5 ? 'text-amber-400 font-extrabold animate-pulse' : 'text-green-400 font-extrabold';
+        } else {
+            etaMinutes.textContent = '--';
+            etaMinutes.className = 'text-gray-400 font-extrabold';
+        }
     }
+
+    updateLiveEta(null);
 
     // ========================================
     // 11. DAILY TIP ROTATION
@@ -542,14 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                console.log('✅ ServiceWorker registered:', registration);
-            })
-            .catch(error => {
-                console.log('❌ ServiceWorker registration failed:', error);
-            });
-    });
-}
+// Note: Service worker intentionally not registered.
+// sw.js does not exist in this project and this app does not currently
+// require offline/PWA capabilities. Registering a non-existent sw.js
+// produces a 404 console error on every page load.

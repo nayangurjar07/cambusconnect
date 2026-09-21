@@ -75,7 +75,8 @@ document.addEventListener('DOMContentLoaded', () => {
             qrGrid.className = 'grid grid-cols-10 gap-1 p-2';
             for (let i = 0; i < 100; i++) {
                 const div = document.createElement('div');
-                const isBlack = Math.random() > 0.5;
+                const charCode = qrCodeText.charCodeAt(i % qrCodeText.length) || 0;
+                const isBlack = ((charCode * (i + 13)) % 7) > 2;
                 div.className = `w-4 h-4 ${isBlack ? 'bg-black' : 'bg-white'}`;
                 qrGrid.appendChild(div);
             }
@@ -138,29 +139,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const detailsContainer = document.getElementById('pass-details');
         if(detailsContainer) {
             detailsContainer.innerHTML = `
-                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 min-w-0">
                     <p class="text-xs text-gray-500 mb-1">Full Name</p>
-                    <p class="font-semibold text-gray-800">${escapeHTML(studentName)}</p>
+                    <p class="font-semibold text-gray-800 break-words-safe">${escapeHTML(studentName)}</p>
                 </div>
-                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 min-w-0">
                     <p class="text-xs text-gray-500 mb-1">College ID</p>
-                    <p class="font-semibold text-gray-800">${escapeHTML(studentId)}</p>
+                    <p class="font-semibold text-gray-800 break-all">${escapeHTML(studentId)}</p>
                 </div>
-                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 min-w-0">
                     <p class="text-xs text-gray-500 mb-1">Bus Route</p>
-                    <p class="font-semibold text-gray-800">${escapeHTML(studentRoute)}</p>
+                    <p class="font-semibold text-gray-800 break-words-safe">${escapeHTML(studentRoute)}</p>
                 </div>
-                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 min-w-0">
                     <p class="text-xs text-gray-500 mb-1">Valid Until</p>
-                    <p class="font-semibold text-green-600">${escapeHTML(student.passValidity || '31 Dec 2025')}</p>
+                    <p class="font-semibold text-green-600 break-words-safe">${escapeHTML(student.passValidity || '31 Dec 2025')}</p>
                 </div>
-                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 min-w-0">
                     <p class="text-xs text-gray-500 mb-1">Pass Type</p>
-                    <p class="font-semibold text-gray-800">Yearly Student Pass</p>
+                    <p class="font-semibold text-gray-800 break-words-safe">Yearly Student Pass</p>
                 </div>
-                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 min-w-0">
                     <p class="text-xs text-gray-500 mb-1">Pass ID</p>
-                    <p class="font-semibold text-gray-800">${escapeHTML(qrCodeText)}</p>
+                    <p class="font-semibold text-gray-800 break-all">${escapeHTML(qrCodeText)}</p>
                 </div>
             `;
         }
@@ -192,14 +193,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     if(daysRemainingElement) {
-        const validityDate = new Date('2025-12-31');
+        let validityDate = null;
+        if (student.passValidity) {
+            validityDate = new Date(student.passValidity);
+        }
+        if (!validityDate || isNaN(validityDate.getTime())) {
+            const currentYear = new Date().getFullYear();
+            validityDate = new Date(`${currentYear}-12-31`);
+        }
         const today = new Date();
         const daysLeft = Math.ceil((validityDate - today) / (1000 * 60 * 60 * 24));
-        daysRemainingElement.textContent = `Valid for ${daysLeft} days`;
+        daysRemainingElement.textContent = daysLeft > 0 ? `Valid for ${daysLeft} days` : 'Pass Expired';
+        if (daysLeft <= 0) {
+            daysRemainingElement.classList.add('text-rose-500');
+        }
     }
 
     // ========================================
-    // 7. CHECK-IN FUNCTIONALITY
+    // 7. CHECK-IN FUNCTIONALITY (REAL DATABASE PERSISTENCE)
     // ========================================
     function updateCheckinStatus() {
         const statusEl = document.getElementById('checkin-status');
@@ -207,57 +218,101 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if(statusEl && buttonEl) {
             if(qrCheckedIn) {
-                statusEl.textContent = 'Checked In';
+                statusEl.textContent = 'Boarding Verified';
                 statusEl.className = 'font-semibold px-4 py-2 rounded-full text-sm bg-green-100 text-green-700 flex items-center';
                 statusEl.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><polyline points="20 6 9 17 4 12"/></svg>
-                    Checked In
+                    Boarding Verified
                 `;
                 
                 buttonEl.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
-                    <span>Reset Check-in (Demo)</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <span>Pass Verified Today</span>
                 `;
+                buttonEl.classList.remove('bg-primary', 'hover:bg-primary-container');
+                buttonEl.classList.add('bg-emerald-600', 'text-white', 'cursor-default');
             } else {
                 statusEl.textContent = 'Not Checked In';
                 statusEl.className = 'font-semibold px-4 py-2 rounded-full text-sm bg-gray-200 text-gray-600';
                 
                 buttonEl.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    <span>Simulate Check-in (Demo)</span>
+                    <span>Confirm Digital Boarding</span>
                 `;
+                buttonEl.classList.add('bg-primary', 'hover:bg-primary-container');
+                buttonEl.classList.remove('bg-emerald-600', 'cursor-default');
             }
             
             buttonEl.onclick = () => {
-                qrCheckedIn = !qrCheckedIn;
-                
                 if(qrCheckedIn) {
-                    scanCount++;
-                    lastCheckinTime = new Date().toISOString();
-                    
-                    checkinHistory.unshift({
-                        timestamp: lastCheckinTime,
-                        busId: student.assignedBusId || 'Unknown',
-                        route: studentRoute
-                    });
-                    
-                    if(checkinHistory.length > 5) {
-                        checkinHistory = checkinHistory.slice(0, 5);
-                    }
-                    
-                    localStorage.setItem(`scanCount_${storageKeySuffix}`, scanCount);
-                    localStorage.setItem(`lastCheckin_${storageKeySuffix}`, lastCheckinTime);
-                    localStorage.setItem(`checkinHistory_${storageKeySuffix}`, JSON.stringify(checkinHistory));
-                    
-                    if(scanCountElement) scanCountElement.textContent = scanCount;
-                    if(lastCheckinElement) lastCheckinElement.textContent = new Date(lastCheckinTime).toLocaleDateString();
-                    if(lastCheckinTimeElement) lastCheckinTimeElement.textContent = new Date(lastCheckinTime).toLocaleTimeString();
-                    
-                    updateCheckinHistory();
-                    
-                    console.log("✅ Check-in recorded");
+                    return; // Once checked in today, maintain verification
+                }
+                qrCheckedIn = true;
+                scanCount++;
+                lastCheckinTime = new Date().toISOString();
+                
+                checkinHistory.unshift({
+                    timestamp: lastCheckinTime,
+                    busId: student.assignedBusId || 'Assigned Bus',
+                    route: studentRoute
+                });
+                
+                if(checkinHistory.length > 5) {
+                    checkinHistory = checkinHistory.slice(0, 5);
                 }
                 
+                localStorage.setItem(`scanCount_${storageKeySuffix}`, scanCount);
+                localStorage.setItem(`lastCheckin_${storageKeySuffix}`, lastCheckinTime);
+                localStorage.setItem(`checkinHistory_${storageKeySuffix}`, JSON.stringify(checkinHistory));
+                
+                if(scanCountElement) scanCountElement.textContent = scanCount;
+                if(lastCheckinElement) lastCheckinElement.textContent = new Date(lastCheckinTime).toLocaleDateString();
+                if(lastCheckinTimeElement) lastCheckinTimeElement.textContent = new Date(lastCheckinTime).toLocaleTimeString();
+                
+                updateCheckinHistory();
+
+                // Persist real boarding record to Firestore daily_boardings collection
+                if (window.dbHelper && typeof window.dbHelper.getDailyBoardingsCol === 'function') {
+                    (async () => {
+                        try {
+                            const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+                            if (typeof authGuard === 'function') {
+                                await authGuard();
+                            }
+                            const authUser = (window.auth && window.auth.currentUser) ||
+                                             (typeof getFirebase === 'function' && getFirebase()?.auth ? getFirebase().auth().currentUser : null);
+                            const fbInstance = typeof getFirebase === 'function' ? getFirebase() : (window.firebase || globalThis.firebase);
+                            const serverTs = fbInstance?.firestore?.FieldValue?.serverTimestamp ? fbInstance.firestore.FieldValue.serverTimestamp() : new Date();
+
+                            const boardingDoc = {
+                                studentId,
+                                studentName,
+                                studentEmail: (authUser && authUser.email) || student.email || (student.id && String(student.id).includes('@') ? student.id : '') || localStorage.getItem('userEmail') || '',
+                                route: studentRoute,
+                                busId: student.assignedBusId || 'Assigned Bus',
+                                instituteId,
+                                timestamp: serverTs,
+                                localTimestamp: lastCheckinTime,
+                                status: 'Verified'
+                            };
+
+                            const ref = await window.dbHelper.getDailyBoardingsCol().add(boardingDoc);
+                            console.log("✅ Boarding record successfully saved in Firestore:", ref.id);
+                        } catch (err) {
+                            console.error("❌ Boarding record write failed:", err);
+                            const banner = document.getElementById('pass-offline-alert') || document.getElementById('route-merge-warning-banner');
+                            if (banner) {
+                                banner.classList.remove('hidden');
+                                const textEl = document.getElementById('route-merge-warning-text');
+                                if (textEl) textEl.textContent = `⚠️ Boarding Sync Notice: Check-in recorded locally, but cloud sync failed (${err.message || 'Permissions/Network'}).`;
+                            } else {
+                                alert(`⚠️ Check-in recorded locally, but cloud sync failed: ${err.message || 'Permissions/Network error'}`);
+                            }
+                        }
+                    })();
+                }
+                
+                console.log("✅ Check-in recorded");
                 updateCheckinStatus();
             };
         }
@@ -302,8 +357,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function loadBoardingHistoryFromFirestore() {
+        if (!window.dbHelper || typeof window.dbHelper.getDailyBoardingsCol !== 'function') return;
+        try {
+            const snap = await window.dbHelper.getDailyBoardingsCol()
+                .where('studentId', '==', studentId)
+                .limit(10)
+                .get();
+            if (!snap.empty) {
+                const fetched = snap.docs.map(doc => {
+                    const data = doc.data();
+                    const ts = data.timestamp ? (data.timestamp.toDate ? data.timestamp.toDate().toISOString() : data.timestamp) : (data.localTimestamp || new Date().toISOString());
+                    return {
+                        timestamp: ts,
+                        busId: data.busId || 'Assigned Bus',
+                        route: data.route || studentRoute
+                    };
+                });
+                fetched.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                checkinHistory = fetched;
+                scanCount = fetched.length;
+                lastCheckinTime = checkinHistory[0]?.timestamp || null;
+
+                if (lastCheckinTime) {
+                    const todayStr = new Date().toDateString();
+                    if (new Date(lastCheckinTime).toDateString() === todayStr) {
+                        qrCheckedIn = true;
+                    }
+                }
+                if (scanCountElement) scanCountElement.textContent = scanCount;
+                if (lastCheckinElement && lastCheckinTime) lastCheckinElement.textContent = new Date(lastCheckinTime).toLocaleDateString();
+                if (lastCheckinTimeElement && lastCheckinTime) lastCheckinTimeElement.textContent = new Date(lastCheckinTime).toLocaleTimeString();
+                updateCheckinStatus();
+                updateCheckinHistory();
+            }
+        } catch (err) {
+            console.warn('Could not load daily_boardings from Firestore:', err);
+        }
+    }
+
     updateCheckinStatus();
     updateCheckinHistory();
+    loadBoardingHistoryFromFirestore();
 
     // ========================================
     // 9. DOWNLOAD PASS AS PDF
@@ -426,10 +521,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const warningText = document.getElementById('route-merge-warning-text');
     
     if (student && student.assignedBusId) {
-        const busInterval = setInterval(() => {
+        (async () => {
+            const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+            if (typeof authGuard === 'function') {
+                try {
+                    await authGuard();
+                } catch (e) {
+                    console.warn("Could not initialize Firebase Auth for route merge listener", e);
+                    return;
+                }
+            }
             if (typeof dbHelper !== 'undefined') {
-                clearInterval(busInterval);
-                
                 dbHelper.getBusesCol().doc(student.assignedBusId).onSnapshot(doc => {
                     if (doc.exists) {
                         const bus = doc.data();
@@ -467,6 +569,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error("Error listening to bus optimization:", err);
                 });
             }
-        }, 100);
+        })();
     }
 });

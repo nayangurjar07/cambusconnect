@@ -1,17 +1,27 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html class="light" lang="en">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Live Track | Cambus Connect</title>
+    <title>Live Fleet Tracking | Cambus Connect</title>
     
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Track campus buses in real-time with sub-second GPS telemetry, live route arrival ETAs, passenger occupancy alerts, and active fleet status on Cambus Connect."/>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+
     <!-- Auth Guard checks login status immediately -->
     <script src="../../../auth-guard.js"></script>
 
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <!-- Tailwind & Google Fonts -->
+    <link rel="stylesheet" href="../../../tailwind.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
     
+    <!-- Universal Toast Notifications -->
+    <script src="/toast.js"></script>
+
     <!-- Firebase ESM Configuration -->
     <script type="importmap">
       {
@@ -26,286 +36,227 @@
     <script type="module" src="../../../app.js"></script>
 
     <style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-        }
-        .pulse-marker {
-            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        @keyframes pulse-ring {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            50% { transform: scale(1.1); opacity: 0.4; }
-            100% { transform: scale(0.95); opacity: 0.8; }
-        }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        body {
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
             font-family: 'Inter', sans-serif;
             background-color: #f8f9ff;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
         #map {
             width: 100%;
             height: 100%;
         }
+        /* Custom Skeleton Shimmer Animation */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #edf2f7 25%, #f7fafc 50%, #edf2f7 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
-    <script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            "colors": {
-                    "on-primary-fixed-variant": "#0039b5",
-                    "on-tertiary-fixed-variant": "#005236",
-                    "secondary-fixed-dim": "#ffb690",
-                    "on-tertiary-fixed": "#002113",
-                    "inverse-primary": "#b7c4ff",
-                    "surface-bright": "#f8f9ff",
-                    "surface-variant": "#d3e4fe",
-                    "secondary-container": "#fd761a",
-                    "surface-container-lowest": "#ffffff",
-                    "secondary-fixed": "#ffdbca",
-                    "on-surface-variant": "#434655",
-                    "tertiary-fixed": "#6ffbbe",
-                    "tertiary-fixed-dim": "#4edea3",
-                    "on-surface": "var(--text-color, #0b1c30)",
-                    "primary-fixed": "#dce1ff",
-                    "on-tertiary-container": "#60eeb1",
-                    "outline-variant": "#c4c5d7",
-                    "surface-container": "#e5eeff",
-                    "surface": "#f8f9ff",
-                    "surface-container-high": "#dce9ff",
-                    "on-tertiary": "#ffffff",
-                    "on-secondary-fixed-variant": "#783200",
-                    "on-error": "#ffffff",
-                    "on-secondary": "#ffffff",
-                    "inverse-surface": "#213145",
-                    "on-primary": "#ffffff",
-                    "primary-fixed-dim": "#b7c4ff",
-                    "on-background": "#0b1c30",
-                    "on-secondary-fixed": "#341100",
-                    "error-container": "#ffdad6",
-                    "primary-container": "var(--primary-color, #1d4ed8)",
-                    "on-primary-container": "#cad3ff",
-                    "inverse-on-surface": "#eaf1ff",
-                    "on-error-container": "#93000a",
-                    "error": "#ba1a1a",
-                    "surface-tint": "#2151da",
-                    "surface-container-highest": "#d3e4fe",
-                    "outline": "#747686",
-                    "on-secondary-container": "#5c2400",
-                    "on-primary-fixed": "#001551",
-                    "primary": "var(--primary-color, #0037b0)",
-                    "surface-dim": "#cbdbf5",
-                    "surface-container-low": "#eff4ff",
-                    "tertiary-container": "#006a48",
-                    "secondary": "var(--secondary-color, #9d4300)",
-                    "tertiary": "#004f35",
-                    "background": "var(--bg-color, #f8f9ff)"
-            },
-            "borderRadius": {
-                    "DEFAULT": "0.25rem",
-                    "lg": "0.5rem",
-                    "xl": "0.75rem",
-                    "full": "9999px"
-            },
-            "spacing": {
-                    "margin-desktop": "32px",
-                    "margin-mobile": "16px",
-                    "xs": "4px",
-                    "base": "4px",
-                    "lg": "24px",
-                    "sm": "8px",
-                    "gutter": "16px",
-                    "md": "16px",
-                    "xl": "48px"
-            },
-            "fontFamily": {
-                    "body-lg": ["Inter"],
-                    "label-sm": ["Inter"],
-                    "headline-md": ["Inter"],
-                    "headline-lg": ["Inter"],
-                    "headline-lg-mobile": ["Inter"],
-                    "body-md": ["Inter"],
-                    "mono-data": ["Inter"],
-                    "label-md": ["Inter"]
-            },
-            "fontSize": {
-                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
-                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
-                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
-                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
-                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
-                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
-                    "mono-data": ["16px", {"lineHeight": "24px", "fontWeight": "700"}],
-                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}]
-            }
-          },
-        },
-      }
-    </script>
+    
 </head>
-<body class="bg-background text-on-background font-body-md overflow-hidden">
+<body class="bg-surface text-on-surface overflow-hidden">
     <!-- TopAppBar -->
-    <header class="fixed top-0 w-full z-50 bg-surface dark:bg-surface-dim shadow-sm flex justify-between items-center px-margin-mobile md:px-margin-desktop h-16 w-full">
-        <div class="flex items-center gap-2">
-            <button id="menu-button" class="md:hidden material-symbols-outlined text-primary hover:bg-surface-container-high p-2 rounded-full transition-colors active:scale-95 duration-150">menu</button>
-            <div id="default-logo-container" class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">
-                Cambus Connect
-            </div>
-            <img id="college-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" class="h-8 w-auto rounded-lg hidden" alt="College Logo"/>
-            <div id="college-title" class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim hidden"></div>
+    <header class="fixed top-0 left-0 w-full z-50 bg-white border-b border-gray-200 shadow-sm flex justify-between items-center px-4 md:px-6 h-16">
+        <div class="flex items-center gap-2 min-w-0">
+            <button id="menu-button" class="md:hidden p-2 rounded-xl text-gray-700 hover:bg-gray-100 transition-colors active:scale-95" aria-label="Toggle navigation menu" aria-expanded="false">
+                <span class="material-symbols-outlined text-2xl" id="menu-button-icon">menu</span>
+            </button>
+            <a href="/" class="flex items-center gap-2 min-w-0">
+                <div class="bg-primary p-1.5 rounded-lg text-white shrink-0">
+                    <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">directions_bus</span>
+                </div>
+                <span id="default-logo-container" class="font-extrabold text-lg text-primary tracking-tight truncate">
+                    Cambus Connect
+                </span>
+            </a>
+            <img id="college-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" class="h-7 w-auto rounded-lg hidden" alt="College Logo"/>
+            <div id="college-title" class="font-bold text-base text-primary hidden truncate"></div>
         </div>
-        <div class="flex items-center space-x-4">
-            <p id="student-name-header" class="text-xs text-on-surface-variant font-medium hidden md:block"></p>
-            <button class="material-symbols-outlined text-primary hover:bg-surface-container-high p-2 rounded-full transition-colors active:scale-95 duration-150" onclick="window.location.href='../notifications/notifications.html'">notifications</button>
-            <button class="material-symbols-outlined text-primary hover:bg-surface-container-high p-2 rounded-full transition-colors active:scale-95 duration-150" onclick="window.location.href='../profile/profile.html'">account_circle</button>
+
+        <div class="flex items-center gap-2 sm:gap-3">
+            <!-- Clickable Emergency Hotline -->
+            <a href="tel:+18005552262" class="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-brandOrange bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 rounded-xl transition-colors">
+                <span class="material-symbols-outlined text-sm">call</span> Dispatch
+            </a>
+            <!-- Clickable Email Support -->
+            <a href="mailto:support@cambusconnect.edu" class="hidden lg:inline-flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-primary px-2 py-1 transition-colors">
+                <span class="material-symbols-outlined text-sm">mail</span> Helpdesk
+            </a>
+            <p id="student-name-header" class="text-xs text-gray-600 font-medium hidden md:block px-2"></p>
+            <button class="material-symbols-outlined text-gray-600 hover:text-primary hover:bg-gray-100 p-2 rounded-xl transition-colors active:scale-95" onclick="window.location.href='../notifications/notifications.html'" aria-label="View notifications">notifications</button>
+            <button class="material-symbols-outlined text-gray-600 hover:text-primary hover:bg-gray-100 p-2 rounded-xl transition-colors active:scale-95" onclick="window.location.href='../profile/profile.html'" aria-label="View profile">account_circle</button>
         </div>
     </header>
 
     <!-- Mobile Navigation Menu Drawer -->
-    <div id="mobile-menu" class="hidden fixed top-16 left-0 w-full bg-surface-container-low border-b border-outline-variant shadow-lg z-50 md:hidden">
-        <div class="p-4 flex flex-col space-y-2">
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../home/home.html">
+    <div id="mobile-menu" class="hidden fixed top-16 left-0 w-full bg-white border-b border-gray-200 shadow-xl z-50 md:hidden max-h-[80vh] overflow-y-auto">
+        <div class="p-4 flex flex-col space-y-1">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../home/home.html">
                 <span class="material-symbols-outlined">home</span>
-                <span class="font-label-md text-label-md">Home</span>
+                <span class="font-semibold text-sm">Home Dashboard</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 bg-primary-container text-on-primary-container rounded-lg font-bold" href="../track/track.html">
+            <a class="flex items-center space-x-3 p-3 bg-blue-50 text-primary rounded-xl font-bold" href="../track/track.html">
                 <span class="material-symbols-outlined">explore</span>
-                <span class="font-label-md text-label-md">Live Track</span>
+                <span class="font-semibold text-sm">Live GPS Tracker</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../bus-pass/bus-pass.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../bus-pass/bus-pass.html">
                 <span class="material-symbols-outlined">confirmation_number</span>
-                <span class="font-label-md text-label-md">Bus Pass</span>
+                <span class="font-semibold text-sm">Digital Bus Pass</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../notifications/notifications.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../notifications/notifications.html">
                 <span class="material-symbols-outlined">warning</span>
-                <span class="font-label-md text-label-md">Alerts</span>
+                <span class="font-semibold text-sm">Transit Alerts</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../lost-found/lost-found.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../lost-found/lost-found.html">
                 <span class="material-symbols-outlined">inventory_2</span>
-                <span class="font-label-md text-label-md">Lost & Found</span>
+                <span class="font-semibold text-sm">Lost &amp; Found</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../profile/profile.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../profile/profile.html">
                 <span class="material-symbols-outlined">person</span>
-                <span class="font-label-md text-label-md">Profile</span>
+                <span class="font-semibold text-sm">My Profile</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../help/help.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../help/help.html">
                 <span class="material-symbols-outlined">help</span>
-                <span class="font-label-md text-label-md">Help FAQs</span>
+                <span class="font-semibold text-sm">Help &amp; FAQs</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../search/search.html">
-                <span class="material-symbols-outlined">search</span>
-                <span class="font-label-md text-label-md">Search Buses</span>
-            </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all" href="../support/support.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../support/support.html">
                 <span class="material-symbols-outlined">support_agent</span>
-                <span class="font-label-md text-label-md">Support Desk</span>
+                <span class="font-semibold text-sm">Support Desk</span>
             </a>
-            <hr class="border-outline-variant my-2" />
-            <button id="logout-button" class="flex items-center space-x-3 w-full p-3 hover:bg-error-container text-error rounded-lg transition-colors">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../empty-state.html">
+                <span class="material-symbols-outlined">layers</span>
+                <span class="font-semibold text-sm">Transit States</span>
+            </a>
+
+            <!-- Mobile Emergency Hotline & Email in Drawer -->
+            <div class="pt-3 pb-1 px-3 border-t border-gray-100 flex flex-col gap-2 text-xs">
+                <a href="tel:+18005552262" class="flex items-center gap-2 text-brandOrange font-bold">
+                    <span class="material-symbols-outlined text-sm">call</span> Dispatch: +1 (800) 555-CAMBUS
+                </a>
+                <a href="mailto:support@cambusconnect.edu" class="flex items-center gap-2 text-gray-500 hover:text-primary font-semibold">
+                    <span class="material-symbols-outlined text-sm">mail</span> support@cambusconnect.edu
+                </a>
+            </div>
+
+            <hr class="border-gray-200 my-2" />
+            <button id="logout-button" class="flex items-center space-x-3 w-full p-3 hover:bg-red-50 text-red-600 rounded-xl font-bold transition-colors">
                 <span class="material-symbols-outlined">logout</span>
-                <span class="font-label-md text-label-md">Logout</span>
+                <span class="font-semibold text-sm">Logout</span>
             </button>
         </div>
     </div>
 
     <!-- SideNavBar (Desktop Only) -->
-    <nav class="fixed left-0 top-0 h-full w-64 z-40 hidden md:flex flex-col bg-surface-container-low dark:bg-surface-container-lowest p-4 space-y-2 pt-20">
-        <div class="mb-6 px-2">
-            <h2 id="sidebar-default-logo" class="font-headline-md text-headline-md font-bold text-primary">Transit Portal</h2>
-            <h2 id="sidebar-college-title" class="font-headline-md text-headline-md font-bold text-primary hidden"></h2>
-            <p class="font-label-sm text-on-surface-variant">Iowa City Campus</p>
+    <nav class="fixed left-0 top-0 h-full w-64 z-40 hidden md:flex flex-col bg-white border-r border-gray-200 p-4 space-y-1 pt-20">
+        <div class="mb-4 px-2">
+            <h2 id="sidebar-default-logo" class="font-extrabold text-lg text-primary">Student Transit</h2>
+            <h2 id="sidebar-college-title" class="font-extrabold text-lg text-primary hidden"></h2>
+            <p class="text-xs text-gray-400 font-medium">University Campus Network</p>
         </div>
-        <nav class="flex flex-col space-y-1">
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all active:scale-98" href="../home/home.html">
+        <div class="flex flex-col space-y-1">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../home/home.html">
                 <span class="material-symbols-outlined">home</span>
-                <span class="font-label-md text-label-md">Home</span>
+                <span class="font-semibold text-sm">Home</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 bg-primary-container text-on-primary-container rounded-lg font-bold transition-all" href="../track/track.html">
+            <a class="flex items-center space-x-3 p-3 bg-blue-50 text-primary rounded-xl font-bold transition-all" href="../track/track.html">
                 <span class="material-symbols-outlined">map</span>
-                <span class="font-label-md text-label-md">Live Track</span>
+                <span class="font-semibold text-sm">Live Track</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all active:scale-98" href="../bus-pass/bus-pass.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../bus-pass/bus-pass.html">
                 <span class="material-symbols-outlined">confirmation_number</span>
-                <span class="font-label-md text-label-md">Bus Pass</span>
+                <span class="font-semibold text-sm">Bus Pass</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all active:scale-98" href="../notifications/notifications.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../notifications/notifications.html">
                 <span class="material-symbols-outlined">warning</span>
-                <span class="font-label-md text-label-md">Alerts</span>
+                <span class="font-semibold text-sm">Transit Alerts</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all active:scale-98" href="../lost-found/lost-found.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../lost-found/lost-found.html">
                 <span class="material-symbols-outlined">inventory_2</span>
-                <span class="font-label-md text-label-md">Lost & Found</span>
+                <span class="font-semibold text-sm">Lost &amp; Found</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all active:scale-98" href="../profile/profile.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../profile/profile.html">
                 <span class="material-symbols-outlined">person</span>
-                <span class="font-label-md text-label-md">Profile</span>
+                <span class="font-semibold text-sm">Profile</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all active:scale-98" href="../help/help.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../help/help.html">
                 <span class="material-symbols-outlined">help</span>
-                <span class="font-label-md text-label-md">Help FAQs</span>
+                <span class="font-semibold text-sm">Help &amp; FAQs</span>
             </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all active:scale-98" href="../search/search.html">
-                <span class="material-symbols-outlined">search</span>
-                <span class="font-label-md text-label-md">Search Buses</span>
-            </a>
-            <a class="flex items-center space-x-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-lg transition-all active:scale-98" href="../support/support.html">
+            <a class="flex items-center space-x-3 p-3 text-gray-600 hover:text-primary hover:bg-gray-50 rounded-xl transition-all" href="../support/support.html">
                 <span class="material-symbols-outlined">support_agent</span>
-                <span class="font-label-md text-label-md">Support Desk</span>
+                <span class="font-semibold text-sm">Support Desk</span>
             </a>
-        </nav>
-        <div class="mt-auto pt-4 border-t border-outline-variant">
-            <button class="w-full bg-error-container text-error py-3 rounded-xl font-bold flex items-center justify-center gap-2" onclick="localStorage.clear(); window.location.href='../student-login.html';">
-                <span class="material-symbols-outlined">logout</span>
+        </div>
+        
+        <!-- Sidebar Dispatch & Logout Footer -->
+        <div class="mt-auto pt-4 border-t border-gray-100 space-y-2">
+            <a href="tel:+18005552262" class="w-full bg-orange-50 hover:bg-orange-100 text-brandOrange py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                <span class="material-symbols-outlined text-sm">call</span> Call Dispatch
+            </a>
+            <button class="w-full bg-red-50 hover:bg-red-100 text-red-600 py-2.5 rounded-xl font-bold flex items-center justify-center gap-1.5 text-xs transition-colors" onclick="localStorage.clear(); window.location.href='../student-login.html';">
+                <span class="material-symbols-outlined text-base">logout</span>
                 Logout
             </button>
         </div>
     </nav>
 
     <!-- Main Content Area -->
-    <main class="md:pl-64 pt-16 h-screen flex flex-col md:flex-row relative">
+    <main class="md:pl-64 pt-16 h-screen flex flex-col md:flex-row relative overflow-x-hidden">
         <!-- Sidebar Search/Route List -->
-        <section class="w-full md:w-96 bg-surface-container-low flex flex-col h-[45%] md:h-full z-30 shadow-xl overflow-hidden">
+        <section class="w-full md:w-96 bg-white flex flex-col h-[48%] md:h-full z-30 shadow-xl border-r border-gray-200 overflow-hidden">
             <!-- Selector & Controls -->
-            <div class="p-4 border-b border-outline-variant space-y-3 bg-white">
+            <div class="p-3 sm:p-4 border-b border-gray-100 space-y-2.5 bg-white shrink-0">
                 <!-- Search Bus/Route -->
                 <div class="space-y-1">
-                    <label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Search Bus or Route</label>
+                    <label for="search-input" class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Search Fleet or Route</label>
                     <div class="relative">
-                        <input id="search-input" type="text" placeholder="e.g. 101, Palasia..." class="w-full pl-9 pr-4 py-2 bg-surface border border-outline-variant focus:border-primary rounded-xl outline-none transition-all text-sm" />
-                        <span class="material-symbols-outlined absolute left-2.5 top-2.5 text-on-surface-variant text-[18px]">search</span>
+                        <input id="search-input" type="text" placeholder="Search by bus number or route name..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-gray-200 focus:border-primary focus:bg-white rounded-xl outline-none transition-all text-xs sm:text-sm text-slate-800" />
+                        <span class="material-symbols-outlined absolute left-2.5 top-2.5 text-gray-400 text-[18px]">search</span>
                     </div>
                 </div>
 
-                <!-- Select Bus -->
+                <!-- Select Bus Dropdown -->
                 <div class="space-y-1">
-                    <label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Track Bus Number</label>
-                    <select id="track-bus-select" class="w-full px-4 py-2 bg-surface border border-outline-variant focus:border-primary rounded-xl outline-none transition-all text-sm">
-                        <option value="">Loading buses...</option>
+                    <label for="track-bus-select" class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Bus to Follow</label>
+                    <select id="track-bus-select" class="w-full px-3 py-2 bg-slate-50 border border-gray-200 focus:border-primary focus:bg-white rounded-xl outline-none transition-all text-xs sm:text-sm text-slate-800">
+                        <option value="">Connecting GPS telemetry...</option>
                     </select>
                 </div>
-                <button id="track-assigned-btn" class="w-full py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-container transition text-xs font-semibold shadow-sm flex items-center justify-center gap-1">
-                    <span class="material-symbols-outlined text-[16px]">sync</span>
+                <button id="track-assigned-btn" class="w-full py-2 bg-primary text-white rounded-xl hover:bg-primary-dark transition text-xs font-semibold shadow-sm flex items-center justify-center gap-1 active:scale-98">
+                    <span class="material-symbols-outlined text-[15px]">sync</span>
                     Reset to Assigned Bus
                 </button>
             </div>
             
             <!-- Quick Stats Row -->
-            <div class="grid grid-cols-4 border-b border-outline-variant text-center bg-surface-container-lowest shrink-0 divide-x divide-outline-variant">
+            <div class="grid grid-cols-4 border-b border-gray-100 text-center bg-slate-50 shrink-0 divide-x divide-gray-200">
                 <div class="p-2">
-                    <p class="text-[9px] text-on-surface-variant font-bold uppercase">Active</p>
-                    <p id="active-buses-count" class="font-mono-data text-sm font-bold text-slate-800">-</p>
+                    <p class="text-[9px] text-gray-400 font-bold uppercase">Active</p>
+                    <p id="active-buses-count" class="font-mono text-xs sm:text-sm font-bold text-slate-800">-</p>
                 </div>
                 <div class="p-2">
-                    <p class="text-[9px] text-on-surface-variant font-bold uppercase">My Bus</p>
-                    <p id="my-bus-number" class="font-mono-data text-sm font-bold text-primary">-</p>
+                    <p class="text-[9px] text-gray-400 font-bold uppercase">Followed</p>
+                    <p id="my-bus-number" class="font-mono text-xs sm:text-sm font-bold text-primary">-</p>
                 </div>
                 <div class="p-2">
-                    <p class="text-[9px] text-on-surface-variant font-bold uppercase">ETA</p>
-                    <p id="eta-display" class="font-mono-data text-sm font-bold text-secondary">--</p>
+                    <p class="text-[9px] text-gray-400 font-bold uppercase">ETA</p>
+                    <p id="eta-display" class="font-mono text-xs sm:text-sm font-bold text-brandOrange">--</p>
                 </div>
                 <div class="p-2">
-                    <p class="text-[9px] text-on-surface-variant font-bold uppercase">GPS</p>
+                    <p class="text-[9px] text-gray-400 font-bold uppercase">Telemetry</p>
                     <div class="flex items-center justify-center space-x-1 mt-0.5">
                         <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                         <span id="last-update-time" class="text-[10px] font-semibold text-slate-700">Live</span>
@@ -314,35 +265,72 @@
             </div>
 
             <!-- Scrollable Alerts & Fleet List -->
-            <div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-50">
+            <div class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar bg-slate-50">
                 <!-- Offline Bus Warning Alert Box -->
                 <div id="offline-bus-alert" class="hidden bg-amber-50 text-amber-900 p-3 rounded-xl border border-amber-300 flex items-start gap-3 shadow-sm">
-                    <span class="material-symbols-outlined text-amber-600 animate-pulse">warning</span>
-                    <div class="flex-1">
+                    <span class="material-symbols-outlined text-amber-600 animate-pulse shrink-0 text-xl">warning</span>
+                    <div class="flex-1 min-w-0">
                         <p class="font-bold text-xs">Default Tracked Bus Offline</p>
-                        <p id="offline-bus-alert-text" class="text-[11px] leading-relaxed mt-0.5">Your default tracked bus is currently offline. Showing active routes.</p>
+                        <p id="offline-bus-alert-text" class="text-[11px] leading-relaxed mt-0.5 text-amber-800">Your default tracked bus is currently offline. Showing active routes.</p>
                     </div>
                 </div>
 
                 <!-- Assigned Bus Alert Box -->
-                <div id="my-bus-alert" class="hidden bg-primary-container text-on-primary-container p-3 rounded-xl border border-primary-fixed flex items-start gap-3 shadow-sm">
-                    <span class="material-symbols-outlined text-primary">info</span>
-                    <div class="flex-1">
-                        <p class="font-bold text-xs">Your Assigned Bus</p>
-                        <p id="my-bus-alert-text" class="text-[11px] leading-relaxed mt-0.5"></p>
+                <div id="my-bus-alert" class="hidden bg-blue-50 text-blue-900 p-3 rounded-xl border border-blue-200 flex items-start gap-3 shadow-sm">
+                    <span class="material-symbols-outlined text-primary shrink-0 text-xl">info</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-xs">Currently Following</p>
+                        <p id="my-bus-alert-text" class="text-[11px] leading-relaxed mt-0.5 text-blue-800"></p>
                     </div>
                 </div>
 
                 <div class="space-y-2">
                     <div class="flex items-center justify-between px-1">
-                        <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">All Transit Vehicles</p>
-                        <span class="text-[10px] text-tertiary bg-tertiary-container/30 px-2 py-0.5 rounded-full font-bold">Live Feed</span>
+                        <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">All Active Shuttles</p>
+                        <span class="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Live Telematics
+                        </span>
                     </div>
                     
+                    <!-- Dynamic Bus List Container (Includes Skeleton Loaders by default) -->
                     <div id="bus-list" class="space-y-3">
-                        <div class="bg-white rounded-xl p-6 text-center border border-outline-variant">
-                            <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                            <p class="text-xs text-on-surface-variant">Connecting GPS fleet telemetry...</p>
+                        <!-- Skeleton Loading Interface (replaced upon data arrival) -->
+                        <div class="space-y-3" id="skeleton-loader">
+                            <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="skeleton h-4 w-24 rounded-md"></div>
+                                    <div class="skeleton h-5 w-16 rounded-full"></div>
+                                </div>
+                                <div class="skeleton h-4 w-3/4 rounded-md"></div>
+                                <div class="flex items-center gap-3">
+                                    <div class="skeleton h-3 w-28 rounded-md"></div>
+                                    <div class="skeleton h-3 w-20 rounded-md"></div>
+                                </div>
+                                <div class="skeleton h-8 w-full rounded-xl"></div>
+                            </div>
+                            <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="skeleton h-4 w-28 rounded-md"></div>
+                                    <div class="skeleton h-5 w-16 rounded-full"></div>
+                                </div>
+                                <div class="skeleton h-4 w-2/3 rounded-md"></div>
+                                <div class="flex items-center gap-3">
+                                    <div class="skeleton h-3 w-24 rounded-md"></div>
+                                    <div class="skeleton h-3 w-20 rounded-md"></div>
+                                </div>
+                                <div class="skeleton h-8 w-full rounded-xl"></div>
+                            </div>
+                            <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="skeleton h-4 w-20 rounded-md"></div>
+                                    <div class="skeleton h-5 w-16 rounded-full"></div>
+                                </div>
+                                <div class="skeleton h-4 w-4/5 rounded-md"></div>
+                                <div class="flex items-center gap-3">
+                                    <div class="skeleton h-3 w-32 rounded-md"></div>
+                                </div>
+                                <div class="skeleton h-8 w-full rounded-xl"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -350,17 +338,17 @@
         </section>
 
         <!-- Interactive Map Container -->
-        <section class="flex-1 relative bg-surface-dim overflow-hidden h-[55%] md:h-full">
+        <section class="flex-1 relative bg-slate-100 overflow-hidden h-[52%] md:h-full">
             <div id="map"></div>
 
-            <!-- Floating Controls Overlay -->
+            <!-- Floating Map Controls Overlay -->
             <div class="absolute right-4 top-4 flex flex-col gap-2 z-[20]">
-                <button id="view-mode-btn" class="bg-white hover:bg-surface-container-high px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center space-x-2 border border-outline-variant">
-                    <span class="material-symbols-outlined text-[16px]">layers</span>
-                    <span>Satellite View</span>
+                <button id="view-mode-btn" class="bg-white/95 hover:bg-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center space-x-1.5 border border-gray-200 text-slate-800 active:scale-95">
+                    <span class="material-symbols-outlined text-[16px] text-primary">layers</span>
+                    <span>Satellite</span>
                 </button>
-                <button id="center-map-btn" class="bg-white hover:bg-surface-container-high px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center space-x-2 border border-outline-variant">
-                    <span class="material-symbols-outlined text-[16px]">my_location</span>
+                <button id="center-map-btn" class="bg-white/95 hover:bg-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center space-x-1.5 border border-gray-200 text-slate-800 active:scale-95">
+                    <span class="material-symbols-outlined text-[16px] text-primary">my_location</span>
                     <span>Center Map</span>
                 </button>
             </div>
@@ -375,3 +363,4 @@
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD3wNXys4eqg27fxQr-BpzOuALppTDbjPs&callback=initMap&libraries=geometry&loading=async" async defer></script>
 </body>
 </html>
+

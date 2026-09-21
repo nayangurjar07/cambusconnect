@@ -72,7 +72,17 @@ window.initMap = function() {
 };
 
 // Start tracking all buses
-function startBusTracking() {
+async function startBusTracking() {
+    try {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            await authGuard();
+        }
+    } catch (err) {
+        console.error("❌ Firebase/Auth unavailable in admin tracking:", err);
+        return;
+    }
+
     dbHelper.getBusesCol().onSnapshot(snapshot => {
         busesData = [];
         let activeBuses = 0;
@@ -88,69 +98,15 @@ function startBusTracking() {
             updateBusMarker(bus);
         });
 
-        // Demo Simulation Fallback when database is empty
-        if (busesData.length === 0) {
-            console.log("ℹ️ No active buses found in Firestore. Injecting simulated demo fleet for admin tracking...");
-            busesData = [
-                {
-                    id: 'demo-bus-101',
-                    number: '101',
-                    route: 'Main Campus Loop (Via Geeta Bhawan)',
-                    driver: 'Rajesh Sharma',
-                    conductor: 'Amit Kumar',
-                    phone: '+91 98765 43210',
-                    status: 'On Time',
-                    lastUpdate: 'Just now',
-                    locationSource: 'driver_phone',
-                    location: { lat: 22.7153, lng: 75.8797 }
-                },
-                {
-                    id: 'demo-bus-202',
-                    number: '202',
-                    route: 'Rajwada Express (Via Vijay Nagar)',
-                    driver: 'Manish Verma',
-                    conductor: 'Sanjay Singh',
-                    phone: '+91 98765 43211',
-                    status: 'Delayed',
-                    lastUpdate: '2 mins ago',
-                    locationSource: 'tracking_device',
-                    location: { lat: 22.7533, lng: 75.8937 }
-                },
-                {
-                    id: 'demo-bus-303',
-                    number: '303',
-                    route: 'Bhawarkua Shuttle (Via Palasia)',
-                    driver: 'Sunil Mehta',
-                    conductor: 'Vijay Yadav',
-                    phone: '+91 98765 43212',
-                    status: 'Breakdown',
-                    lastUpdate: '5 mins ago',
-                    locationSource: 'conductor_phone',
-                    location: { lat: 22.6926, lng: 75.8677 }
-                }
-            ];
-
-            busesData.forEach(bus => {
-                if (bus.status === 'On Time' || bus.status === 'Delayed') {
-                    activeBuses++;
-                }
-                updateBusMarker(bus);
-            });
-
-            if (!window.demoInterval) {
-                window.demoInterval = setInterval(() => {
-                    busesData.forEach(bus => {
-                        if (bus.status !== 'Breakdown' && bus.location) {
-                            // Slightly drift coordinates to simulate live movement
-                            bus.location.lat += (Math.random() - 0.5) * 0.0006;
-                            bus.location.lng += (Math.random() - 0.5) * 0.0006;
-                            updateBusMarker(bus);
-                        }
-                    });
-                    renderBusList();
-                }, 3000);
+        // Clear any markers for buses that were removed
+        const currentBusIds = new Set(busesData.map(b => b.id));
+        Object.keys(markers).forEach(id => {
+            if (!currentBusIds.has(id)) {
+                markers[id].setMap(null);
+                delete markers[id];
+                if (infoWindows[id]) delete infoWindows[id];
             }
-        }
+        });
         
         // Update header stats (desktop and mobile)
         document.getElementById('header-active-count').textContent = activeBuses;

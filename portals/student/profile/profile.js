@@ -74,15 +74,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     const passStatusBadge = document.getElementById('pass-status-badge');
     if(passStatusBadge) {
-        const validityDate = new Date(student.passValidity || '2025-12-31');
-        const today = new Date();
-        
-        if(validityDate > today) {
-            passStatusBadge.textContent = 'Pass Valid';
-            passStatusBadge.className = 'px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold';
+        const rawValidity = student.validUntil || student.passValidity;
+        if (rawValidity) {
+            const validityDate = new Date(rawValidity);
+            const today = new Date();
+            if(!isNaN(validityDate.getTime()) && validityDate >= today) {
+                passStatusBadge.textContent = 'Pass Valid';
+                passStatusBadge.className = 'px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold';
+            } else {
+                passStatusBadge.textContent = 'Pass Expired';
+                passStatusBadge.className = 'px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold';
+            }
         } else {
-            passStatusBadge.textContent = 'Pass Expired';
-            passStatusBadge.className = 'px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold';
+            passStatusBadge.textContent = 'No Active Pass';
+            passStatusBadge.className = 'px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-bold';
         }
     }
 
@@ -102,52 +107,52 @@ document.addEventListener('DOMContentLoaded', () => {
             }[tag] || tag));
 
         profileDetails.innerHTML = `
-            <div class="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                <div class="flex items-center space-x-2 mb-2">
+            <div class="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 min-w-0">
+                <div class="flex items-center space-x-2 mb-2 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                     <p class="text-sm font-medium text-gray-600">Email</p>
                 </div>
-                <p class="font-semibold text-gray-800">${escapeHTML(student.email || 'N/A')}</p>
+                <p class="font-semibold text-gray-800 break-all text-xs sm:text-sm">${escapeHTML(student.email || 'N/A')}</p>
             </div>
             
-            <div class="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100">
-                <div class="flex items-center space-x-2 mb-2">
+            <div class="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 min-w-0">
+                <div class="flex items-center space-x-2 mb-2 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                     <p class="text-sm font-medium text-gray-600">Phone</p>
                 </div>
-                <p class="font-semibold text-gray-800">${escapeHTML(student.phone || 'N/A')}</p>
+                <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(student.phone || 'N/A')}</p>
             </div>
             
-            <div class="p-4 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl border border-purple-100">
-                <div class="flex items-center space-x-2 mb-2">
+            <div class="p-4 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl border border-purple-100 min-w-0">
+                <div class="flex items-center space-x-2 mb-2 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                     <p class="text-sm font-medium text-gray-600">Department</p>
                 </div>
-                <p class="font-semibold text-gray-800">${escapeHTML(student.department || 'N/A')}</p>
+                <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(student.department || 'N/A')}</p>
             </div>
             
-            <div class="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-100">
-                <div class="flex items-center space-x-2 mb-2">
+            <div class="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-100 min-w-0">
+                <div class="flex items-center space-x-2 mb-2 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     <p class="text-sm font-medium text-gray-600">Academic Year</p>
                 </div>
-                <p class="font-semibold text-gray-800">${escapeHTML(student.year || 'N/A')}</p>
+                <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(student.year || 'N/A')}</p>
             </div>
             
-            <div class="p-4 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-100">
-                <div class="flex items-center space-x-2 mb-2">
+            <div class="p-4 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-100 min-w-0">
+                <div class="flex items-center space-x-2 mb-2 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                     <p class="text-sm font-medium text-gray-600">Address</p>
                 </div>
-                <p class="font-semibold text-gray-800">${escapeHTML(student.address || 'N/A')}</p>
+                <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(student.address || 'N/A')}</p>
             </div>
             
-            <div class="p-4 bg-gradient-to-br from-cyan-50 to-sky-50 rounded-xl border border-cyan-100">
-                <div class="flex items-center space-x-2 mb-2">
+            <div class="p-4 bg-gradient-to-br from-cyan-50 to-sky-50 rounded-xl border border-cyan-100 min-w-0">
+                <div class="flex items-center space-x-2 mb-2 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     <p class="text-sm font-medium text-gray-600">Pass Valid Until</p>
                 </div>
-                <p class="font-semibold text-green-600">${escapeHTML(student.passValidity || '31 Dec 2025')}</p>
+                <p class="font-semibold text-green-600 break-words-safe text-xs sm:text-sm">${escapeHTML(student.passValidity || '31 Dec 2025')}</p>
             </div>
         `;
         
@@ -161,36 +166,36 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if(busInfo) {
         busInfo.innerHTML = `
-            <div class="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
-                <div class="flex items-center space-x-2 mb-2">
+            <div class="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100 min-w-0">
+                <div class="flex items-center space-x-2 mb-2 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
                     <p class="text-sm font-medium text-gray-600">Assigned Route</p>
                 </div>
-                <p class="font-semibold text-gray-800">${escapeHTML(student.busRoute || 'Not Assigned')}</p>
+                <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(student.busRoute || 'Not Assigned')}</p>
             </div>
             
-            <div class="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-100">
-                <div class="flex items-center space-x-2 mb-2">
+            <div class="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-100 min-w-0">
+                <div class="flex items-center space-x-2 mb-2 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 7.6 16 5 12 5s-6.7 2.6-8.5 6.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2"/><circle cx="7" cy="17.5" r="2.5"/><circle cx="17" cy="17.5" r="2.5"/></svg>
                     <p class="text-sm font-medium text-gray-600">Bus ID</p>
                 </div>
-                <p class="font-semibold text-gray-800">${escapeHTML(student.assignedBusId || 'Not Assigned')}</p>
+                <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(student.assignedBusId || 'Not Assigned')}</p>
             </div>
             
-            <div class="p-4 bg-gradient-to-br from-green-50 to-teal-50 rounded-xl border border-green-100">
-                <div class="flex items-center space-x-2 mb-2">
+            <div class="p-4 bg-gradient-to-br from-green-50 to-teal-50 rounded-xl border border-green-100 min-w-0">
+                <div class="flex items-center space-x-2 mb-2 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     <p class="text-sm font-medium text-gray-600">Pickup Time</p>
                 </div>
-                <p class="font-semibold text-gray-800">7:30 AM (Approx)</p>
+                <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">7:30 AM (Approx)</p>
             </div>
             
-            <div class="p-4 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl border border-yellow-100">
-                <div class="flex items-center space-x-2 mb-2">
+            <div class="p-4 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl border border-yellow-100 min-w-0">
+                <div class="flex items-center space-x-2 mb-2 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                     <p class="text-sm font-medium text-gray-600">Pickup Stop</p>
                 </div>
-                <p class="font-semibold text-gray-800">${escapeHTML(student.pickupStop || 'Main Gate')}</p>
+                <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(student.pickupStop || 'Main Gate')}</p>
             </div>
         `;
         
@@ -205,87 +210,184 @@ document.addEventListener('DOMContentLoaded', () => {
     const statDaysLeft = document.getElementById('stat-days-left');
     const statQueries = document.getElementById('stat-queries');
 
-    // Calculate days left on pass
-    if(statDaysLeft) {
-        const validityDate = new Date(student.passValidity || '2025-12-31');
-        const today = new Date();
-        const daysLeft = Math.ceil((validityDate - today) / (1000 * 60 * 60 * 24));
-        
-        if(daysLeft > 0) {
-            statDaysLeft.textContent = daysLeft;
+    // Calculate days left on pass from real pass validity
+    if (statDaysLeft) {
+        const rawValidity = student.validUntil || student.passValidity;
+        if (rawValidity) {
+            const validityDate = new Date(rawValidity);
+            if (!isNaN(validityDate.getTime())) {
+                const today = new Date();
+                const daysLeft = Math.ceil((validityDate - today) / (1000 * 60 * 60 * 24));
+                if (daysLeft > 0) {
+                    statDaysLeft.textContent = daysLeft;
+                } else if (daysLeft === 0) {
+                    statDaysLeft.textContent = 'Expires Today';
+                    statDaysLeft.className = 'text-base font-bold text-amber-600';
+                } else {
+                    statDaysLeft.textContent = 'Expired';
+                    statDaysLeft.className = 'text-xl font-bold text-red-600';
+                }
+            } else {
+                statDaysLeft.textContent = 'Active';
+            }
         } else {
-            statDaysLeft.textContent = 'Expired';
-            statDaysLeft.className = 'text-2xl font-bold text-red-600';
+            statDaysLeft.textContent = student.passStatus === 'Active' ? 'Active' : 'No Pass';
         }
     }
 
-    // Fetch trips from localStorage or Firebase
-    if(statTrips) {
-        const trips = parseInt(localStorage.getItem(`tripCount_${student.collegeId}`)) || 0;
-        statTrips.textContent = trips;
-    }
+    // Fetch real boarding trips from Firestore daily_boardings
+    const studentEmail = student.email || '';
+    const studentId = student.collegeId || student.id || student.enrollment || '';
 
-    // Calculate attendance (example: trips / expected trips * 100)
-    if(statAttendance) {
-        const trips = parseInt(localStorage.getItem(`tripCount_${student.collegeId}`)) || 0;
-        const expectedTrips = 40; // Example: 2 trips/day * 20 working days
-        const attendance = trips > 0 ? Math.min(Math.round((trips / expectedTrips) * 100), 100) : 0;
-        statAttendance.textContent = `${attendance}%`;
-    }
-
-    // Fetch support queries count from Firebase
-    if(statQueries && db) {
-        const studentEmail = student.email || student.collegeId;
-        dbHelper.getSupportQueriesCol()
-          .where('studentEmail', '==', studentEmail)
-          .get()
-          .then(snapshot => {
-              statQueries.textContent = snapshot.size;
-              console.log(`✅ Found ${snapshot.size} support queries`);
-          })
-          .catch(error => {
-              console.error("❌ Error fetching queries:", error);
-              statQueries.textContent = '0';
-          });
-    }
-
-    // ========================================
-    // 7. NEW FEATURE: RECENT ACTIVITY TIMELINE
-    // ========================================
-    const activityTimeline = document.getElementById('activity-timeline');
-    
-    if(activityTimeline) {
-        // Sample activity data (replace with real Firebase data)
-        const activities = [
-            {
-                icon: '🚌',
-                title: 'Boarded Bus',
-                description: 'Checked in to Route A - Bus #001',
-                time: '2 hours ago',
-                color: 'blue'
-            },
-            {
-                icon: '🎫',
-                title: 'Bus Pass Renewed',
-                description: 'Pass extended until 31 Dec 2025',
-                time: '3 days ago',
-                color: 'green'
-            },
-            {
-                icon: '📝',
-                title: 'Support Query',
-                description: 'Submitted query about bus delay',
-                time: '5 days ago',
-                color: 'orange'
-            },
-            {
-                icon: '✅',
-                title: 'Profile Updated',
-                description: 'Changed contact information',
-                time: '1 week ago',
-                color: 'purple'
+    async function loadRealActivityAndStats() {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            try {
+                await authGuard();
+            } catch (e) {
+                console.error('Firebase/Auth not ready in profile.js:', e);
             }
-        ];
+        }
+
+        let boardings = [];
+        let queries = [];
+        let lostReports = [];
+
+        try {
+            // 1. Boardings
+            const boardingsSnap = await dbHelper.getDailyBoardingsCol()
+                .where('studentEmail', '==', studentEmail)
+                .limit(20)
+                .get()
+                .catch(() => ({ docs: [] }));
+
+            boardings = (boardingsSnap.docs || []).map(doc => ({
+                type: 'boarding',
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            // Update trips stat
+            if (statTrips) {
+                statTrips.textContent = boardings.length;
+            }
+            if (statAttendance) {
+                const expectedTrips = 40;
+                const attendance = boardings.length > 0 ? Math.min(Math.round((boardings.length / expectedTrips) * 100), 100) : 0;
+                statAttendance.textContent = `${attendance}%`;
+            }
+
+            // 2. Support Queries
+            const queriesSnap = await dbHelper.getSupportQueriesCol()
+                .where('studentEmail', '==', studentEmail)
+                .limit(10)
+                .get()
+                .catch(() => ({ docs: [] }));
+
+            queries = (queriesSnap.docs || []).map(doc => ({
+                type: 'query',
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            if (statQueries) {
+                statQueries.textContent = queries.length;
+            }
+
+            // 3. Lost & Found reports
+            const lostSnap = await dbHelper.getLostItemsCol()
+                .where('userEmail', '==', studentEmail)
+                .limit(10)
+                .get()
+                .catch(() => ({ docs: [] }));
+
+            lostReports = (lostSnap.docs || []).map(doc => ({
+                type: 'lost_found',
+                id: doc.id,
+                ...doc.data()
+            }));
+
+        } catch (err) {
+            console.warn("Notice loading profile activity records:", err);
+        }
+
+        // Merge all real events
+        const allEvents = [];
+
+        boardings.forEach(b => {
+            const ts = b.timestamp || b.createdAt;
+            const date = ts?.toDate ? ts.toDate() : (ts ? new Date(ts) : null);
+            allEvents.push({
+                icon: 'directions_bus',
+                title: 'Boarded Bus',
+                description: `Boarded ${b.busNumber ? 'Bus #' + b.busNumber : (b.routeName || 'Campus Transit')}`,
+                date: date,
+                color: 'blue'
+            });
+        });
+
+        queries.forEach(q => {
+            const ts = q.createdAt;
+            const date = ts?.toDate ? ts.toDate() : (ts ? new Date(ts) : null);
+            allEvents.push({
+                icon: 'help_outline',
+                title: 'Support Query',
+                description: q.subject || q.message?.slice(0, 45) || 'Submitted help ticket',
+                date: date,
+                color: 'orange'
+            });
+        });
+
+        lostReports.forEach(l => {
+            const ts = l.createdAt;
+            const date = ts?.toDate ? ts.toDate() : (ts ? new Date(ts) : null);
+            allEvents.push({
+                icon: 'inventory_2',
+                title: `Reported ${l.status || 'Lost'} Item`,
+                description: l.itemName || l.item || 'Personal item report',
+                date: date,
+                color: l.status === 'Found' ? 'green' : 'purple'
+            });
+        });
+
+        // Sort descending by date
+        allEvents.sort((a, b) => {
+            const tA = a.date ? a.date.getTime() : 0;
+            const tB = b.date ? b.date.getTime() : 0;
+            return tB - tA;
+        });
+
+        renderActivityTimeline(allEvents);
+    }
+
+    function timeAgo(date) {
+        if (!date) return 'Recently';
+        const now = new Date();
+        const diffSec = Math.floor((now - date) / 1000);
+        if (diffSec < 60) return 'Just now';
+        const diffMin = Math.floor(diffSec / 60);
+        if (diffMin < 60) return `${diffMin}m ago`;
+        const diffHours = Math.floor(diffMin / 60);
+        if (diffHours < 24) return `${diffHours}h ago`;
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 30) return `${diffDays}d ago`;
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+
+    function renderActivityTimeline(events) {
+        if (!activityTimeline) return;
+
+        if (events.length === 0) {
+            activityTimeline.innerHTML = `
+                <div class="p-8 text-center text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
+                    <span class="material-symbols-outlined text-4xl mb-1 text-slate-300">history</span>
+                    <p class="font-bold text-slate-600 text-sm">No recent activity</p>
+                    <p class="text-xs text-slate-400 mt-1">Your bus boardings, queries, and reports will appear here automatically.</p>
+                </div>
+            `;
+            return;
+        }
 
         const colorClasses = {
             blue: { bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200' },
@@ -294,15 +396,16 @@ document.addEventListener('DOMContentLoaded', () => {
             purple: { bg: 'bg-purple-100', text: 'text-purple-600', border: 'border-purple-200' }
         };
 
-        activityTimeline.innerHTML = activities.map((activity, index) => {
+        activityTimeline.innerHTML = events.slice(0, 10).map((activity, index) => {
             const colors = colorClasses[activity.color] || colorClasses.blue;
-            const isLast = index === activities.length - 1;
-            
+            const isLast = index === Math.min(events.length, 10) - 1;
+            const formattedTime = timeAgo(activity.date);
+
             return `
                 <div class="flex items-start space-x-4">
                     <div class="relative">
                         <div class="w-10 h-10 ${colors.bg} rounded-full flex items-center justify-center text-xl border-2 ${colors.border}">
-                            ${activity.icon}
+                            <span class="material-symbols-outlined text-[20px] ${colors.text}">${activity.icon}</span>
                         </div>
                         ${!isLast ? `<div class="absolute left-1/2 top-10 w-0.5 h-full bg-gray-200 -translate-x-1/2"></div>` : ''}
                     </div>
@@ -310,14 +413,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
                             <h4 class="font-semibold text-gray-800 mb-1">${activity.title}</h4>
                             <p class="text-sm text-gray-600 mb-2">${activity.description}</p>
-                            <p class="text-xs ${colors.text} font-medium">${activity.time}</p>
+                            <p class="text-xs ${colors.text} font-medium">${formattedTime}</p>
                         </div>
                     </div>
                 </div>
             `;
         }).join('');
-        
-        console.log("✅ Activity timeline rendered");
+    }
+
+    if (activityTimeline) {
+        loadRealActivityAndStats();
     }
 
     // ========================================

@@ -1,0 +1,178 @@
+/* Tailwind CSS v4 - Entry point */
+@import "tailwindcss";
+
+/* Support class-based dark mode (<html class="dark">) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Tell Tailwind v4 where to find class names - scan ALL HTML and JS files */
+@source "./*.html";
+@source "./*.js";
+@source "./portals/**/*.html";
+@source "./portals/**/*.js";
+@source "./404.html";
+
+/* Custom theme tokens restored from original design system */
+@theme {
+  /* Primary brand colors */
+  --color-primary: var(--primary-color, #0037b0);
+  --color-primary-dark: #002580;
+  --color-secondary: var(--secondary-color, #9d4300);
+  --color-tertiary: #004f35;
+  --color-error: #ba1a1a;
+  --color-brandOrange: #fd761a;
+
+  /* Background & Surface colors */
+  --color-background: var(--bg-color, #f8f9ff);
+  --color-on-background: var(--text-color, #0b1c30);
+  --color-surface: #f8f9ff;
+  --color-surface-bright: var(--bg-color, #f8f9ff);
+  --color-surface-dim: #cbdbf5;
+  --color-surface-variant: #d3e4fe;
+  --color-surface-container: #e5eeff;
+  --color-surface-container-low: #eff4ff;
+  --color-surface-container-high: #dce9ff;
+  --color-surface-container-highest: #d3e4fe;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-tint: #2151da;
+
+  /* On-color (text on colored backgrounds) */
+  --color-on-surface: var(--text-color, #0b1c30);
+  --color-on-surface-variant: #434655;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #cad3ff;
+  --color-on-primary-fixed: #001551;
+  --color-on-primary-fixed-variant: #0039b5;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #5c2400;
+  --color-on-secondary-fixed: #341100;
+  --color-on-secondary-fixed-variant: #783200;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #60eeb1;
+  --color-on-tertiary-fixed: #002113;
+  --color-on-tertiary-fixed-variant: #005236;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  /* Container & Fixed colors */
+  --color-primary-container: var(--primary-color, #1d4ed8);
+  --color-secondary-container: #fd761a;
+  --color-tertiary-container: #006a48;
+  --color-error-container: #ffdad6;
+  --color-primary-fixed: #dce1ff;
+  --color-primary-fixed-dim: #b7c4ff;
+  --color-secondary-fixed: #ffdbca;
+  --color-secondary-fixed-dim: #ffb690;
+  --color-tertiary-fixed: #6ffbbe;
+  --color-tertiary-fixed-dim: #4edea3;
+  --color-inverse-primary: #b7c4ff;
+  --color-inverse-surface: #213145;
+  --color-inverse-on-surface: #eaf1ff;
+
+  /* Outlines */
+  --color-outline: #747686;
+  --color-outline-variant: #c4c5d7;
+
+  /* Custom shades */
+  --color-slate-850: #131d33;
+  --color-indigo-850: #262e6d;
+
+  /* Spacing Tokens */
+  --spacing-margin-desktop: 32px;
+  --spacing-margin-mobile: 16px;
+  --spacing-gutter: 16px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-base: 4px;
+  --spacing-lg: 24px;
+  --spacing-xl: 48px;
+
+  /* Typography Font Sizes & Line Heights */
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 28px;
+  --text-body-md: 16px;
+  --text-body-md--line-height: 24px;
+  --text-label-sm: 12px;
+  --text-label-sm--line-height: 16px;
+  --text-label-sm-mobile: 10px;
+  --text-label-sm-mobile--line-height: 14px;
+  --text-label-md: 14px;
+  --text-label-md--line-height: 20px;
+  --text-headline-md: 20px;
+  --text-headline-md--line-height: 28px;
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 40px;
+  --text-headline-lg-mobile: 24px;
+  --text-headline-lg-mobile--line-height: 32px;
+  --text-title-md: 16px;
+  --text-title-md--line-height: 24px;
+  --text-mono-data: 16px;
+  --text-mono-data--line-height: 24px;
+
+  /* Typography Font Families */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-family-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-headline-md: "Inter", sans-serif;
+  --font-headline-lg: "Inter", sans-serif;
+  --font-headline-lg-mobile: "Inter", sans-serif;
+  --font-body-md: "Inter", sans-serif;
+  --font-body-lg: "Inter", sans-serif;
+  --font-label-sm: "Inter", sans-serif;
+  --font-label-md: "Inter", sans-serif;
+  --font-mono-data: "Inter", monospace;
+  --font-title-md: "Inter", sans-serif;
+}
+
+/* Custom utilities & micro-animations */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+@utility pulse-subtle {
+  animation: pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@utility pulse-ring {
+  animation: pulseRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@utility skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s infinite;
+}
+
+@utility holographic {
+  background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Specific utilities for legacy pattern compatibility */
+.bg-\[radial-gradient\(ellipse_at_top\,_var\(--tw-gradient-stops\)\)\] {
+  background-image: radial-gradient(ellipse at top, var(--tw-gradient-stops));
+}
+
+.hover\:bg-opacity-30:hover {
+  opacity: 0.3;
+}
+
+.top-\[calc\(100\%\+8px\)\] {
+  top: calc(100% + 8px);
+}
+
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 0.4; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

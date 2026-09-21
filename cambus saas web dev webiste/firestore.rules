@@ -1,0 +1,206 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =========================================================================
+    // AUTHORIZATION HELPERS
+    // =========================================================================
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.token.email)).data;
+    }
+
+    function userExists() {
+      return request.auth != null && 
+             request.auth.token != null &&
+             request.auth.token.email != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.token.email));
+    }
+
+    function isAdmin() {
+      return userExists() && (getUserData().role in ['admin', 'superadmin', 'owner']);
+    }
+
+    function isDriverOrConductor() {
+      return userExists() && (getUserData().role in ['driver', 'conductor']);
+    }
+
+    function isOwnerOf(email) {
+      return isAuthenticated() && request.auth.token.email == email;
+    }
+
+    // =========================================================================
+    // USERS COLLECTION
+    // =========================================================================
+    match /users/{email} {
+      allow read: if isAuthenticated() && (isOwnerOf(email) || isAdmin() || isDriverOrConductor());
+      allow create: if isAdmin() || (isAuthenticated() && isOwnerOf(email));
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        isOwnerOf(email) && 
+        request.resource.data.role == resource.data.role
+      );
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // BUS FLEET & REAL-TIME LOCATIONS
+    // =========================================================================
+    match /buses/{busId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isDriverOrConductor() && (
+          ('driverEmails' in resource.data && request.auth.token.email in resource.data.driverEmails) ||
+          ('conductorEmails' in resource.data && request.auth.token.email in resource.data.conductorEmails) ||
+          resource.data.driverEmail == request.auth.token.email ||
+          getUserData().assignedBusId == busId
+        )
+      );
+      
+      match /boardings/{boardingId} {
+        allow read: if isAuthenticated() && (isAdmin() || isDriverOrConductor() || request.auth.token.email == resource.data.studentEmail);
+        allow write: if isAuthenticated() && (isAdmin() || isDriverOrConductor());
+      }
+    }
+
+    // =========================================================================
+    // DAILY PASSENGER BOARDINGS
+    // =========================================================================
+    match /daily_boardings/{boardingId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        isDriverOrConductor() || 
+        request.auth.token.email == resource.data.studentEmail ||
+        request.auth.token.email.lower() == resource.data.studentEmail ||
+        request.auth.uid == resource.data.studentId
+      );
+      allow create: if isAuthenticated() && (
+        isAdmin() || 
+        isDriverOrConductor() || 
+        request.resource.data.studentEmail == request.auth.token.email ||
+        request.resource.data.studentEmail == request.auth.token.email.lower() ||
+        request.resource.data.studentId == request.auth.uid ||
+        request.resource.data.studentId == request.auth.token.email
+      );
+      allow update, delete: if isAdmin();
+      
+      match /logs/{studentId} {
+        allow read: if isAuthenticated() && (isAdmin() || isDriverOrConductor() || request.auth.token.email == resource.data.studentEmail);
+        allow write: if isAuthenticated() && (isAdmin() || isDriverOrConductor());
+      }
+    }
+
+    // =========================================================================
+    // NOTIFICATIONS & ALERTS
+    // =========================================================================
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isDriverOrConductor();
+    }
+
+    // =========================================================================
+    // LOST & FOUND
+    // =========================================================================
+    match /lost-items/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.userEmail == request.auth.token.email || 
+        request.resource.data.userEmail == request.auth.token.email.lower() ||
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.userId == request.auth.token.email ||
+        !('userEmail' in request.resource.data) ||
+        request.resource.data.userEmail == "" ||
+        isAdmin()
+      );
+      allow update: if isAdmin() || (
+        isAuthenticated() && (
+          resource.data.userEmail == request.auth.token.email ||
+          resource.data.userEmail == request.auth.token.email.lower() ||
+          resource.data.userId == request.auth.uid ||
+          resource.data.userId == request.auth.token.email
+        )
+      );
+      allow delete: if isAdmin() || (
+        isAuthenticated() && (
+          resource.data.userEmail == request.auth.token.email ||
+          resource.data.userEmail == request.auth.token.email.lower() ||
+          resource.data.userId == request.auth.uid ||
+          resource.data.userId == request.auth.token.email
+        )
+      );
+    }
+
+    // =========================================================================
+    // SUPPORT TICKETS
+    // =========================================================================
+    match /support-queries/{queryId} {
+      allow read: if isAdmin() || (
+        isAuthenticated() && (
+          resource.data.studentEmail == request.auth.token.email ||
+          resource.data.studentEmail == request.auth.token.email.lower() ||
+          resource.data.studentId == request.auth.uid ||
+          resource.data.studentId == request.auth.token.email
+        )
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.studentEmail == request.auth.token.email || 
+        request.resource.data.studentEmail == request.auth.token.email.lower() || 
+        request.resource.data.studentId == request.auth.uid ||
+        request.resource.data.studentId == request.auth.token.email ||
+        isAdmin()
+      );
+      allow update: if isAdmin() || (
+        isAuthenticated() && (
+          resource.data.studentEmail == request.auth.token.email ||
+          resource.data.studentEmail == request.auth.token.email.lower() ||
+          resource.data.studentId == request.auth.uid ||
+          resource.data.studentId == request.auth.token.email
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // TRIPS & SESSIONS
+    // =========================================================================
+    match /trips/{tripId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isDriverOrConductor();
+    }
+
+    match /driverSessions/{sessionId} {
+      allow read: if isAdmin() || (
+        isDriverOrConductor() && 
+        resource.data.driverEmail == request.auth.token.email
+      );
+      allow write: if isAdmin() || (
+        isDriverOrConductor() && (
+          ('driverEmail' in request.resource.data && request.resource.data.driverEmail == request.auth.token.email) ||
+          ('driverEmail' in resource.data && resource.data.driverEmail == request.auth.token.email)
+        )
+      );
+    }
+
+    // =========================================================================
+    // TENANT AND SYSTEM SETTINGS
+    // =========================================================================
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /sub-institutes/{instId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

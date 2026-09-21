@@ -1,13 +1,56 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Cambus Connect</title>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cambus Connect — Intelligent Campus Transit Platform</title>
+    <meta name="description" content="Next-generation multi-tenant campus transit management SaaS with real-time GPS fleet tracking, automated QR bus passes, and predictive ETA intelligence." />
+    
+    <!-- OpenGraph Social Preview Tags -->
+    <meta property="og:title" content="Cambus Connect — Intelligent Campus Transit Platform" />
+    <meta property="og:description" content="Next-generation multi-tenant campus transit management SaaS with real-time GPS fleet tracking, automated QR bus passes, and predictive ETA intelligence." />
+    <meta property="og:image" content="/favicon.svg" />
+    <meta property="og:type" content="website" />
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    
+    <!-- Material Symbols Outlined -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <!-- Google Maps API (Loaded via Backend Logic) -->
     <script>
-        window.location.replace("portals/owner/index.html");
+      window.initMap = function() {
+        window.__googleMapsReady = true;
+        window.dispatchEvent(new CustomEvent('google-maps-ready'));
+      };
+      (function() {
+        // Fetch key strictly from backend API endpoint
+        fetch('/api/maps-config')
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.apiKey) {
+              const script = document.createElement('script');
+              script.setAttribute('data-gmaps', 'true');
+              script.src = `https://maps.googleapis.com/maps/api/js?key=${data.apiKey}&callback=initMap&libraries=geometry&loading=async`;
+              script.async = true;
+              script.defer = true;
+              document.head.appendChild(script);
+            }
+          })
+          .catch(err => {
+            console.warn('[Backend] Could not load Google Maps configuration from server:', err);
+          });
+      })();
     </script>
-</head>
-<body>
-    <p>Redirecting to landing page...</p>
-</body>
+    <!-- Bot Protection Placeholder: Cloudflare Turnstile -->
+    <!-- <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script> -->
+  </head>
+  <body class="bg-slate-50 text-slate-900 antialiased selection:bg-blue-600 selection:text-white min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>

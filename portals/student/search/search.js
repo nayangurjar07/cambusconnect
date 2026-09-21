@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Get logged-in student data
     const studentData = JSON.parse(localStorage.getItem('student'));
     
@@ -6,6 +6,15 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("No student data found. Redirecting...");
         window.location.href = '../student-login.html';
         return;
+    }
+
+    const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+    if (typeof authGuard === 'function') {
+        try {
+            await authGuard();
+        } catch (e) {
+            console.error('Firebase/Auth not ready in search.js:', e);
+        }
     }
 
     // DOM Elements
@@ -92,14 +101,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Apply search query
         if (query) {
+            const cleanQuery = query.replace(/\bbus\b/gi, '').replace(/#/g, '').trim();
             results = results.filter(bus => {
                 const busNumber = (bus.number || '').toString().toLowerCase();
                 const busRoute = (bus.route || '').toLowerCase();
                 const busDriver = (bus.driver || '').toLowerCase();
+                const busStatus = (bus.status || '').toLowerCase();
+                const stops = Array.isArray(bus.stops) ? bus.stops.join(' ').toLowerCase() : '';
                 
                 return busNumber.includes(query) || 
+                       (cleanQuery && busNumber.includes(cleanQuery)) ||
                        busRoute.includes(query) || 
-                       busDriver.includes(query);
+                       busDriver.includes(query) ||
+                       busStatus.includes(query) ||
+                       stops.includes(query);
             });
         }
 
@@ -195,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t-2 border-gray-100">
-                <a href="../track/track.html" class="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-4 rounded-2xl font-bold text-sm text-center transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3">
+                <a href="../track/track.html?bus=${encodeURIComponent(bus.id || bus.number)}" class="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-4 rounded-2xl font-bold text-sm text-center transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
                         <circle cx="12" cy="10" r="3"/>

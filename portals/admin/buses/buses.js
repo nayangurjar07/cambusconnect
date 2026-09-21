@@ -1,12 +1,14 @@
 // buses.js - Bus Fleet Management Logic for Cambus Connect
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if firebase is available (loaded as modular import/global)
-    const initInterval = setInterval(() => {
-        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-            clearInterval(initInterval);
-            initBusesPanel();
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            await authGuard();
         }
-    }, 100);
+    } catch (err) {
+        console.error("❌ Firebase/Auth unavailable on buses panel:", err);
+    }
+    initBusesPanel();
 
     function initBusesPanel() {
         const auth = firebase.auth();
@@ -19,9 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (adminName) adminNameDisplay.textContent = adminName;
         }
 
-        // Support Queries Badge
+        // Support Queries Badge (one-time fetch for efficiency)
         const pendingBadge = document.getElementById('pending-badge');
-        dbHelper.getSupportQueriesCol().where('status', '==', 'Pending').onSnapshot(snapshot => {
+        dbHelper.getSupportQueriesCol().where('status', '==', 'Pending').get().then(snapshot => {
             const pendingCount = snapshot.size;
             if (pendingBadge) {
                 if (pendingCount > 0) {
@@ -31,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pendingBadge.classList.add('hidden');
                 }
             }
-        }, err => {
+        }).catch(err => {
             console.error("Error loading pending queries badge:", err);
         });
 
@@ -110,28 +112,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 const staffLabelText = conductorsDisplay ? `${driversDisplay} | ${conductorsDisplay}` : driversDisplay;
 
                 card.innerHTML = `
-                    <div class="flex items-start justify-between mb-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/30">
+                    <div class="flex items-start justify-between mb-6 gap-2">
+                        <div class="flex items-center gap-3 min-w-0 flex-1">
+                            <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/30 shrink-0">
                                 ${bus.number}
                             </div>
-                            <div>
-                                <h3 class="font-black text-slate-800 text-lg">Bus ${bus.number}</h3>
-                                <p class="text-sm text-slate-500 font-semibold truncate max-w-[180px]" title="${staffLabelText}">${staffLabelText}</p>
+                            <div class="min-w-0 flex-1">
+                                <h3 class="font-black text-slate-800 text-lg truncate">Bus ${bus.number}</h3>
+                                <p class="text-sm text-slate-500 font-semibold break-words-safe truncate" title="${staffLabelText}">${staffLabelText}</p>
                             </div>
                         </div>
-                        <span class="status-badge px-3 py-1 ${currentStatus} rounded-full text-xs font-bold shadow-md">
+                        <span class="status-badge px-3 py-1 ${currentStatus} rounded-full text-xs font-bold shadow-md shrink-0">
                             ${bus.status}
                         </span>
                     </div>
                     
-                    <div class="mb-6 p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200/60 flex items-center justify-between">
-                        <div>
+                    <div class="mb-6 p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200/60 flex items-center justify-between gap-3">
+                        <div class="min-w-0 flex-1">
                             <p class="text-xs font-bold text-slate-500 mb-1">ROUTE</p>
-                            <p class="text-sm font-bold text-slate-800">${bus.route}</p>
+                            <p class="text-sm font-bold text-slate-800 break-words-safe">${bus.route}</p>
                             <p class="text-xs text-slate-500 mt-2">Source: ${sourceLabel}</p>
                         </div>
-                        <div class="text-center bg-white border border-slate-100 shadow-sm p-2.5 rounded-xl flex flex-col items-center justify-center min-w-14">
+                        <div class="text-center bg-white border border-slate-100 shadow-sm p-2.5 rounded-xl flex flex-col items-center justify-center min-w-14 shrink-0">
                             <span class="material-symbols-outlined text-primary text-base">groups</span>
                             <span class="text-xs font-extrabold text-slate-800 mt-0.5">${bus.headcount || 0}</span>
                             <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Riders</span>
@@ -139,25 +141,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     
                     <div class="grid grid-cols-3 gap-2">
-                        <button class="btn-status px-3 py-2 rounded-lg text-xs font-bold transition-all ${bus.status === 'On Time' ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-emerald-100'}" 
+                        <button class="btn-status px-2 sm:px-3 py-2 rounded-lg text-xs font-bold transition-all ${bus.status === 'On Time' ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-emerald-100'}" 
                             data-id="${bus.id}" data-status="On Time">
                             On Time
                         </button>
-                        <button class="btn-status px-3 py-2 rounded-lg text-xs font-bold transition-all ${bus.status === 'Delayed' ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-amber-100'}" 
+                        <button class="btn-status px-2 sm:px-3 py-2 rounded-lg text-xs font-bold transition-all ${bus.status === 'Delayed' ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-amber-100'}" 
                             data-id="${bus.id}" data-status="Delayed">
                             Delayed
                         </button>
-                        <button class="btn-status px-3 py-2 rounded-lg text-xs font-bold transition-all ${bus.status === 'Breakdown' ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-rose-100'}" 
+                        <button class="btn-status px-2 sm:px-3 py-2 rounded-lg text-xs font-bold transition-all ${bus.status === 'Breakdown' ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-rose-100'}" 
                             data-id="${bus.id}" data-status="Breakdown">
                             Issue
                         </button>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 mt-3">
-                        <a href="../admin-track.html" class="text-center px-3 py-2 rounded-lg text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all flex items-center justify-center">
-                            Fleet Map View
+                    <div class="grid grid-cols-3 gap-2 mt-3">
+                        <a href="../admin-track.html" class="text-center px-2 py-2 rounded-lg text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all flex items-center justify-center">
+                            Map View
                         </a>
-                        <button class="btn-edit-bus px-3 py-2 rounded-lg text-xs font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-all" data-id="${bus.id}">
-                            Edit Fleet/GPS
+                        <button class="btn-edit-bus px-2 py-2 rounded-lg text-xs font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-all flex items-center justify-center" data-id="${bus.id}">
+                            Edit GPS
+                        </button>
+                        <button class="btn-delete-bus px-2 py-2 rounded-lg text-xs font-bold bg-rose-100 text-rose-700 hover:bg-rose-200 transition-all flex items-center justify-center" data-id="${bus.id}" data-number="${bus.number || ''}">
+                            Delete
                         </button>
                     </div>
                 `;
@@ -182,6 +187,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (button) editBus(button.dataset.id);
                 });
             });
+
+            // Bind delete bus listeners
+            document.querySelectorAll('.btn-delete-bus').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const button = e.target.closest('button');
+                    if (button) deleteBus(button.dataset.id, button.dataset.number);
+                });
+            });
+        }
+
+        function deleteBus(busId, busNumber) {
+            const confirmMsg = `Are you sure you want to delete Bus ${busNumber || busId}? This will permanently remove it from the fleet roster.`;
+            if (!confirm(confirmMsg)) return;
+
+            dbHelper.getBusesCol().doc(busId).delete()
+                .then(() => {
+                    console.log(`✅ Bus ${busId} deleted successfully`);
+                    if (typeof showToast === 'function') {
+                        showToast(`Bus ${busNumber || ''} removed from fleet`, 'success');
+                    } else {
+                        alert(`Bus ${busNumber || ''} removed from fleet.`);
+                    }
+                })
+                .catch(err => {
+                    console.error("❌ Error deleting bus:", err);
+                    alert("Failed to delete bus: " + err.message);
+                });
         }
 
         function updateBusStatus(busId, status) {

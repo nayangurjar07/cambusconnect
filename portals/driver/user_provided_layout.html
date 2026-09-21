@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Cambus Connect | Driver Terminal</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="stylesheet" href="../../tailwind.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -23,62 +23,5 @@
             box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05);
         }
     </style>
-<script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    "colors": {
-                        "on-primary-container": "#7c839b",
-                        "tertiary-fixed-dim": "#4edea3",
-                        "tertiary": "#000000",
-                        "on-secondary-fixed": "#2a1700",
-                        "error": "#ba1a1a",
-                        "tertiary-container": "#002113",
-                        "inverse-surface": "#213145",
-                        "surface-container-low": "#eff4ff",
-                        "on-surface-variant": "#45464d",
-                        "surface-tint": "#565e74",
-                        "surface": "#f8f9ff",
-                        "outline-variant": "#c6c6cd",
-                        "on-tertiary": "#fffff
-<truncated 17580 bytes>
-ll flex items-center justify-center gap-2">
-<span class="material-symbols-outlined text-[20px]">send</span>
-                            Send Alert
-                        </button>
-</div>
-</section>
-</div>
-</div>
-</main>
-<script>
-        // Set current date
-        const dateEl = document.getElementById('current-date');
-        const now = new Date();
-        const options = { month: 'long', day: 'numeric', year: 'numeric' };
-        dateEl.textContent = now.toLocaleDateString('en-US', options);
 
-        // Simple Headcount Logic
-        let currentCount = 12;
-        const headcountDisplay = document.getElementById('headcount');
-        
-        function updateCount(val) {
-            currentCount = Math.max(0, Math.min(45, currentCount + val));
-            headcountDisplay.textContent = currentCount;
-            
-            // Visual feedback
-            headcountDisplay.classList.add('scale-110', 'text-secondary');
-            setTimeout(() => {
-                headcountDisplay.classList.remove('scale-110', 'text-secondary');
-            }, 150);
-        }
-
-        // Micro-interaction for buttons
-        document.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', function() {
-                this.classList.add('active:scale-95');
-            });
-        });
-    </script>
 </body></html>

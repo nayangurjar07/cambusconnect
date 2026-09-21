@@ -2,7 +2,16 @@
 // OWNER.JS - CAMBUS CONNECT Super Admin Control Script
 // =============================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            await authGuard();
+        }
+    } catch (err) {
+        console.error("❌ Firebase/Auth unavailable on owner panel:", err);
+    }
+
     const auth = firebase.auth();
     const db = firebase.firestore();
 
@@ -81,17 +90,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = document.createElement('tr');
         row.className = 'hover:bg-slate-50 transition-colors';
 
-        const statusBadge = tenant.status === 'active'
-            ? `<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full border border-green-200">
-                   <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>Active
-               </span>`
-            : `<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full border border-amber-200">
-                   <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>Suspended
-               </span>`;
+        let statusBadge = '';
+        if (tenant.status === 'active') {
+            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full border border-green-200">
+                <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>Active
+            </span>`;
+        } else if (tenant.status === 'decommissioned') {
+            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-700 text-xs font-bold rounded-full border border-rose-200">
+                <span class="w-1.5 h-1.5 bg-rose-500 rounded-full"></span>Decommissioned
+            </span>`;
+        } else {
+            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full border border-amber-200">
+                <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>Suspended
+            </span>`;
+        }
 
         const subDate = tenant.subscriptionEnd ? new Date(tenant.subscriptionEnd).toLocaleDateString([], { dateStyle: 'medium' }) : 'Lifetime';
-        
-        // Truncate config display
         const projectId = tenant.firebaseConfig?.projectId || 'N/A';
 
         const escapeHTML = str => String(str).replace(/[&<>'"]/g, 
@@ -103,6 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 '"': '&quot;'
             }[tag] || tag));
 
+        const toggleLabel = tenant.status === 'active' ? 'Suspend' : 'Activate';
+
         row.innerHTML = `
             <td class="px-8 py-4">
                 <div class="flex items-center gap-3">
@@ -111,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div>
                         <p class="font-bold text-slate-800 text-sm">${escapeHTML(tenant.name)}</p>
-                        <p class="text-xs text-slate-400">Created: ${tenant.createdAt ? tenant.createdAt.toDate().toLocaleDateString() : 'N/A'}</p>
+                        <p class="text-xs text-slate-400">Created: ${tenant.createdAt?.toDate ? tenant.createdAt.toDate().toLocaleDateString() : 'N/A'}</p>
                     </div>
                 </div>
             </td>
@@ -123,26 +139,37 @@ document.addEventListener('DOMContentLoaded', () => {
             <td class="px-6 py-4 text-slate-700 text-sm font-semibold">${subDate}</td>
             <td class="px-8 py-4 text-right">
                 <div class="flex items-center justify-end gap-2">
-                    <button class="btn-view-stats px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-lg transition-all flex items-center gap-1 border border-indigo-200/30" data-id="${tenant.id}">
+                    <button class="btn-view-stats px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-lg transition-all flex items-center gap-1 border border-indigo-200/30 cursor-pointer" data-id="${tenant.id}">
                         <span class="material-symbols-outlined text-[14px]">query_stats</span>
                         <span>Stats</span>
                     </button>
-                    <button class="btn-toggle-status px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold rounded-lg transition-all border border-slate-200" data-id="${tenant.id}" data-status="${tenant.status}">
-                        ${tenant.status === 'active' ? 'Suspend' : 'Activate'}
-                    </button>
+                    ${tenant.status !== 'decommissioned' ? `
+                        <button class="btn-toggle-status px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold rounded-lg transition-all border border-slate-200 cursor-pointer" data-id="${tenant.id}" data-status="${tenant.status}">
+                            ${toggleLabel}
+                        </button>
+                        <button class="btn-decommission px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg transition-all border border-rose-200 cursor-pointer" data-id="${tenant.id}">
+                            Decommission
+                        </button>
+                    ` : `
+                        <button class="btn-reactivate px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg transition-all border border-emerald-200 cursor-pointer" data-id="${tenant.id}">
+                            Reactivate
+                        </button>
+                    `}
                 </div>
             </td>
         `;
 
         // Bind events
-        row.querySelector('.btn-view-stats').addEventListener('click', () => openTenantDetails(tenant));
-        row.querySelector('.btn-toggle-status').addEventListener('click', (e) => toggleTenantStatus(e));
+        row.querySelector('.btn-view-stats')?.addEventListener('click', () => openTenantDetails(tenant));
+        row.querySelector('.btn-toggle-status')?.addEventListener('click', (e) => toggleTenantStatus(e));
+        row.querySelector('.btn-decommission')?.addEventListener('click', () => decommissionTenant(tenant.id, tenant.name));
+        row.querySelector('.btn-reactivate')?.addEventListener('click', () => reactivateTenant(tenant.id));
 
         tenantsTableBody.appendChild(row);
     }
 
     // =============================================================================
-    // 2. TOGGLE TENANT STATUS
+    // 2. TENANT LIFECYCLE CONTROLLERS
     // =============================================================================
     async function toggleTenantStatus(e) {
         const id = e.currentTarget.getAttribute('data-id');
@@ -152,11 +179,46 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirm(`Are you sure you want to change this tenant's status to "${nextStatus.toUpperCase()}"?`)) {
             try {
                 await db.collection('tenants').doc(id).update({
-                    status: nextStatus
+                    status: nextStatus,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 console.log(`Updated status of tenant: ${id} to ${nextStatus}`);
             } catch (err) {
                 alert("❌ Failed to update status: " + err.message);
+            }
+        }
+    }
+
+    async function decommissionTenant(id, name) {
+        const promptMsg = `⚠️ CAUTION: Decommissioning "${name}" will revoke campus transit access for all connected users while preserving historical trip data.\n\nType "DECOMMISSION" to proceed:`;
+        const userInput = prompt(promptMsg);
+        if (userInput !== 'DECOMMISSION') {
+            if (userInput !== null) alert('Decommission cancelled: confirmation keyword did not match.');
+            return;
+        }
+
+        try {
+            await db.collection('tenants').doc(id).update({
+                status: 'decommissioned',
+                decommissionedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            alert(`✅ Tenant "${name}" has been safely decommissioned.`);
+        } catch (err) {
+            console.error("Error decommissioning tenant:", err);
+            alert("❌ Failed to decommission tenant: " + err.message);
+        }
+    }
+
+    async function reactivateTenant(id) {
+        if (confirm('Reactivate this decommissioned tenant and restore active access?')) {
+            try {
+                await db.collection('tenants').doc(id).update({
+                    status: 'active',
+                    reactivatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                alert('✅ Tenant successfully reactivated!');
+            } catch (err) {
+                alert('❌ Error: ' + err.message);
             }
         }
     }

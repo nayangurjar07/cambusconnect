@@ -1,6 +1,5 @@
 // api/bus-location.js
 import crypto from 'crypto';
-import { tenantConfigs } from "../tenant-config.js";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 30;
@@ -73,29 +72,6 @@ function parseFirestoreFields(fields) {
     return obj;
 }
 
-// Helper to resolve active tenant configs based on host header
-function resolveTenant(req) {
-    const hostHeader = req.headers['x-forwarded-host'] || req.headers.host || "";
-    const host = hostHeader.toLowerCase().split(':')[0];
-    
-    // 1. Direct match (e.g. "iist", "medicaps", "owner")
-    if (tenantConfigs[host]) {
-        return { tenantKey: host, ...tenantConfigs[host] };
-    }
-    
-    // 2. Subdomain check (e.g. "iist.cambusconnect.in" or "medicaps.localhost")
-    const parts = host.split('.');
-    if (parts.length > 1) {
-        const subdomain = parts[0];
-        if (tenantConfigs[subdomain]) {
-            return { tenantKey: subdomain, ...tenantConfigs[subdomain] };
-        }
-    }
-    
-    // 3. Fallback for localhost / direct IP testing
-    return { tenantKey: "iist", ...tenantConfigs["iist"] };
-}
-
 // Token verification via Firebase Auth REST API
 async function verifyFirebaseToken(idToken, apiKey) {
     const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
@@ -129,16 +105,14 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Missing parameter: busId" });
     }
 
-    // Resolve tenant config
-    let tenant;
-    try {
-        tenant = resolveTenant(req);
-    } catch (err) {
-        return res.status(500).json({ error: "Tenant resolution failed: " + err.message });
-    }
+    // Rely on process.env now instead of tenant configs
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+    const firebaseApiKey = process.env.VITE_FIREBASE_API_KEY;
+    const databaseURL = `https://${projectId}-default-rtdb.firebaseio.com`;
 
-    const { projectId, apiKey: firebaseApiKey } = tenant.firebaseConfig;
-    const databaseURL = tenant.firebaseConfig.databaseURL || `https://${projectId}-default-rtdb.firebaseio.com`;
+    if (!projectId || !firebaseApiKey) {
+        return res.status(500).json({ error: "Server configuration missing Firebase keys" });
+    }
 
     // Authenticate client
     const authHeader = req.headers.authorization;
@@ -283,17 +257,14 @@ export default async function handler(req, res) {
                 throw new Error("Device returned empty telemetry");
             }
         } catch (mapError) {
-            console.warn("MapmyIndia REST error, generating simulated feed:", mapError.message);
-            // Dynamic Indore coordinate path simulator fallback
-            const seed = Date.now();
-            locationData = {
-                lat: 22.7196 + (Math.sin(seed / 12000) * 0.003),
-                lng: 75.8577 + (Math.cos(seed / 12000) * 0.003),
-                speed: Math.floor(25 + Math.random() * 20),
-                heading: Math.floor((seed / 100) % 360),
-                timestamp: Date.now(),
-                source: "simulated_telematics"
-            };
+            console.warn("MapmyIndia telemetry unavailable:", mapError.message);
+            if (cachedLocation) {
+                return res.status(200).json(cachedLocation);
+            }
+            return res.status(503).json({
+                error: "Live location unavailable",
+                details: mapError.message
+            });
         }
 
         // 6. Write latest location to Realtime Database cache

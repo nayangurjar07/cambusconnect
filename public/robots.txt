@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /portals/admin/
+Disallow: /portals/owner/
+
+Sitemap: https://cambusconnect.in/sitemap.xml

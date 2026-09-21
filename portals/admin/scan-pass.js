@@ -234,7 +234,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     // 3. Load Fleet & Manage Bus Selection
     // =========================================================================
-    function loadFleetBuses() {
+    async function loadFleetBuses() {
+        try {
+            const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+            if (typeof authGuard === 'function') {
+                await authGuard();
+            }
+        } catch (err) {
+            console.error("❌ Firebase/Auth unavailable in scan pass:", err);
+            return;
+        }
+
         if (!window.dbHelper) return;
         
         dbHelper.getBusesCol().get().then(snapshot => {
@@ -253,20 +263,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     count++;
                 });
 
-                // Inject demo fallback if database collection is empty
+                // If no buses exist in fleet
                 if (count === 0) {
-                    console.log("Injecting demo fleet buses in dropdown...");
-                    const demoBuses = [
-                        { id: 'demo-bus-101', number: '101', route: 'Main Campus Loop' },
-                        { id: 'demo-bus-202', number: '202', route: 'Rajwada Express' },
-                        { id: 'demo-bus-303', number: '303', route: 'Bhawarkua Shuttle' }
-                    ];
-                    demoBuses.forEach(b => {
-                        const opt = document.createElement('option');
-                        opt.value = b.id;
-                        opt.textContent = `Bus ${b.number} - ${b.route}`;
-                        selectActiveBus.appendChild(opt);
-                    });
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = 'No registered fleet buses';
+                    selectActiveBus.appendChild(opt);
                 } else if (!selectedBusId && firstBusId) {
                     selectActiveBus.value = firstBusId;
                     switchActiveBus(firstBusId);
@@ -314,18 +316,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (doc.exists) {
                 selectedBusData = { id: doc.id, ...doc.data() };
             } else {
-                // Mock fallback details if it's a simulated demo bus id
-                const num = newBusId.split('-').pop() || '101';
-                selectedBusData = {
-                    id: newBusId,
-                    number: num,
-                    route: newBusId === 'demo-bus-202' ? 'Rajwada Express' : 'Main Campus Loop',
-                    driver: 'Rajesh Sharma',
-                    conductor: 'Amit Kumar',
-                    headcount: 0,
-                    scanLockEnabled: true,
-                    scanLockMinutes: 240
-                };
+                selectedBusData = null;
+                telemetryDriver.textContent = '--';
+                telemetryConductor.textContent = '--';
+                return;
             }
 
             // Sync UI Telemetry Fields
@@ -567,10 +561,11 @@ document.addEventListener('DOMContentLoaded', () => {
             scannerStatus.style.color = "";
         }
 
-        // Update button UI to scanning state (Red for stop)
-        if (btnToggleCamera) btnToggleCamera.style.background = '#ef4444';
-        if (cameraBtnText) cameraBtnText.textContent = "Stop Camera Scanner";
-        if (cameraBtnIcon) cameraBtnIcon.textContent = "videocam_off";
+        // Update button UI to scanning state (Blue matching reference)
+        if (btnToggleCamera) btnToggleCamera.style.background = '#2563eb';
+        if (cameraBtnText) cameraBtnText.textContent = "Stop Scanner Camera";
+        const laserLine = document.querySelector('.scan-line');
+        if (laserLine) laserLine.style.display = 'block';
 
         const config = { 
             fps: 15, 
@@ -608,10 +603,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function stopCameraScanner() {
         if (qrReaderPlaceholder) qrReaderPlaceholder.style.display = 'flex';
         
-        // Update button UI to idle state (indigo/blue)
-        if (btnToggleCamera) btnToggleCamera.style.background = '';
-        if (cameraBtnText) cameraBtnText.textContent = "Start Camera Scanner";
-        if (cameraBtnIcon) cameraBtnIcon.textContent = "videocam";
+        // Update button UI to idle state (Matching reference)
+        if (btnToggleCamera) btnToggleCamera.style.background = '#2563eb';
+        if (cameraBtnText) cameraBtnText.textContent = "Start Scanner Camera";
+        const laserLine = document.querySelector('.scan-line');
+        if (laserLine) laserLine.style.display = 'none';
 
         if (html5QrScanner) {
             if (html5QrScanner.isScanning) {
@@ -1218,7 +1214,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     const btnSimScan = document.getElementById('btn-sim-scan');
     const simCollegeId = document.getElementById('sim-college-id');
-    const btnQuickDemoScan = document.getElementById('btn-quick-demo-scan');
     const btnVerifyStudent = document.getElementById('btn-verify-student');
     const inputVerifyStudent = document.getElementById('input-verify-student');
 
@@ -1226,7 +1221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSimScan.addEventListener('click', () => {
             const val = simCollegeId.value.trim();
             if (!val) {
-                showToast(false, "Input Required", "Please enter a simulated QR string or College ID.");
+                showToast(false, "Input Required", "Please enter a valid pass QR payload or Student ID.");
                 playBeep(220, 300);
                 return;
             }
@@ -1237,41 +1232,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 btnSimScan.click();
             }
-        });
-    }
-
-    if (btnQuickDemoScan) {
-        btnQuickDemoScan.addEventListener('click', () => {
-            if (!window.dbHelper) return;
-            
-            dbHelper.getUsersCol()
-                .get()
-                .then(snapshot => {
-                    const studentIds = [];
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        if (data.collegeId) {
-                            studentIds.push(data.collegeId);
-                        } else if (data.enrollment) {
-                            studentIds.push(data.enrollment);
-                        }
-                    });
-
-                    if (studentIds.length === 0) {
-                        showToast(false, "Error", "No students registered in database.");
-                        playBeep(220, 300);
-                        return;
-                    }
-
-                    const rand = studentIds[Math.floor(Math.random() * studentIds.length)];
-                    if (simCollegeId) {
-                        simCollegeId.value = rand;
-                    }
-                    handlePassScanInput(rand.toString(), false).catch(err => console.error("Scan error:", err));
-                }).catch(err => {
-                    console.error("Demo fetch error:", err);
-                    showToast(false, "DB Error", err.message);
-                });
         });
     }
 

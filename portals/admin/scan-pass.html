@@ -9,7 +9,7 @@
     <!-- !! IMPORTANT: AUTH GUARD !! -->
     <script src="../../auth-guard.js"></script>
 
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="../../tailwind.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -48,15 +48,15 @@
         .scanner-corner-bl { bottom: 10px; left: 10px; border-bottom: 3px solid #2151da; border-left: 3px solid #2151da; border-radius: 0 0 0 3px; }
         .scanner-corner-br { bottom: 10px; right: 10px; border-bottom: 3px solid #2151da; border-right: 3px solid #2151da; border-radius: 0 0 3px 0; }
         @keyframes scanLine {
-            0%, 100% { top: 0; opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            50% { top: calc(100% - 2px); }
+            0% { top: 4%; opacity: 0.85; }
+            50% { opacity: 1; }
+            100% { top: 94%; opacity: 0.85; }
         }
         .scan-line {
-            position: absolute; left: 0; right: 0; height: 2px;
-            background: linear-gradient(90deg, transparent, #2151da, transparent);
-            animation: scanLine 2.5s ease-in-out infinite;
+            position: absolute; left: 4px; right: 4px; height: 3px; border-radius: 9999px;
+            background: #00e676;
+            box-shadow: 0 0 16px 3px #00e676, 0 0 24px 6px rgba(0,230,118,0.6);
+            animation: scanLine 2.2s ease-in-out infinite alternate;
             z-index: 15; pointer-events: none;
         }
 
@@ -78,56 +78,7 @@
         input:checked + .toggle-track::after { transform: translateX(17px); }
     </style>
 
-    <script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            "colors": {
-              "primary-container": "var(--primary-color, #1d4ed8)",
-              "error": "#ba1a1a",
-              "error-container": "#ffdad6",
-              "outline": "#747686",
-              "outline-variant": "#c4c5d7",
-              "on-background": "var(--text-color, #0b1c30)",
-              "primary": "var(--primary-color, #0037b0)",
-              "on-primary": "#ffffff",
-              "secondary": "var(--secondary-color, #9d4300)",
-              "on-surface-variant": "#434655",
-              "surface": "#f8f9ff",
-              "surface-container-high": "#dce9ff",
-              "on-surface": "var(--text-color, #0b1c30)",
-              "background": "var(--bg-color, #f8f9ff)",
-              "surface-container": "#e5eeff",
-              "surface-container-lowest": "#ffffff",
-              "surface-container-highest": "#d3e4fe",
-              "surface-container-low": "#eff4ff"
-            },
-            "spacing": {
-              "xl": "48px",
-              "margin-desktop": "32px",
-              "margin-mobile": "16px",
-              "base": "4px",
-              "xs": "4px",
-              "sm": "8px",
-              "md": "16px",
-              "lg": "24px"
-            },
-            "fontFamily": {
-              "headline-md": ["Inter"],
-              "label-md": ["Inter"],
-              "label-sm": ["Inter"],
-              "body-md": ["Inter"]
-            },
-            "fontSize": {
-              "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
-              "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "600" }],
-              "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }]
-            }
-          }
-        }
-      }
-    </script>
+    
 </head>
 
 <body class="bg-background text-on-surface font-sans min-h-screen">
@@ -162,10 +113,7 @@
                 <span class="material-symbols-outlined">explore</span>
                 <span class="font-label-md text-label-md">Live Tracking</span>
             </a>
-            <a href="route-optimizer/optimizer.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
-                <span class="material-symbols-outlined">settings_suggest</span>
-                <span class="font-label-md text-label-md">Route Optimizer</span>
-            </a>
+
             <a href="notifications/notifications.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
                 <span class="material-symbols-outlined">notifications</span>
                 <span class="font-label-md text-label-md">Notifications</span>
@@ -215,7 +163,7 @@
             <a href="students/students.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">groups</span><span class="text-sm">Students</span></a>
             <a href="staff/staff.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">badge</span><span class="text-sm">Staff Directory</span></a>
             <a href="admin-track.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">explore</span><span class="text-sm">Live Tracking</span></a>
-            <a href="route-optimizer/optimizer.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">settings_suggest</span><span class="text-sm">Route Optimizer</span></a>
+
             <a href="notifications/notifications.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">notifications</span><span class="text-sm">Notifications</span></a>
             <a href="lost-found/lost-found.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">inventory_2</span><span class="text-sm">Lost &amp; Found</span></a>
             <a href="support/support.html" class="w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high transition-all text-left"><span class="material-symbols-outlined">support_agent</span><span class="text-sm">Support Desk</span></a>
@@ -335,76 +283,65 @@
                         </div>
                     </div>
 
-                    <!-- QR Camera Scanner Card -->
-                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-4">
-                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                            <h3 class="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                                <span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings:'FILL' 1;">qr_code_scanner</span>
-                                Live QR Camera Scanner
-                            </h3>
-                            <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                <span class="w-1.5 h-1.5 bg-slate-300 rounded-full" id="camera-dot"></span>
-                                <span id="camera-status-label">Inactive</span>
-                            </div>
-                        </div>
-
-                        <!-- Scan Mode Selector -->
-                        <div class="flex items-center bg-slate-100 rounded-xl p-1 shadow-inner my-2">
-                            <label class="flex-1 text-center cursor-pointer relative">
-                                <input type="radio" name="scan_mode" value="checkin" class="peer sr-only" checked>
-                                <div class="py-2 px-3 rounded-lg text-xs font-bold text-slate-500 peer-checked:bg-white peer-checked:text-emerald-600 peer-checked:shadow-sm transition-all flex items-center justify-center gap-1">
-                                    <span class="material-symbols-outlined text-[16px]">login</span> Check-In
-                                </div>
-                            </label>
-                            <label class="flex-1 text-center cursor-pointer relative">
-                                <input type="radio" name="scan_mode" value="checkout" class="peer sr-only">
-                                <div class="py-2 px-3 rounded-lg text-xs font-bold text-slate-500 peer-checked:bg-white peer-checked:text-rose-600 peer-checked:shadow-sm transition-all flex items-center justify-center gap-1">
-                                    <span class="material-symbols-outlined text-[16px]">logout</span> Check-Out
-                                </div>
-                            </label>
-                            <label class="flex-1 text-center cursor-pointer relative">
-                                <input type="radio" name="scan_mode" value="verify" class="peer sr-only">
-                                <div class="py-2 px-3 rounded-lg text-xs font-bold text-slate-500 peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow-sm transition-all flex items-center justify-center gap-1">
-                                    <span class="material-symbols-outlined text-[16px]">verified</span> Verify Only
-                                </div>
-                            </label>
-                        </div>
+                    <!-- QR Camera Scanner Card (Exact Match to Reference Design) -->
+                    <div class="bg-white rounded-3xl p-6 sm:p-7 shadow-sm border border-slate-200/90 space-y-6 max-w-md mx-auto">
+                        <h2 class="text-xl sm:text-2xl font-bold text-gray-900 text-center tracking-tight">
+                            Validate Student Bus Pass
+                        </h2>
 
                         <!-- Viewfinder -->
-                        <div id="qr-reader-container" class="scanner-frame relative bg-slate-900 border-2 border-slate-200 rounded-2xl overflow-hidden min-h-[260px] flex items-center justify-center">
-                            <div class="scanner-corner scanner-corner-tl"></div>
-                            <div class="scanner-corner scanner-corner-tr"></div>
-                            <div class="scanner-corner scanner-corner-bl"></div>
-                            <div class="scanner-corner scanner-corner-br"></div>
-                            <div class="scan-line"></div>
-                            <div id="qr-reader" class="w-full min-h-[260px]"></div>
-                            <!-- Placeholder -->
-                            <div id="qr-reader-placeholder" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950 z-10">
-                                <div class="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-3">
-                                    <span class="material-symbols-outlined text-4xl text-slate-500">videocam_off</span>
+                        <div id="qr-reader-container" class="relative bg-slate-950 rounded-2xl overflow-hidden aspect-square flex items-center justify-center border border-slate-800 shadow-inner w-full">
+                            <!-- Reticle Overlays -->
+                            <div class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+                                <!-- 4 Outer Green Corner Brackets -->
+                                <div class="absolute top-4 left-4 w-7 h-7 border-t-4 border-l-4 border-[#00e676] rounded-tl-lg"></div>
+                                <div class="absolute top-4 right-4 w-7 h-7 border-t-4 border-r-4 border-[#00e676] rounded-tr-lg"></div>
+                                <div class="absolute bottom-4 left-4 w-7 h-7 border-b-4 border-l-4 border-[#00e676] rounded-bl-lg"></div>
+                                <div class="absolute bottom-4 right-4 w-7 h-7 border-b-4 border-r-4 border-[#00e676] rounded-br-lg"></div>
+
+                                <!-- Center Target Box with 4 Inner White Brackets -->
+                                <div class="relative w-[72%] h-[72%] flex items-center justify-center">
+                                    <div class="absolute -inset-96 bg-black/35 -z-10 pointer-events-none"></div>
+                                    <div class="absolute top-0 left-0 w-10 h-10 border-t-[5px] border-l-[5px] border-white"></div>
+                                    <div class="absolute top-0 right-0 w-10 h-10 border-t-[5px] border-r-[5px] border-white"></div>
+                                    <div class="absolute bottom-0 left-0 w-10 h-10 border-b-[5px] border-l-[5px] border-white"></div>
+                                    <div class="absolute bottom-0 right-0 w-10 h-10 border-b-[5px] border-r-[5px] border-white"></div>
+
+                                    <!-- Animated Laser Line -->
+                                    <div class="scan-line"></div>
                                 </div>
-                                <h4 class="text-sm font-bold text-slate-400">Camera Viewfinder Inactive</h4>
-                                <p class="text-xs text-slate-600 mt-1 max-w-xs">Click "Start Camera Scanner" to activate, or upload a pass image.</p>
+                            </div>
+
+                            <div id="qr-reader" class="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover"></div>
+
+                            <!-- Placeholder -->
+                            <div id="qr-reader-placeholder" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950/85 z-20">
+                                <div class="w-14 h-14 rounded-full bg-slate-800/90 text-slate-300 flex items-center justify-center mb-2 shadow-inner">
+                                    <span class="material-symbols-outlined text-3xl text-slate-400">videocam_off</span>
+                                </div>
+                                <h4 class="text-sm font-semibold text-slate-200">Scanner Camera Idle</h4>
+                                <p class="text-xs text-slate-400 mt-1 max-w-xs">Click the button below to start live QR scanning.</p>
                             </div>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="grid grid-cols-2 gap-3">
-                            <button id="btn-toggle-camera" class="py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-500/20 active:scale-95">
-                                <span class="material-symbols-outlined text-[18px]" id="camera-btn-icon">videocam</span>
-                                <span id="camera-btn-text">Start Camera Scanner</span>
+                        <!-- Action Button Matching Reference -->
+                        <button id="btn-toggle-camera" class="w-full py-3.5 px-6 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm active:scale-[0.99] cursor-pointer">
+                            <span id="camera-btn-text">Start Scanner Camera</span>
+                        </button>
+
+                        <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs text-slate-500">
+                            <button id="btn-upload-qr" class="text-blue-600 hover:underline flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[16px]">photo_library</span> Upload Pass Image
                             </button>
-                            <button id="btn-upload-qr" class="py-3 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-teal-500/20 active:scale-95">
-                                <span class="material-symbols-outlined text-[18px]">photo_library</span>
-                                <span>Upload QR Code</span>
-                            </button>
+                            <span id="camera-status-label" class="font-medium text-slate-400">Camera Off</span>
                         </div>
                         <input type="file" id="qr-file-input" accept="image/*" class="hidden">
 
                         <!-- Status Bar -->
-                        <div id="scanner-status" class="p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-center text-xs font-bold text-slate-500 transition-all duration-300">
+                        <div id="scanner-status" class="p-3 bg-slate-50 border border-slate-100 rounded-xl text-center text-xs font-semibold text-slate-500">
                             Align student QR code inside the viewfinder
                         </div>
+                    </div>
                     </div>
                 </div>
 
@@ -475,16 +412,12 @@
                         <!-- Simulator Inputs -->
                         <div class="space-y-3">
                             <div>
-                                <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Simulate QR String or College ID</label>
+                                <label class="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Manual QR String or Student ID</label>
                                 <div class="flex gap-2">
-                                    <input type="text" id="sim-college-id" placeholder="e.g. EN21CS301015 or token" class="flex-1 px-3 py-2 border border-slate-200 text-xs font-bold rounded-xl outline-none focus:border-indigo-500 transition-all bg-white">
-                                    <button id="btn-sim-scan" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95">Scan</button>
+                                    <input type="text" id="sim-college-id" placeholder="e.g. EN21CS301015 or pass payload" class="flex-1 px-3 py-2 border border-slate-200 text-xs font-bold rounded-xl outline-none focus:border-indigo-500 transition-all bg-white">
+                                    <button id="btn-sim-scan" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95">Validate</button>
                                 </div>
                             </div>
-                            <button id="btn-quick-demo-scan" class="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-100 flex items-center justify-center gap-1.5 active:scale-95 transition-all">
-                                <span class="material-symbols-outlined text-sm">casino</span>
-                                <span>Quick Demo Scan (Random)</span>
-                            </button>
                         </div>
 
                         <!-- Manual Search -->
@@ -566,8 +499,9 @@
 
     <!-- Scripts -->
     <script src="../../db-helper.js"></script>
-    <script src="../../optimal-route-optimizer/engine/CambusPassVerificationSystem.js"></script>
+    <script src="../../CambusPassVerificationSystem.js"></script>
     <script src="scan-pass.js"></script>
 </body>
 
 </html>
+

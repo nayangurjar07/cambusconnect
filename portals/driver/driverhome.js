@@ -210,7 +210,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ─── Load Profile ──────────────────────────────────────────────────────────
-    dbHelper.getUsersCol().doc(driverEmail).get()
+    (async () => {
+        try {
+            const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+            if (typeof authGuard === 'function') {
+                await authGuard();
+            }
+        } catch (err) {
+            console.error("❌ Firebase/Auth unavailable in driver portal:", err);
+            return;
+        }
+
+        dbHelper.getUsersCol().doc(driverEmail).get()
         .then(async doc => {
             if (doc.exists) {
                 driverProfile = doc.data();
@@ -247,14 +258,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         loadBusDetails(driverProfile.assignedBusId);
                         loadAllBusesForSelect(driverProfile.assignedBusId);
                     } else {
-                        loadBusDetails('demo-bus-101');
-                        loadAllBusesForSelect('demo-bus-101');
+                        showNoBusAssigned();
                     }
                 } catch (err) {
                     console.error('Bus assignment error:', err);
-                    const fallbackBusId = driverProfile.assignedBusId || 'demo-bus-101';
-                    loadBusDetails(fallbackBusId);
-                    loadAllBusesForSelect(fallbackBusId);
+                    if (driverProfile.assignedBusId) {
+                        loadBusDetails(driverProfile.assignedBusId);
+                        loadAllBusesForSelect(driverProfile.assignedBusId);
+                    } else {
+                        showNoBusAssigned();
+                    }
                 }
 
             } else {
@@ -264,6 +277,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         })
         .catch(err => console.error('Profile fetch error:', err));
+    })();
+
+    function showNoBusAssigned() {
+        assignedBus = null;
+        if (busNumberOption) busNumberOption.textContent = 'No Bus Assigned';
+        if (busRouteOption) busRouteOption.textContent = 'Unassigned Vehicle';
+        const busStatusEl = document.getElementById('driver-bus-status');
+        if (busStatusEl) busStatusEl.textContent = 'Unassigned';
+        loadAllBusesForSelect(null);
+    }
 
     // ─── Load All Buses for selector ─────────────────────────────────────────
     function loadAllBusesForSelect(selectedBusId) {
@@ -286,22 +309,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 count++;
             });
             
-            // Add fallback demo option if list is empty
             if (count === 0) {
-                const demoBuses = [
-                    { id: 'demo-bus-101', number: '101', route: 'Main Campus Loop' },
-                    { id: 'demo-bus-202', number: '202', route: 'Rajwada Express' },
-                    { id: 'demo-bus-303', number: '303', route: 'Bhawarkua Shuttle' }
-                ];
-                demoBuses.forEach(b => {
-                    const opt = document.createElement('option');
-                    opt.value = b.id;
-                    opt.textContent = `Bus #${b.number} - ${b.route}`;
-                    if (b.id === selectedBusId) {
-                        opt.selected = true;
-                    }
-                    selectEl.appendChild(opt);
-                });
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'No buses registered in system';
+                selectEl.appendChild(opt);
             }
         }).catch(err => {
             console.error("Error listing buses for selector:", err);
@@ -360,21 +372,22 @@ document.addEventListener('DOMContentLoaded', () => {
         busListenerUnsubscribe = dbHelper.getBusesCol().doc(busId).onSnapshot(doc => {
             if (doc.exists) {
                 assignedBus = { id: doc.id, ...doc.data() };
+                // Update assignment controls
+                if (busNumberOption) {
+                    busNumberOption.textContent = `Bus #${assignedBus.number || assignedBus.id}`;
+                }
+                if (busRouteOption) {
+                    busRouteOption.textContent = assignedBus.route || 'No Route Assigned';
+                }
             } else {
-                assignedBus = {
-                    id: busId,
-                    number: 'Bus #' + (busId.split('-').pop() || '101'),
-                    route: 'Main Campus Loop',
-                    status: 'On Time'
-                };
-            }
-
-            // Update assignment controls
-            if (busNumberOption) {
-                busNumberOption.textContent = `Bus #${assignedBus.number || assignedBus.id}`;
-            }
-            if (busRouteOption) {
-                busRouteOption.textContent = assignedBus.route || 'No Route Assigned';
+                assignedBus = null;
+                if (busNumberOption) {
+                    busNumberOption.textContent = 'Bus Not Found';
+                }
+                if (busRouteOption) {
+                    busRouteOption.textContent = 'Unassigned Fleet';
+                }
+                return;
             }
 
             // Sync headcount
@@ -801,82 +814,61 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── MapMyIndia IoT Tracker GPS ────────────────────────────────────────────
     function startTrackerGPS() {
-        let currentLat = (assignedBus.location && assignedBus.location.lat) ? assignedBus.location.lat : 22.7196;
-        let currentLng = (assignedBus.location && assignedBus.location.lng) ? assignedBus.location.lng : 75.8577;
-
-        const feed = () => {
-            currentLat += (Math.random() - 0.5) * 0.00015;
-            currentLng += (Math.random() - 0.5) * 0.00015;
-            const speed = Math.floor(25 + Math.random() * 25);
-
-            latDisplay.textContent      = currentLat.toFixed(6);
-            lngDisplay.textContent      = currentLng.toFixed(6);
-            accuracyDisplay.textContent = 'IoT Active';
-
-            dbHelper.getBusesCol().doc(assignedBus.id).set({
-                location:       { lat: currentLat, lng: currentLng },
-                status:         'On Time',
-                locationSource: 'tracking_device',
-                lastUpdate:     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                updatedAt:      firebase.firestore.FieldValue.serverTimestamp(),
-                telemetry: {
-                    deviceId:  assignedBus.tracking.trackerId,
-                    speed:     speed,
-                    ignition:  1,
-                    timestamp: Date.now()
-                }
-            }, { merge: true }).catch(err => console.error('IoT stream error:', err));
-        };
-
-        feed();
-        watchId = setInterval(feed, 5000);
-    }
-
-    // ─── Phone GPS (with simulated fallback) ───────────────────────────────────
-    function startPhoneGPS() {
-        function startSimulatedGPS() {
-            console.log('📡 Starting simulated GPS...');
-            let currentLat = (assignedBus.location && assignedBus.location.lat) ? assignedBus.location.lat : 22.7196;
-            let currentLng = (assignedBus.location && assignedBus.location.lng) ? assignedBus.location.lng : 75.8577;
-
-            const run = () => {
-                currentLat += (Math.random() - 0.5) * 0.00015;
-                currentLng += (Math.random() - 0.5) * 0.00015;
-
-                latDisplay.textContent      = currentLat.toFixed(6);
-                lngDisplay.textContent      = currentLng.toFixed(6);
-                accuracyDisplay.textContent = '±15m (Sim)';
-
-                dbHelper.getBusesCol().doc(assignedBus.id).set({
-                    location:       { lat: currentLat, lng: currentLng },
-                    status:         'On Time',
-                    locationSource: 'driver_phone_simulated',
-                    lastUpdate:     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    updatedAt:      firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true }).catch(err => console.error('Sim GPS error:', err));
-            };
-
-            run();
-            watchId = setInterval(run, 5000);
-        }
-
-        if (!navigator.geolocation) {
-            console.warn('⚠️ Geolocation not supported. Using simulation.');
-            startSimulatedGPS();
+        const trackerId = (assignedBus && assignedBus.tracking && assignedBus.tracking.trackerId) || (assignedBus && assignedBus.trackerId);
+        if (!trackerId) {
+            latDisplay.textContent = '--';
+            lngDisplay.textContent = '--';
+            accuracyDisplay.textContent = 'No Tracker Configured';
             return;
         }
 
-        const geoTimeout = setTimeout(() => {
-            if (isTracking && !watchId) {
-                console.warn('⚠️ Geolocation timed out. Using simulation.');
-                startSimulatedGPS();
+        const pollTracker = async () => {
+            try {
+                const currentUser = firebase.auth().currentUser;
+                const token = currentUser ? await currentUser.getIdToken() : '';
+                const res = await fetch(`/api/bus-location?busId=${encodeURIComponent(assignedBus.id)}`, {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.lat && data.lng) {
+                        latDisplay.textContent = Number(data.lat).toFixed(6);
+                        lngDisplay.textContent = Number(data.lng).toFixed(6);
+                        accuracyDisplay.textContent = data.speed ? `${data.speed} km/h` : 'IoT Active';
+                    } else {
+                        latDisplay.textContent = '--';
+                        lngDisplay.textContent = '--';
+                        accuracyDisplay.textContent = 'Live location unavailable';
+                    }
+                } else {
+                    latDisplay.textContent = '--';
+                    lngDisplay.textContent = '--';
+                    accuracyDisplay.textContent = 'Live location unavailable';
+                }
+            } catch (err) {
+                console.warn('Tracker polling error:', err);
+                latDisplay.textContent = '--';
+                lngDisplay.textContent = '--';
+                accuracyDisplay.textContent = 'Live location unavailable';
             }
-        }, 3000);
+        };
+
+        pollTracker();
+        watchId = setInterval(pollTracker, 10000);
+    }
+
+    // ─── Phone GPS ─────────────────────────────────────────────────────────────
+    function startPhoneGPS() {
+        if (!navigator.geolocation) {
+            latDisplay.textContent = '--';
+            lngDisplay.textContent = '--';
+            accuracyDisplay.textContent = 'GPS Unavailable';
+            return;
+        }
 
         watchId = navigator.geolocation.watchPosition(
             (position) => {
-                clearTimeout(geoTimeout);
-                const { latitude: lat, longitude: lng, accuracy } = position.coords;
+                const { latitude: lat, longitude: lng, accuracy, speed } = position.coords;
 
                 latDisplay.textContent      = lat.toFixed(6);
                 lngDisplay.textContent      = lng.toFixed(6);
@@ -886,16 +878,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     location:       { lat, lng },
                     status:         'On Time',
                     locationSource: 'driver_phone',
+                    speed:          speed != null ? Math.round(speed * 3.6) : 0,
                     lastUpdate:     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     updatedAt:      firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true }).catch(err => console.error('Phone GPS error:', err));
+                }, { merge: true }).catch(err => console.error('Phone GPS write error:', err));
             },
             (error) => {
-                clearTimeout(geoTimeout);
-                console.error('GPS error:', error);
-                if (isTracking && !watchId) startSimulatedGPS();
+                console.warn('Phone GPS error:', error.message);
+                latDisplay.textContent      = '--';
+                lngDisplay.textContent      = '--';
+                accuracyDisplay.textContent = 'GPS Unavailable';
             },
-            { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
         );
     }
 
@@ -925,10 +919,11 @@ document.addEventListener('DOMContentLoaded', () => {
             scannerStatus.style.color = "";
         }
 
-        // Update button UI to scanning state
-        if (btnToggleCamera) btnToggleCamera.style.background = '#e53935';
-        if (cameraBtnText) cameraBtnText.textContent = "Stop Camera Scanner";
-        if (cameraBtnIcon) cameraBtnIcon.textContent = "videocam_off";
+        // Update button UI to scanning state (Matches reference)
+        if (btnToggleCamera) btnToggleCamera.style.background = '#2563eb';
+        if (cameraBtnText) cameraBtnText.textContent = "Stop Scanner Camera";
+        const driverLaser = document.getElementById('driver-laser-line');
+        if (driverLaser) driverLaser.style.display = 'block';
 
         const config = { 
             fps: 15, 
@@ -966,10 +961,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function stopCameraScanner() {
         if (qrReaderPlaceholder) qrReaderPlaceholder.style.display = 'flex';
         
-        // Update button UI to idle state
-        if (btnToggleCamera) btnToggleCamera.style.background = '#1d4ed8';
-        if (cameraBtnText) cameraBtnText.textContent = "Start Camera Scanner";
-        if (cameraBtnIcon) cameraBtnIcon.textContent = "videocam";
+        // Update button UI to idle state (Matches reference)
+        if (btnToggleCamera) btnToggleCamera.style.background = '#2563eb';
+        if (cameraBtnText) cameraBtnText.textContent = "Start Scanner Camera";
+        const driverLaser = document.getElementById('driver-laser-line');
+        if (driverLaser) driverLaser.style.display = 'none';
 
         if (html5QrScanner) {
             if (html5QrScanner.isScanning) {
@@ -1474,7 +1470,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── Simulator & Search Controls ─────────────────────────────────────────
     const btnSimScan = document.getElementById('btn-sim-scan');
     const simCollegeId = document.getElementById('sim-college-id');
-    const btnQuickDemoScan = document.getElementById('btn-quick-demo-scan');
     const btnVerifyStudent = document.getElementById('btn-verify-student');
     const inputVerifyStudent = document.getElementById('input-verify-student');
 
@@ -1482,7 +1477,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSimScan.addEventListener('click', () => {
             const val = simCollegeId.value.trim();
             if (!val) {
-                showToast(false, "Input Required", "Please enter a simulated QR string or College ID.");
+                showToast(false, "Input Required", "Please enter a valid pass QR payload or Student ID.");
                 playBeep(220, 300);
                 return;
             }
@@ -1493,39 +1488,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 btnSimScan.click();
             }
-        });
-    }
-
-    if (btnQuickDemoScan) {
-        btnQuickDemoScan.addEventListener('click', () => {
-            dbHelper.getUsersCol()
-                .get()
-                .then(snapshot => {
-                    const studentIds = [];
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        if (data.collegeId) {
-                            studentIds.push(data.collegeId);
-                        } else if (data.enrollment) {
-                            studentIds.push(data.enrollment);
-                        }
-                    });
-
-                    if (studentIds.length === 0) {
-                        showToast(false, "Error", "No students registered in database.");
-                        playBeep(220, 300);
-                        return;
-                    }
-
-                    const rand = studentIds[Math.floor(Math.random() * studentIds.length)];
-                    if (simCollegeId) {
-                        simCollegeId.value = rand;
-                    }
-                    handlePassScanInput(rand.toString(), false).catch(err => console.error("Scan error:", err));
-                }).catch(err => {
-                    console.error("Demo fetch error:", err);
-                    showToast(false, "DB Error", err.message);
-                });
         });
     }
 

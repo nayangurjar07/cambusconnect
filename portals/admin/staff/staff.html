@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html class="light" lang="en">
 <head>
     <meta charset="utf-8"/>
@@ -8,7 +8,7 @@
     <!-- Auth Guard check -->
     <script src="../../../auth-guard.js"></script>
 
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="../../../tailwind.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
     
@@ -62,101 +62,7 @@
             display: flex !important;
         }
     </style>
-    <script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            "colors": {
-              "primary-container": "var(--primary-color, #1d4ed8)",
-              "error": "#ba1a1a",
-              "tertiary": "#004f35",
-              "on-tertiary-container": "#60eeb1",
-              "error-container": "#ffdad6",
-              "on-primary-fixed-variant": "#0039b5",
-              "outline": "#747686",
-              "outline-variant": "#c4c5d7",
-              "on-background": "var(--text-color, #0b1c30)",
-              "primary": "var(--primary-color, #0037b0)",
-              "inverse-primary": "#b7c4ff",
-              "secondary-fixed-dim": "#ffb690",
-              "secondary": "var(--secondary-color, #9d4300)",
-              "on-secondary": "#ffffff",
-              "on-primary-container": "#cad3ff",
-              "on-surface-variant": "#434655",
-              "on-secondary-fixed-variant": "#783200",
-              "tertiary-fixed-dim": "#4edea3",
-              "on-primary-fixed": "#001551",
-              "on-tertiary-fixed": "#002113",
-              "on-secondary-fixed": "#341100",
-              "surface-tint": "#2151da",
-              "primary-fixed": "#dce1ff",
-              "on-error": "#ffffff",
-              "surface": "#f8f9ff",
-              "surface-container-high": "#dce9ff",
-              "secondary-fixed": "#ffdbca",
-              "on-surface": "var(--text-color, #0b1c30)",
-              "secondary-container": "#fd761a",
-              "surface-variant": "#d3e4fe",
-              "tertiary-fixed": "#6ffbbe",
-              "surface-dim": "#cbdbf5",
-              "inverse-surface": "#213145",
-              "inverse-on-surface": "#eaf1ff",
-              "background": "var(--bg-color, #f8f9ff)",
-              "surface-bright": "#f8f9ff",
-              "on-secondary-container": "#5c2400",
-              "surface-container": "#e5eeff",
-              "on-primary": "#ffffff",
-              "surface-container-lowest": "#ffffff",
-              "surface-container-highest": "#d3e4fe",
-              "surface-container-low": "#eff4ff",
-              "primary-fixed-dim": "#b7c4ff",
-              "on-tertiary": "#ffffff",
-              "tertiary-container": "#006a48",
-              "on-tertiary-fixed-variant": "#005236",
-              "on-error-container": "#93000a"
-            },
-            "borderRadius": {
-              "DEFAULT": "0.25rem",
-              "lg": "0.5rem",
-              "xl": "0.75rem",
-              "full": "9999px"
-            },
-            "spacing": {
-              "xl": "48px",
-              "margin-desktop": "32px",
-              "margin-mobile": "16px",
-              "base": "4px",
-              "xs": "4px",
-              "gutter": "16px",
-              "sm": "8px",
-              "md": "16px",
-              "lg": "24px"
-            },
-            "fontFamily": {
-              "headline-md": ["Inter"],
-              "label-sm": ["Inter"],
-              "label-md": ["Inter"],
-              "body-lg": ["Inter"],
-              "headline-lg-mobile": ["Inter"],
-              "body-md": ["Inter"],
-              "mono-data": ["Inter"],
-              "headline-lg": ["Inter"]
-            },
-            "fontSize": {
-              "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
-              "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
-              "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
-              "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
-              "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
-              "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
-              "mono-data": ["16px", { "lineHeight": "24px", "fontWeight": "700" }],
-              "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
-            }
-          },
-        },
-      }
-    </script>
+    
 </head>
 <body class="bg-background text-on-surface">
     <!-- Enhanced Sidebar -->
@@ -193,11 +99,7 @@
                 <span class="material-symbols-outlined">explore</span>
                 <span class="font-label-md text-label-md">Live Tracking</span>
             </a>
-            <!-- Route Optimizer Tab -->
-            <a href="../route-optimizer/optimizer.html" class="tab-button w-full flex items-center gap-md px-md py-sm rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left">
-                <span class="material-symbols-outlined">settings_suggest</span>
-                <span class="font-label-md text-label-md">Route Optimizer</span>
-            </a>
+
             
             
             
@@ -255,11 +157,7 @@
                     <span class="material-symbols-outlined text-[18px]">explore</span>
                     <span>Fleet Map View</span>
                 </a>
-                <!-- Route Optimizer Tab -->
-                <a href="../route-optimizer/optimizer.html" class="flex items-center gap-xs px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-label-md transition-all text-sm font-semibold">
-                    <span class="material-symbols-outlined text-[18px]">settings_suggest</span>
-                    <span>Route Optimizer</span>
-                </a>
+
             </div>
         </div>
     </header>
@@ -306,8 +204,8 @@
 
     <!-- ==================== REGISTER STAFF MODAL ==================== -->
     <div id="modal-add-staff" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
-        <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden transition-all duration-300 transform scale-100">
-            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+        <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
                 <div>
                     <h3 class="text-xl font-bold text-on-surface">Register Staff Member</h3>
                     <p class="text-xs text-on-surface-variant">Create staff account and assign to vehicle</p>
@@ -317,7 +215,7 @@
                 </button>
             </div>
             <form id="form-add-staff" class="p-6 space-y-4">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Full Name *</label>
                         <input name="name" required placeholder="e.g. Rajesh Kumar" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
@@ -330,7 +228,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Email Address *</label>
                         <input name="email" type="email" required placeholder="e.g. driver@gmail.com" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
@@ -340,7 +238,7 @@
                         <input name="phone" required placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-2">Password *</label>
                         <input name="password" type="password" required minlength="6" placeholder="Min 6 characters" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
@@ -352,9 +250,64 @@
                         </select>
                     </div>
                 </div>
-                <div class="flex gap-3 pt-4 border-t border-outline-variant">
+                <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-outline-variant">
                     <button type="button" id="cancel-staff-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
                     <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Register Staff</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== EDIT STAFF MODAL ==================== -->
+    <div id="modal-edit-staff" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar transition-all duration-300 transform scale-100">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Edit Staff Member</h3>
+                    <p class="text-xs text-on-surface-variant">Update staff details and vehicle assignments</p>
+                </div>
+                <button id="close-edit-staff-modal-btn" class="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-on-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="form-edit-staff" class="p-6 space-y-4">
+                <input type="hidden" name="staffDocId" id="edit-staff-doc-id">
+                <input type="hidden" name="originalEmail" id="edit-staff-original-email">
+                <input type="hidden" name="originalBusId" id="edit-staff-original-bus-id">
+                <input type="hidden" name="originalRole" id="edit-staff-original-role">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Full Name *</label>
+                        <input name="name" id="edit-staff-name" required placeholder="Full name" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Role *</label>
+                        <select name="role" id="edit-staff-role" required class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                            <option value="driver">Driver</option>
+                            <option value="conductor">Conductor</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Email Address (Read-only)</label>
+                        <input name="email" id="edit-staff-email" type="email" readonly class="w-full px-4 py-2.5 border border-outline-variant rounded-xl bg-slate-100 text-slate-500 outline-none text-sm cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-2">Phone Number *</label>
+                        <input name="phone" id="edit-staff-phone" required placeholder="10-digit number" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary outline-none text-sm transition-all">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface mb-2">Assigned Bus</label>
+                    <select name="assignedBusId" id="edit-staff-bus-select" class="w-full px-4 py-2.5 border border-outline-variant rounded-xl focus:border-primary bg-white text-sm">
+                        <option value="">No Bus Assigned</option>
+                    </select>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-outline-variant">
+                    <button type="button" id="cancel-edit-staff-modal-btn" class="flex-1 bg-surface-container-high hover:bg-outline-variant hover:bg-opacity-30 text-on-surface font-semibold py-3 rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-container text-on-primary font-semibold py-3 rounded-xl transition-all shadow-md">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -365,3 +318,4 @@
     <script src="staff.js"></script>
 </body>
 </html>
+

@@ -1,12 +1,14 @@
 // students.js - Student Management Logic for Cambus Connect
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if firebase is available (loaded as modular import/global)
-    const initInterval = setInterval(() => {
-        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-            clearInterval(initInterval);
-            initStudentsPanel();
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
+        if (typeof authGuard === 'function') {
+            await authGuard();
         }
-    }, 100);
+    } catch (err) {
+        console.error("❌ Firebase/Auth unavailable on students panel:", err);
+    }
+    initStudentsPanel();
 
     function initStudentsPanel() {
         const auth = firebase.auth();
@@ -19,9 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (adminName) adminNameDisplay.textContent = adminName;
         }
 
-        // Support Queries Badge
+        // Support Queries Badge (one-time fetch instead of real-time listener for efficiency)
         const pendingBadge = document.getElementById('pending-badge');
-        dbHelper.getSupportQueriesCol().where('status', '==', 'Pending').onSnapshot(snapshot => {
+        dbHelper.getSupportQueriesCol().where('status', '==', 'Pending').get().then(snapshot => {
             const pendingCount = snapshot.size;
             if (pendingBadge) {
                 if (pendingCount > 0) {
@@ -31,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pendingBadge.classList.add('hidden');
                 }
             }
-        }, err => {
+        }).catch(err => {
             console.error("Error loading pending queries badge:", err);
         });
 
@@ -48,6 +50,24 @@ document.addEventListener('DOMContentLoaded', () => {
         let shift2Name = 'Shift 2';
         let subInstitutes = [];
 
+        // === PAGINATION STATE ===
+        const PAGE_SIZE = 50;
+        let currentPage = 1;
+        let lastDocCursor = null;
+        let firstDocCursor = null;
+        let totalStudentCount = 0;
+        let isLoadingStudents = false;
+        let pageCursors = [null]; // index 0 = page 1 start cursor (null = beginning)
+
+        // Debounce helper
+        function debounce(fn, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
         // === FIREBASE LISTENERS ===
 
         // Listen to Buses (Routes)
@@ -59,11 +79,158 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Error fetching buses:", err);
         });
 
-        // Listen to Students
-        dbHelper.getUsersCol().where('role', '==', 'student').onSnapshot(snapshot => {
-            students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderStudentsTable();
-        });
+        // Fetch Students with pagination (replaces onSnapshot for scalability)
+        // First, get total count for display
+        fetchTotalStudentCount();
+        // Then load first page
+        fetchStudentsPage();
+
+        async function fetchTotalStudentCount() {
+            try {
+                const countQuery = dbHelper.getUsersCol().where('role', '==', 'student');
+                if (typeof countQuery.count === 'function') {
+                    const aggSnap = await countQuery.count().get();
+                    totalStudentCount = aggSnap.data().count;
+                } else {
+                    const snapshot = await countQuery.get();
+                    totalStudentCount = snapshot.size;
+                }
+                const totalCountEl = document.getElementById('student-total-count');
+                if (totalCountEl) totalCountEl.textContent = totalStudentCount;
+            } catch (err) {
+                console.error('Error fetching student count with count(), falling back:', err);
+                try {
+                    const snapshot = await dbHelper.getUsersCol().where('role', '==', 'student').get();
+                    totalStudentCount = snapshot.size;
+                    const totalCountEl = document.getElementById('student-total-count');
+                    if (totalCountEl) totalCountEl.textContent = totalStudentCount;
+                } catch (e) {
+                    console.error('Final error getting count:', e);
+                }
+            }
+        }
+
+        async function fetchStudentsPage(startAfterDoc) {
+            if (isLoadingStudents) return;
+            isLoadingStudents = true;
+
+            // Show loading state
+            if (studentTableBody) {
+                studentTableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-slate-500"><div class="inline-flex items-center gap-2"><div class="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> Loading students...</div></td></tr>';
+            }
+
+            try {
+                let query = dbHelper.getUsersCol()
+                    .where('role', '==', 'student')
+                    .orderBy('name')
+                    .limit(PAGE_SIZE);
+
+                if (startAfterDoc) {
+                    query = query.where('name', '>=', startAfterDoc);
+                }
+
+                // If we have a cursor doc reference, use startAfter
+                if (pageCursors[currentPage - 1] && currentPage > 1) {
+                    // Re-build query with startAfter using the stored cursor name
+                    const cursorName = pageCursors[currentPage - 1];
+                    query = dbHelper.getUsersCol()
+                        .where('role', '==', 'student')
+                        .orderBy('name')
+                        .where('name', '>', cursorName)
+                        .limit(PAGE_SIZE);
+                }
+
+                const snapshot = await query.get();
+                students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Store cursor for next page
+                if (students.length > 0) {
+                    lastDocCursor = students[students.length - 1].name;
+                    // Store cursor for this page's end (= next page start)
+                    if (!pageCursors[currentPage]) {
+                        pageCursors[currentPage] = lastDocCursor;
+                    }
+                }
+
+                renderStudentsTable();
+                renderPaginationControls();
+            } catch (err) {
+                console.error('Error fetching students:', err);
+                if (studentTableBody) {
+                    studentTableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-red-600 font-bold">Error loading students. Please refresh.</td></tr>';
+                }
+            } finally {
+                isLoadingStudents = false;
+            }
+        }
+
+        function renderPaginationControls() {
+            let paginationEl = document.getElementById('student-pagination');
+            if (!paginationEl) {
+                // Create pagination container after the table
+                const singlePanel = document.getElementById('student-single-panel');
+                if (singlePanel) {
+                    paginationEl = document.createElement('div');
+                    paginationEl.id = 'student-pagination';
+                    paginationEl.className = 'flex items-center justify-between px-6 py-4 bg-white border-t border-slate-200 rounded-b-2xl';
+                    singlePanel.appendChild(paginationEl);
+                }
+            }
+            if (!paginationEl) return;
+
+            const totalPages = Math.max(1, Math.ceil(totalStudentCount / PAGE_SIZE));
+            const hasMore = students.length === PAGE_SIZE;
+
+            paginationEl.innerHTML = `
+                <div class="flex items-center gap-2 text-sm text-slate-600">
+                    <span class="font-semibold">Page ${currentPage}</span>
+                    <span class="text-slate-400">of ~${totalPages}</span>
+                    <span class="text-slate-400">|</span>
+                    <span>${totalStudentCount} total students</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-refresh-students" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors" title="Refresh data">
+                        🔄 Refresh
+                    </button>
+                    <button id="btn-prev-page" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed" ${currentPage <= 1 ? 'disabled' : ''}>
+                        ← Previous
+                    </button>
+                    <button id="btn-next-page" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed" ${!hasMore ? 'disabled' : ''}>
+                        Next →
+                    </button>
+                </div>
+            `;
+
+            // Bind pagination buttons
+            const prevBtn = document.getElementById('btn-prev-page');
+            const nextBtn = document.getElementById('btn-next-page');
+            const refreshBtn = document.getElementById('btn-refresh-students');
+
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        fetchStudentsPage();
+                    }
+                });
+            }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    if (students.length === PAGE_SIZE) {
+                        currentPage++;
+                        fetchStudentsPage();
+                    }
+                });
+            }
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    currentPage = 1;
+                    pageCursors = [null];
+                    fetchTotalStudentCount();
+                    fetchStudentsPage();
+                });
+            }
+        }
 
         // Listen to Shift Settings
         db.collection('settings').doc('shiftConfig').onSnapshot(doc => {
@@ -410,40 +577,43 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = document.createElement('tr');
             row.className = 'hover:bg-slate-50 transition-colors';
             row.innerHTML = `
-                <td class="px-6 py-4">
-                    <div class="flex items-center gap-3">
+                <td class="px-6 py-4 min-w-0">
+                    <div class="flex items-center gap-3 min-w-0">
                         <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shrink-0">
                             ${student.name ? student.name.charAt(0).toUpperCase() : 'S'}
                         </div>
-                        <div>
-                            <p class="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
+                        <div class="min-w-0">
+                            <p class="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap break-words-safe">
                                 ${student.name || 'Unknown'}
                                 ${subInstBadge}
                             </p>
-                            <p class="text-xs text-slate-500 font-medium">${departmentInfo} - ${yearInfo}</p>
+                            <p class="text-xs text-slate-500 font-medium break-words-safe">${departmentInfo} - ${yearInfo}</p>
                         </div>
                     </div>
                 </td>
-                <td class="px-6 py-4 text-slate-700 font-medium">${student.email || 'N/A'}</td>
+                <td class="px-6 py-4 text-slate-700 font-medium break-email max-w-[200px]">${student.email || 'N/A'}</td>
                 <td class="px-6 py-4">
-                    <span class="px-2.5 py-1 bg-blue-50 border border-blue-100 text-blue-700 text-xs font-black rounded-lg">
+                    <span class="px-2.5 py-1 bg-blue-50 border border-blue-100 text-blue-700 text-xs font-black rounded-lg break-all">
                         ${student.enrollment || 'N/A'}
                     </span>
                 </td>
-                <td class="px-6 py-4 text-slate-700 text-sm font-semibold">${busInfo}</td>
+                <td class="px-6 py-4 text-slate-700 text-sm font-semibold break-words-safe max-w-[180px]">${busInfo}</td>
                 <td class="px-6 py-4">
                     <div class="flex flex-col gap-1">
                         <span class="text-sm text-slate-700 font-semibold">${student.passValidity || 'Not Set'}</span>
                         ${passStatus}
                     </div>
                 </td>
-                <td class="px-6 py-4 text-right">
-                    <div class="flex items-center justify-end gap-2">
-                        <button class="btn-view-student px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm" data-id="${student.id}">
+                <td class="px-6 py-4 text-right shrink-0">
+                    <div class="flex items-center justify-end gap-2 flex-wrap sm:flex-nowrap">
+                        <button class="btn-view-student px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer whitespace-nowrap" data-id="${student.id}">
                             View Details
                         </button>
-                        <button class="btn-edit-student px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm" data-id="${student.id}">
+                        <button class="btn-edit-student px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer whitespace-nowrap" data-id="${student.id}">
                             Edit
+                        </button>
+                        <button class="btn-delete-student px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg transition-colors border border-rose-200 shadow-sm cursor-pointer whitespace-nowrap" data-id="${student.id}">
+                            Delete
                         </button>
                     </div>
                 </td>
@@ -453,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function renderStudentsTable() {
             const totalCountEl = document.getElementById('student-total-count');
-            if (totalCountEl) totalCountEl.textContent = students.length;
+            if (totalCountEl && totalStudentCount) totalCountEl.textContent = totalStudentCount;
 
             let filteredStudents = students;
 
@@ -548,14 +718,24 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             document.querySelectorAll('.btn-edit-student').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const id = e.target.getAttribute('data-id');
+                    const id = e.currentTarget.getAttribute('data-id');
                     if (id) editStudent(id);
+                });
+            });
+            document.querySelectorAll('.btn-delete-student').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.currentTarget.getAttribute('data-id');
+                    if (id) deleteStudent(id);
                 });
             });
         }
 
         if (searchStudent) {
-            searchStudent.addEventListener('input', renderStudentsTable);
+            // Debounced search: filters within current loaded page instantly,
+            // no server round-trip needed for in-page filtering
+            searchStudent.addEventListener('input', debounce(() => {
+                renderStudentsTable();
+            }, 200));
         }
 
         // === VIEW STUDENT DETAILS ===
@@ -576,62 +756,62 @@ document.addEventListener('DOMContentLoaded', () => {
 
             content.innerHTML = `
                 <div class="space-y-6">
-                    <div class="flex items-center gap-4 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl">
-                        <div class="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-lg">
+                    <div class="flex items-center gap-4 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl min-w-0">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl sm:text-3xl shadow-lg shrink-0">
                             ${student.name ? student.name.charAt(0).toUpperCase() : 'S'}
                         </div>
-                        <div>
-                            <h3 class="text-2xl font-black text-slate-800">${student.name || 'Unknown'}</h3>
-                            <p class="text-slate-600">${student.enrollment || 'No Enrollment ID'}</p>
+                        <div class="min-w-0 flex-1">
+                            <h3 class="text-xl sm:text-2xl font-black text-slate-800 break-words-safe">${student.name || 'Unknown'}</h3>
+                            <p class="text-slate-600 text-sm break-all">${student.enrollment || 'No Enrollment ID'}</p>
                         </div>
                     </div>
                     
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200 min-w-0">
                             <p class="text-xs font-bold text-slate-500 mb-1">Email</p>
-                            <p class="text-sm font-semibold text-slate-800">${student.email || 'N/A'}</p>
+                            <p class="text-sm font-semibold text-slate-800 break-email">${student.email || 'N/A'}</p>
                         </div>
-                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200">
+                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200 min-w-0">
                             <p class="text-xs font-bold text-slate-500 mb-1">Phone</p>
-                            <p class="text-sm font-semibold text-slate-800">${student.phone || 'N/A'}</p>
+                            <p class="text-sm font-semibold text-slate-800 break-words-safe">${student.phone || 'N/A'}</p>
                         </div>
-                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200">
+                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200 min-w-0">
                             <p class="text-xs font-bold text-slate-500 mb-1">Parent Phone</p>
-                            <p class="text-sm font-semibold text-slate-800">${student.parentPhone || 'N/A'}</p>
+                            <p class="text-sm font-semibold text-slate-800 break-words-safe">${student.parentPhone || 'N/A'}</p>
                         </div>
-                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200">
+                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200 min-w-0">
                             <p class="text-xs font-bold text-slate-500 mb-1">Department</p>
-                            <p class="text-sm font-semibold text-slate-800">${student.department || 'N/A'}</p>
+                            <p class="text-sm font-semibold text-slate-800 break-words-safe">${student.department || 'N/A'}</p>
                         </div>
-                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200">
+                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200 min-w-0">
                             <p class="text-xs font-bold text-slate-500 mb-1">Year</p>
-                            <p class="text-sm font-semibold text-slate-800">${student.year || 'N/A'}</p>
+                            <p class="text-sm font-semibold text-slate-800 break-words-safe">${student.year || 'N/A'}</p>
                         </div>
-                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200">
+                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200 min-w-0">
                             <p class="text-xs font-bold text-slate-500 mb-1">Pass Validity</p>
-                            <p class="text-sm font-semibold text-slate-800">${student.passValidity || 'Not Set'}</p>
+                            <p class="text-sm font-semibold text-slate-800 break-words-safe">${student.passValidity || 'Not Set'}</p>
                         </div>
-                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200">
+                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200 min-w-0">
                             <p class="text-xs font-bold text-slate-500 mb-1">Sub-Institute</p>
-                            <p class="text-sm font-semibold text-slate-800">${subInstDisplay}</p>
+                            <p class="text-sm font-semibold text-slate-800 break-words-safe">${subInstDisplay}</p>
                         </div>
-                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200">
+                        <div class="p-4 bg-white rounded-xl border-2 border-slate-200 min-w-0">
                             <p class="text-xs font-bold text-slate-500 mb-1">Assigned Shift</p>
-                            <p class="text-sm font-semibold text-slate-800">${shiftDisplay}</p>
+                            <p class="text-sm font-semibold text-slate-800 break-words-safe">${shiftDisplay}</p>
                         </div>
                     </div>
                     
-                    <div class="p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+                    <div class="p-4 bg-blue-50 rounded-xl border-2 border-blue-200 min-w-0">
                         <p class="text-xs font-bold text-blue-700 mb-1">Address</p>
-                        <p class="text-sm text-slate-800">${student.address || 'Not provided'}</p>
+                        <p class="text-sm text-slate-800 break-words-safe">${student.address || 'Not provided'}</p>
                     </div>
                     
-                    <div class="p-4 bg-green-50 rounded-xl border-2 border-green-200">
+                    <div class="p-4 bg-green-50 rounded-xl border-2 border-green-200 min-w-0">
                         <p class="text-xs font-bold text-green-700 mb-1">Assigned Bus Route</p>
-                        <p class="text-sm font-semibold text-slate-800">${busInfo}</p>
+                        <p class="text-sm font-semibold text-slate-800 break-words-safe">${busInfo}</p>
                     </div>
                     
-                    <div class="flex gap-3">
+                    <div class="flex flex-col sm:flex-row gap-3">
                         <button class="btn-action-edit flex-1 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all">
                             ✏️ Edit Student
                         </button>
@@ -662,16 +842,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function deleteStudent(studentId) {
-            if (confirm('Are you sure you want to delete this student? This will also delete their account.')) {
+            if (confirm('Are you sure you want to delete this student? This will also remove their student profile.')) {
                 try {
                     await dbHelper.getUsersCol().doc(studentId).delete();
-                    alert('✅ Student deleted successfully!');
+
+                    // Update local state and table immediately
+                    students = students.filter(s => s.id !== studentId);
+                    totalStudentCount = Math.max(0, totalStudentCount - 1);
+                    const totalCountEl = document.getElementById('student-total-count');
+                    if (totalCountEl) totalCountEl.textContent = totalStudentCount;
+
+                    renderStudentsTable();
+                    renderPaginationControls();
 
                     const modal = document.getElementById('modal-student-detail');
                     if (modal) {
                         modal.classList.add('hidden');
                         modal.classList.remove('flex');
                     }
+                    alert('✅ Student deleted successfully!');
                 } catch (error) {
                     alert('❌ Error deleting student: ' + error.message);
                 }
@@ -769,6 +958,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
 
+                    // Update local students list and re-render table immediately
+                    const updatedIdx = students.findIndex(s => s.id === editingStudentId);
+                    if (updatedIdx !== -1) {
+                        students[updatedIdx] = {
+                            ...students[updatedIdx],
+                            name: formData.get('name'),
+                            enrollment: formData.get('enrollment'),
+                            address: formData.get('address') || '',
+                            phone: formData.get('phone') || '',
+                            parentPhone: formData.get('parentPhone') || '',
+                            department: formData.get('department') || '',
+                            year: formData.get('year') || '1st Year',
+                            assignedBusId: formData.get('assignedBusId'),
+                            passValidity: formData.get('passValidity'),
+                            subInstitute: formData.get('subInstitute') || '',
+                            shift: isShift2Enabled ? (formData.get('shift') || 'Shift 1') : 'Shift 1'
+                        };
+                        renderStudentsTable();
+                    }
+
                     alert('✅ Student updated successfully!');
                     closeEditStudentModal();
                 } catch (error) {
@@ -843,6 +1052,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
 
+                    totalStudentCount++;
+                    const totalCountEl = document.getElementById('student-total-count');
+                    if (totalCountEl) totalCountEl.textContent = totalStudentCount;
+
+                    fetchStudentsPage();
                     alert('✅ Student registered successfully!');
                     e.target.reset();
                     closeAddStudentModal();

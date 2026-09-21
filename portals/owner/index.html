@@ -3,15 +3,22 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Cambus Connect | Reimagining Campus Transit</title>
+    <title>Cambus Connect | Real-Time Campus Transit &amp; Fleet Intelligence</title>
     
-
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Solving delays, overcrowding, and student commute stress with intelligent, real-time mobility solutions designed specifically for universities."/>
+    <meta name="description" content="Cambus Connect - Intelligent real-time campus transit intelligence, automated student bus pass verification, sub-second GPS tracking, and fleet telemetry designed specifically for modern universities."/>
     
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+    <link rel="alternate icon" type="image/png" href="/favicon.svg"/>
+    
+    <!-- Google Fonts & Icons -->
+    <link rel="stylesheet" href="../../tailwind.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+
+    <!-- Toast Notification System -->
+    <script src="/toast.js"></script>
 
     <!-- Firebase ESM Configuration -->
     <script type="importmap">
@@ -26,33 +33,16 @@
     <script type="module" src="../../firebase-init.js"></script>
     <script type="module" src="../../app.js"></script>
 
-    <script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              primary: "var(--primary-color, #0037b0)",
-              "primary-dark": "var(--primary-color, #002b8a)",
-              "primary-light": "var(--primary-color, #dce1ff)",
-              surface: "var(--bg-color, #f8f9ff)",
-              "on-surface": "var(--text-color, #0b1c30)",
-              outline: "#747686"
-            },
-            fontFamily: {
-              sans: ["Inter", "sans-serif"]
-            }
-          }
-        }
-      }
-    </script>
+    
     <style>
-        body {
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
             font-family: "Inter", sans-serif;
             scroll-behavior: smooth;
         }
         .hero-bg {
-            background-image: linear-gradient(rgba(11, 28, 48, 0.5), rgba(11, 28, 48, 0.85)), url('/portals/owner/campus_bus_hero.png');
+            background-image: linear-gradient(rgba(11, 28, 48, 0.65), rgba(11, 28, 48, 0.9)), url('/portals/owner/campus_bus_hero.webp');
             background-size: cover;
             background-position: center;
         }
@@ -60,75 +50,139 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .stat-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-4px);
         }
-        /* Login dropdown */
+        /* Login dropdown desktop */
         .login-dropdown {
             max-height: 0;
             opacity: 0;
             overflow: hidden;
-            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
             pointer-events: none;
         }
         .login-dropdown.open {
-            max-height: 320px;
+            max-height: 340px;
             opacity: 1;
             pointer-events: auto;
         }
-        .login-dropdown a {
-            transition: background 0.15s ease, transform 0.15s ease;
+        /* Mobile menu drawer */
+        #mobile-menu-drawer {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease, opacity 0.25s ease;
         }
-        .login-dropdown a:hover {
-            transform: translateX(4px);
+        #mobile-menu-drawer.open {
+            max-height: 520px;
+            opacity: 1;
         }
     </style>
 </head>
 <body class="bg-surface text-on-surface m-0 p-0 overflow-x-hidden">
 
     <!-- Header / Navigation -->
-    <header class="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-white/90 backdrop-blur-md border-b border-gray-100" id="main-header">
-        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+    <header class="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-white/95 backdrop-blur-md border-b border-gray-100" id="main-header">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
             <!-- Brand Logo -->
-            <a href="#" class="flex items-center gap-2 group">
+            <a href="/" class="flex items-center gap-2 group min-w-0" aria-label="Cambus Connect Homepage">
                 <div id="default-logo-container" class="flex items-center gap-2">
-                    <div class="bg-primary p-2 rounded-xl text-white transition-transform group-hover:scale-105">
+                    <div class="bg-primary p-2 rounded-xl text-white transition-transform group-hover:scale-105 shrink-0">
                         <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">directions_bus</span>
                     </div>
-                    <span class="font-extrabold text-2xl text-primary tracking-tight">Cambus Connect</span>
+                    <span class="font-extrabold text-xl sm:text-2xl text-primary tracking-tight truncate">Cambus Connect</span>
                 </div>
                 <img id="college-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" class="h-8 w-auto rounded-lg hidden" alt="College Logo"/>
-                <span id="college-title" class="font-extrabold text-2xl text-primary tracking-tight hidden"></span>
+                <span id="college-title" class="font-extrabold text-xl sm:text-2xl text-primary tracking-tight hidden truncate"></span>
             </a>
 
-            <!-- Navigation Links -->
-            <nav class="hidden md:flex items-center gap-8">
-                <a href="#solutions" class="font-semibold text-gray-600 hover:text-primary transition-colors">Solutions</a>
-                <a href="#technology" class="font-semibold text-gray-600 hover:text-primary transition-colors">Technology</a>
-                <a href="#about" class="font-semibold text-gray-600 hover:text-primary transition-colors">About Us</a>
+            <!-- Desktop Navigation Links -->
+            <nav class="hidden md:flex items-center gap-7">
+                <a href="#solutions" class="font-semibold text-gray-600 hover:text-primary transition-colors text-sm">Solutions</a>
+                <a href="#technology" class="font-semibold text-gray-600 hover:text-primary transition-colors text-sm">Technology</a>
+                <a href="#contact" class="font-semibold text-gray-600 hover:text-primary transition-colors text-sm">Dispatch &amp; Contact</a>
+                <a href="#contact" class="inline-flex items-center gap-1.5 font-bold text-white bg-primary hover:bg-primary-dark px-4 py-2 rounded-xl transition-all text-xs shadow-sm">
+                    <span class="material-symbols-outlined text-sm">calendar_month</span> Request Demo
+                </a>
             </nav>
 
-            <!-- Login CTA with Dropdown -->
-            <div class="relative" id="header-login-wrapper">
-                <button id="header-login-btn" class="bg-primary hover:bg-primary-dark text-white font-bold px-5 py-2.5 rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1.5">
-                    Login
-                    <span class="material-symbols-outlined text-[18px] transition-transform duration-300" id="header-login-arrow">expand_more</span>
+            <!-- Actions Right (Login + Mobile Hamburger Toggle) -->
+            <div class="flex items-center gap-2">
+                <!-- Desktop Login Dropdown -->
+                <div class="relative hidden sm:block" id="header-login-wrapper">
+                    <button id="header-login-btn" class="bg-primary hover:bg-primary-dark text-white font-bold px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1 text-sm" aria-haspopup="true" aria-expanded="false">
+                        <span>Portal Login</span>
+                        <span class="material-symbols-outlined text-[18px] transition-transform duration-300" id="header-login-arrow">expand_more</span>
+                    </button>
+                    <div id="header-login-dropdown" class="login-dropdown absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[999] p-2">
+                        <a href="/portals/student/student-login.html" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 font-semibold text-sm">
+                            <span class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[18px]">school</span></span>
+                            <div><p class="font-bold text-gray-800 text-xs">Student Portal</p><p class="text-[10px] text-gray-400 font-medium">Passes &amp; live GPS</p></div>
+                        </a>
+                        <a href="/portals/admin/admin-login.html" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-indigo-50 font-semibold text-sm">
+                            <span class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[18px]">admin_panel_settings</span></span>
+                            <div><p class="font-bold text-gray-800 text-xs">Admin Console</p><p class="text-[10px] text-gray-400 font-medium">Fleet management</p></div>
+                        </a>
+                        <a href="/portals/driver/driver-login.html" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-orange-50 font-semibold text-sm">
+                            <span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[18px]">local_shipping</span></span>
+                            <div><p class="font-bold text-gray-800 text-xs">Driver Terminal</p><p class="text-[10px] text-gray-400 font-medium">GPS broadcast &amp; shift</p></div>
+                        </a>
+                        <a href="/portals/owner/owner-login.html" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-purple-50 font-semibold text-sm">
+                            <span class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[18px]">verified</span></span>
+                            <div><p class="font-bold text-gray-800 text-xs">Campus Owner</p><p class="text-[10px] text-gray-400 font-medium">Platform settings</p></div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Mobile Hamburger Toggle Button -->
+                <button id="mobile-menu-btn" class="md:hidden p-2.5 rounded-xl text-gray-700 hover:bg-gray-100 focus:outline-none transition-colors" aria-label="Toggle navigation menu" aria-expanded="false">
+                    <span class="material-symbols-outlined text-2xl" id="mobile-menu-icon">menu</span>
                 </button>
-                <div id="header-login-dropdown" class="login-dropdown absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[999] p-2">
-                    <a href="/portals/student/student-login.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-blue-50 font-semibold text-sm">
-                        <span class="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">school</span></span>
-                        <div><p class="font-bold text-gray-800">Student</p><p class="text-[10px] text-gray-400 font-medium">Bus pass &amp; tracking</p></div>
+            </div>
+        </div>
+
+        <!-- Mobile Slide-Down Navigation Drawer -->
+        <div id="mobile-menu-drawer" class="md:hidden bg-white border-t border-gray-100 shadow-xl">
+            <div class="px-6 py-5 space-y-4">
+                <nav class="flex flex-col space-y-2.5">
+                    <a href="#solutions" class="mobile-nav-link font-semibold text-gray-700 hover:text-primary py-2 px-3 rounded-lg hover:bg-gray-50 flex items-center gap-2.5 text-sm">
+                        <span class="material-symbols-outlined text-lg text-primary">route</span> Solutions
                     </a>
-                    <a href="/portals/admin/admin-login.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-indigo-50 font-semibold text-sm">
-                        <span class="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">admin_panel_settings</span></span>
-                        <div><p class="font-bold text-gray-800">Admin</p><p class="text-[10px] text-gray-400 font-medium">Fleet &amp; student management</p></div>
+                    <a href="#technology" class="mobile-nav-link font-semibold text-gray-700 hover:text-primary py-2 px-3 rounded-lg hover:bg-gray-50 flex items-center gap-2.5 text-sm">
+                        <span class="material-symbols-outlined text-lg text-primary">analytics</span> Technology &amp; Stats
                     </a>
-                    <a href="/portals/driver/driver-login.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-orange-50 font-semibold text-sm">
-                        <span class="w-9 h-9 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">local_shipping</span></span>
-                        <div><p class="font-bold text-gray-800">Driver / Conductor</p><p class="text-[10px] text-gray-400 font-medium">GPS &amp; shift control</p></div>
+                    <a href="#contact" class="mobile-nav-link font-semibold text-gray-700 hover:text-primary py-2 px-3 rounded-lg hover:bg-gray-50 flex items-center gap-2.5 text-sm">
+                        <span class="material-symbols-outlined text-lg text-primary">support_agent</span> Dispatch &amp; Contact
                     </a>
-                    <a href="/portals/owner/owner-login.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-purple-50 font-semibold text-sm">
-                        <span class="w-9 h-9 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">verified</span></span>
-                        <div><p class="font-bold text-gray-800">Owner</p><p class="text-[10px] text-gray-400 font-medium">Platform super-admin</p></div>
+                    <a href="#contact" class="mobile-nav-link font-bold text-white bg-primary hover:bg-primary-dark py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-sm shadow-sm">
+                        <span class="material-symbols-outlined text-base">calendar_month</span> Request Campus Demo
+                    </a>
+                </nav>
+
+                <div class="pt-3 border-t border-gray-100">
+                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Portal Access</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <a href="/portals/student/student-login.html" class="p-2.5 rounded-xl bg-blue-50 text-blue-800 text-xs font-bold flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-base">school</span> Student
+                        </a>
+                        <a href="/portals/admin/admin-login.html" class="p-2.5 rounded-xl bg-indigo-50 text-indigo-800 text-xs font-bold flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-base">admin_panel_settings</span> Admin
+                        </a>
+                        <a href="/portals/driver/driver-login.html" class="p-2.5 rounded-xl bg-orange-50 text-orange-800 text-xs font-bold flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-base">local_shipping</span> Driver
+                        </a>
+                        <a href="/portals/owner/owner-login.html" class="p-2.5 rounded-xl bg-purple-50 text-purple-800 text-xs font-bold flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-base">verified</span> Owner
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Emergency Dispatch Quick Dial -->
+                <div class="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+                    <a href="tel:+18005552262" class="text-brandOrange font-bold flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">call</span> +1 (800) 555-CAMBUS
+                    </a>
+                    <a href="mailto:support@cambusconnect.edu" class="text-gray-500 hover:text-primary font-semibold flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">mail</span> Email Us
                     </a>
                 </div>
             </div>
@@ -136,76 +190,159 @@
     </header>
 
     <!-- Hero Section -->
-    <section class="relative pt-20 h-[680px] flex items-center hero-bg text-white">
-        <div class="max-w-7xl mx-auto px-6 w-full relative z-10 grid md:grid-cols-2 gap-12 items-center">
+    <section class="relative pt-24 min-h-[580px] md:h-[680px] flex items-center hero-bg text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 w-full relative z-10 grid md:grid-cols-2 gap-8 items-center py-10">
             <div class="space-y-6">
-                <h1 class="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
+                <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20 text-xs font-bold tracking-wide">
+                    <span class="material-symbols-outlined text-sm text-green-400">domain_verification</span>
+                    <span>Multi-Tenant University Transit SaaS</span>
+                </div>
+                <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
                     Reimagining Campus Transit
                 </h1>
-                <p class="text-lg md:text-xl text-gray-200 font-medium leading-relaxed max-w-xl">
-                    Solving delays, overcrowding, and student commute stress with intelligent, real-time mobility solutions designed specifically for universities.
+                <p class="text-base sm:text-lg md:text-xl text-gray-200 font-medium leading-relaxed max-w-xl">
+                    Empowering universities with intelligent fleet dispatch, digital student passes, driver terminals, and centralized multi-tenant transit operations.
                 </p>
-                <div class="flex flex-wrap gap-4 pt-2">
-                    <a href="#solutions" class="inline-flex items-center justify-center bg-primary hover:bg-primary-dark text-white font-extrabold px-8 py-4 rounded-xl transition-all shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95">
-                        Learn More
+                <div class="flex flex-wrap gap-3 pt-2">
+                    <button id="hero-portal-select-btn" onclick="document.getElementById('header-login-btn')?.click();" class="inline-flex items-center justify-center gap-2 bg-brandOrange hover:bg-orange-600 text-white font-extrabold px-6 py-3.5 rounded-xl transition-all shadow-lg shadow-orange-500/30 active:scale-95 text-sm cursor-pointer">
+                        <span class="material-symbols-outlined text-lg">login</span> Select Campus Portal
+                    </button>
+                    <a href="#solutions" class="inline-flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 text-white font-bold px-6 py-3.5 rounded-xl transition-all backdrop-blur-sm border border-white/20 active:scale-95 text-sm">
+                        <span>Explore Solutions</span>
                     </a>
+                </div>
+            </div>
+
+            <!-- Enterprise SaaS Portal Access Hub -->
+            <div class="hidden md:block">
+                <div class="bg-white/95 backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-white/40 text-slate-800 space-y-4 max-w-md ml-auto">
+                    <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-blue-100 text-primary flex items-center justify-center">
+                                <span class="material-symbols-outlined text-lg">hub</span>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-slate-900 block">Cambus Cloud Suite</span>
+                                <span class="text-[10px] text-slate-500">Dedicated Multi-Tenant Isolation</span>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Enterprise
+                        </span>
+                    </div>
+
+                    <p class="text-xs text-slate-600 leading-relaxed font-medium">
+                        Log in to your institution's dedicated portal to access live fleet telemetry, digital passes, and dispatch:
+                    </p>
+
+                    <!-- 4 Role Tiles -->
+                    <div class="grid grid-cols-2 gap-2.5 pt-1">
+                        <a href="/portals/student/student-login.html" class="p-3 rounded-2xl bg-slate-50 hover:bg-blue-50/80 border border-slate-100 hover:border-blue-200 transition-all group">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
+                                    <span class="material-symbols-outlined text-sm">school</span>
+                                </span>
+                                <span class="font-bold text-xs text-slate-800 group-hover:text-primary transition-colors">Student</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 font-medium">Digital passes, route schedules &amp; alerts</p>
+                        </a>
+
+                        <a href="/portals/admin/admin-login.html" class="p-3 rounded-2xl bg-slate-50 hover:bg-indigo-50/80 border border-slate-100 hover:border-indigo-200 transition-all group">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                    <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
+                                </span>
+                                <span class="font-bold text-xs text-slate-800 group-hover:text-indigo-600 transition-colors">Admin</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 font-medium">Fleet radar, staff &amp; student directories</p>
+                        </a>
+
+                        <a href="/portals/driver/driver-login.html" class="p-3 rounded-2xl bg-slate-50 hover:bg-orange-50/80 border border-slate-100 hover:border-orange-200 transition-all group">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-6 h-6 rounded-lg bg-orange-100 text-brandOrange flex items-center justify-center shrink-0 group-hover:bg-brandOrange group-hover:text-white transition-colors">
+                                    <span class="material-symbols-outlined text-sm">local_shipping</span>
+                                </span>
+                                <span class="font-bold text-xs text-slate-800 group-hover:text-brandOrange transition-colors">Driver</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 font-medium">GPS broadcast &amp; QR boarding scanner</p>
+                        </a>
+
+                        <a href="/portals/owner/owner-login.html" class="p-3 rounded-2xl bg-slate-50 hover:bg-purple-50/80 border border-slate-100 hover:border-purple-200 transition-all group">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-6 h-6 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                    <span class="material-symbols-outlined text-sm">verified</span>
+                                </span>
+                                <span class="font-bold text-xs text-slate-800 group-hover:text-purple-600 transition-colors">Campus Owner</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 font-medium">Tenant lifecycle &amp; platform settings</p>
+                        </a>
+                    </div>
+
+                    <!-- Campus selector note -->
+                    <div class="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span class="flex items-center gap-1 font-medium">
+                            <span class="material-symbols-outlined text-sm text-emerald-600">lock</span> Enterprise Encrypted
+                        </span>
+                        <a href="#contact" class="text-primary hover:underline font-bold">Request College Demo &rarr;</a>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- Our Approach to Campus Mobility Section -->
-    <section id="solutions" class="py-24 bg-white border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-6 text-center space-y-4">
-            <h2 class="text-3xl md:text-4xl font-black tracking-tight text-on-surface">
-                Our Approach to Campus Mobility
+    <section id="solutions" class="py-20 sm:py-24 bg-white border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 text-center space-y-4">
+            <span class="text-xs font-extrabold uppercase tracking-widest text-[#0037b0]">Integrated University Mobility</span>
+            <h2 class="text-2xl sm:text-4xl font-black tracking-tight text-on-surface">
+                Our Approach to Campus Transit
             </h2>
-            <p class="text-lg text-gray-500 max-w-2xl mx-auto font-medium">
-                Transforming uncertainty into reliability through an integrated digital ecosystem.
+            <p class="text-base sm:text-lg text-gray-500 max-w-2xl mx-auto font-medium">
+                Transforming commuter uncertainty into reliability through an integrated digital transit ecosystem.
             </p>
             
             <!-- Cards Grid -->
-            <div class="grid md:grid-cols-3 gap-8 pt-12 text-left">
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 pt-10 text-left">
                 <!-- Card 1 -->
-                <div class="p-8 rounded-2xl border border-gray-100 hover:border-blue-100 bg-white shadow-sm hover:shadow-xl hover:shadow-blue-50/50 transition-all duration-300 flex flex-col justify-between group">
-                    <div class="space-y-6">
-                        <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center transition-colors group-hover:bg-blue-600 group-hover:text-white">
+                <div class="p-6 sm:p-8 rounded-2xl border border-gray-100 hover:border-blue-200 bg-white shadow-sm hover:shadow-xl hover:shadow-blue-50/50 transition-all duration-300 flex flex-col justify-between group">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center transition-colors group-hover:bg-[#0037b0] group-hover:text-white">
                             <span class="material-symbols-outlined text-2xl">my_location</span>
                         </div>
                         <div class="space-y-2">
-                            <h3 class="text-xl font-bold text-on-surface">Real-Time Visibility</h3>
-                            <p class="text-gray-500 text-sm leading-relaxed">
-                                Eliminating wait-time uncertainty with precise, sub-second GPS tracking mapped to your campus layout.
+                            <h3 class="text-lg sm:text-xl font-bold text-on-surface">Real-Time GPS Telemetry</h3>
+                            <p class="text-gray-500 text-xs sm:text-sm leading-relaxed">
+                                Eliminating wait-time uncertainty with precise, sub-second GPS tracking mapped directly to campus buildings and campus bus stops.
                             </p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Card 2 -->
-                <div class="p-8 rounded-2xl border border-gray-100 hover:border-orange-100 bg-white shadow-sm hover:shadow-xl hover:shadow-orange-50/50 transition-all duration-300 flex flex-col justify-between group">
-                    <div class="space-y-6">
-                        <div class="w-12 h-12 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center transition-colors group-hover:bg-orange-600 group-hover:text-white">
+                <div class="p-6 sm:p-8 rounded-2xl border border-gray-100 hover:border-orange-200 bg-white shadow-sm hover:shadow-xl hover:shadow-orange-50/50 transition-all duration-300 flex flex-col justify-between group">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-xl bg-orange-50 text-brandOrange flex items-center justify-center transition-colors group-hover:bg-brandOrange group-hover:text-white">
                             <span class="material-symbols-outlined text-2xl">schedule</span>
                         </div>
                         <div class="space-y-2">
-                            <h3 class="text-xl font-bold text-on-surface">Smart Scheduling</h3>
-                            <p class="text-gray-500 text-sm leading-relaxed">
-                                Data-driven route optimization that adapts to peak class times to proactively reduce congestion.
+                            <h3 class="text-lg sm:text-xl font-bold text-on-surface">Smart Dispatch Scheduling</h3>
+                            <p class="text-gray-500 text-xs sm:text-sm leading-relaxed">
+                                Intelligent scheduling synchronized with class timetables, lecture changeovers, and rush hours to proactively reduce stop congestion.
                             </p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Card 3 -->
-                <div class="p-8 rounded-2xl border border-gray-100 hover:border-green-100 bg-white shadow-sm hover:shadow-xl hover:shadow-green-50/50 transition-all duration-300 flex flex-col justify-between group">
-                    <div class="space-y-6">
-                        <div class="w-12 h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center transition-colors group-hover:bg-green-600 group-hover:text-white">
-                            <span class="material-symbols-outlined text-2xl">devices</span>
+                <div class="p-6 sm:p-8 rounded-2xl border border-gray-100 hover:border-green-200 bg-white shadow-sm hover:shadow-xl hover:shadow-green-50/50 transition-all duration-300 flex flex-col justify-between group sm:col-span-2 lg:col-span-1">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center transition-colors group-hover:bg-green-600 group-hover:text-white">
+                            <span class="material-symbols-outlined text-2xl">confirmation_number</span>
                         </div>
                         <div class="space-y-2">
-                            <h3 class="text-xl font-bold text-on-surface">Digital Ecosystem</h3>
-                            <p class="text-gray-500 text-sm leading-relaxed">
-                                Seamless integration of digital ticketing, capacity alerts, and direct community feedback in one app.
+                            <h3 class="text-lg sm:text-xl font-bold text-on-surface">Digital Bus Pass &amp; Alerts</h3>
+                            <p class="text-gray-500 text-xs sm:text-sm leading-relaxed">
+                                Instant cryptographic QR verification for drivers, live capacity meters, and broadcast push alerts for delays and maintenance detours.
                             </p>
                         </div>
                     </div>
@@ -215,61 +352,122 @@
     </section>
 
     <!-- Transit Excellence by the Numbers Section -->
-    <section id="technology" class="py-24 bg-gray-50/50 border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-6 text-center space-y-12">
-            <h2 class="text-3xl md:text-4xl font-black tracking-tight text-on-surface">
-                Transit Excellence by the Numbers
-            </h2>
+    <section id="technology" class="py-20 sm:py-24 bg-gray-50/60 border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 text-center space-y-10">
+            <div>
+                <span class="text-xs font-extrabold uppercase tracking-widest text-[#0037b0]">Performance Metrics</span>
+                <h2 class="text-2xl sm:text-4xl font-black tracking-tight text-on-surface mt-2">
+                    Transit Excellence by the Numbers
+                </h2>
+            </div>
             
-            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 <!-- Stat Card 1 -->
-                <div class="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm stat-card">
-                    <p class="text-4xl lg:text-5xl font-black text-blue-600 mb-2 count-up" data-target="98">0%</p>
-                    <p class="text-sm font-semibold text-gray-500">On-Time Arrival Rate</p>
+                <div class="bg-white border border-gray-100 rounded-2xl p-6 sm:p-8 shadow-sm stat-card">
+                    <p class="text-3xl sm:text-5xl font-black text-blue-600 mb-1 count-up" data-target="98">0%</p>
+                    <p class="text-xs sm:text-sm font-semibold text-gray-500">On-Time Arrival Rate</p>
                 </div>
                 
                 <!-- Stat Card 2 -->
-                <div class="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm stat-card">
-                    <p class="text-4xl lg:text-5xl font-black text-orange-500 mb-2 count-up" data-target="30">0%</p>
-                    <p class="text-sm font-semibold text-gray-500">Reduction in Congestion</p>
+                <div class="bg-white border border-gray-100 rounded-2xl p-6 sm:p-8 shadow-sm stat-card">
+                    <p class="text-3xl sm:text-5xl font-black text-brandOrange mb-1 count-up" data-target="30">0%</p>
+                    <p class="text-xs sm:text-sm font-semibold text-gray-500">Congestion Reduction</p>
                 </div>
                 
                 <!-- Stat Card 3 -->
-                <div class="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm stat-card">
-                    <p class="text-4xl lg:text-5xl font-black text-green-600 mb-2" id="rides-stat">2M+</p>
-                    <p class="text-sm font-semibold text-gray-500">Student Rides Tracked</p>
+                <div class="bg-white border border-gray-100 rounded-2xl p-6 sm:p-8 shadow-sm stat-card">
+                    <p class="text-3xl sm:text-5xl font-black text-green-600 mb-1">2M+</p>
+                    <p class="text-xs sm:text-sm font-semibold text-gray-500">Student Commutes Tracked</p>
                 </div>
                 
                 <!-- Stat Card 4 -->
-                <div class="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm stat-card">
-                    <p class="text-4xl lg:text-5xl font-black text-blue-500 mb-2">4.8</p>
-                    <p class="text-sm font-semibold text-gray-500">App Store Rating</p>
+                <div class="bg-white border border-gray-100 rounded-2xl p-6 sm:p-8 shadow-sm stat-card">
+                    <p class="text-3xl sm:text-5xl font-black text-indigo-600 mb-1">4.9</p>
+                    <p class="text-xs sm:text-sm font-semibold text-gray-500">Student Satisfaction Rating</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Connect Your Campus Today Section -->
-    <section id="about" class="py-24 bg-primary text-white">
-        <div class="max-w-4xl mx-auto px-6 text-center space-y-8">
-            <h2 class="text-3xl md:text-5xl font-black tracking-tight leading-tight">
-                Connect Your Campus Today
-            </h2>
-            <p class="text-lg md:text-xl text-primary-light font-medium leading-relaxed max-w-2xl mx-auto">
-                Join leading universities in providing a modern, reliable transit experience for your student body.
+    <!-- Real-Time Notification & Incident Engine Showcase -->
+    <section class="py-16 bg-white border-b border-gray-100">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+            <span class="text-[11px] font-extrabold uppercase tracking-widest text-primary">Multi-Channel Alert Infrastructure</span>
+            <h3 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 mt-1 mb-2">
+                Instant System &amp; Dispatch Alerting
+            </h3>
+            <p class="text-xs sm:text-sm text-slate-500 mb-8 max-w-xl mx-auto font-medium leading-relaxed">
+                Automated broadcast triggers keeping students, drivers, and campus security instantly synchronized during detours, fleet alerts, and pass events.
             </p>
-            <div class="pt-4 flex flex-wrap justify-center gap-3">
-                <a href="/portals/student/student-login.html" class="inline-flex items-center gap-2 bg-white hover:bg-gray-100 text-primary font-extrabold px-6 py-3 rounded-xl transition-all shadow-xl active:scale-95 text-sm">
-                    <span class="material-symbols-outlined text-[20px]">school</span> Student Login
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <button id="test-success-btn" class="inline-flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold px-4 py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-sm cursor-pointer hover:-translate-y-0.5">
+                    <span class="material-symbols-outlined text-base text-emerald-600">verified</span> Simulate Pass Renewal Alert
+                </button>
+                <button id="test-error-btn" class="inline-flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold px-4 py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-sm cursor-pointer hover:-translate-y-0.5">
+                    <span class="material-symbols-outlined text-base text-rose-600">warning</span> Simulate GPS Telemetry Alert
+                </button>
+                <button id="test-info-btn" class="inline-flex items-center gap-2 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-bold px-4 py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-sm cursor-pointer hover:-translate-y-0.5">
+                    <span class="material-symbols-outlined text-base text-sky-600">campaign</span> Simulate Dispatch Detour Notice
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Connect / Dispatch Hotline Section -->
+    <section id="contact" class="py-24 bg-gradient-to-br from-[#002f9c] via-primary to-[#002275] text-white relative overflow-hidden">
+        <!-- Subtle ambient radial glows -->
+        <div class="absolute -top-24 -left-24 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-brandOrange/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-8 relative z-10">
+            <div class="space-y-3">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-blue-200 text-xs font-bold uppercase tracking-wider">
+                    <span class="material-symbols-outlined text-sm">support_agent</span> 24/7 University Support
+                </span>
+                <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight text-white">
+                    Connect Your Campus Today
+                </h2>
+                <p class="text-base sm:text-lg text-blue-100/90 font-medium leading-relaxed max-w-2xl mx-auto">
+                    Join leading universities in providing a modern, reliable transit experience for your student body and fleet operators.
+                </p>
+            </div>
+
+            <!-- Clickable Phone and Email Badges -->
+            <div class="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto text-left pt-2">
+                <a href="tel:+18005552262" class="p-5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/40 transition-all backdrop-blur-md shadow-xl shadow-black/10 flex items-center gap-4 group hover:-translate-y-1 min-w-0">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-brandOrange to-amber-500 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-orange-500/30">
+                        <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">call</span>
+                    </div>
+                    <div class="min-w-0 overflow-hidden">
+                        <p class="text-[11px] text-blue-200 uppercase tracking-wider font-extrabold truncate">Campus Dispatch Line</p>
+                        <p class="text-base sm:text-lg font-extrabold text-white mt-0.5 tracking-tight group-hover:text-amber-200 transition-colors break-all">+1 (800) 555-CAMBUS</p>
+                    </div>
                 </a>
-                <a href="/portals/admin/admin-login.html" class="inline-flex items-center gap-2 bg-white hover:bg-gray-100 text-primary font-extrabold px-6 py-3 rounded-xl transition-all shadow-xl active:scale-95 text-sm">
-                    <span class="material-symbols-outlined text-[20px]">admin_panel_settings</span> Admin Login
+
+                <a href="mailto:support@cambusconnect.edu" class="p-5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/40 transition-all backdrop-blur-md shadow-xl shadow-black/10 flex items-center gap-4 group hover:-translate-y-1 min-w-0">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-blue-500/30">
+                        <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">mail</span>
+                    </div>
+                    <div class="min-w-0 overflow-hidden">
+                        <p class="text-[11px] text-blue-200 uppercase tracking-wider font-extrabold truncate">Transit Helpdesk</p>
+                        <p class="text-base sm:text-lg font-extrabold text-white mt-0.5 tracking-tight group-hover:text-cyan-200 transition-colors break-all">support@cambusconnect.edu</p>
+                    </div>
                 </a>
-                <a href="/portals/driver/driver-login.html" class="inline-flex items-center gap-2 bg-white hover:bg-gray-100 text-primary font-extrabold px-6 py-3 rounded-xl transition-all shadow-xl active:scale-95 text-sm">
-                    <span class="material-symbols-outlined text-[20px]">local_shipping</span> Driver Login
+            </div>
+
+            <!-- Portal Links -->
+            <div class="pt-4 flex flex-wrap justify-center gap-2.5 sm:gap-3">
+                <a href="/portals/student/student-login.html" class="inline-flex items-center gap-2 bg-white/95 hover:bg-white text-primary font-extrabold px-5 py-3 rounded-xl transition-all shadow-xl active:scale-95 text-xs sm:text-sm hover:-translate-y-0.5">
+                    <span class="material-symbols-outlined text-lg">school</span> Student Portal
                 </a>
-                <a href="/portals/owner/owner-login.html" class="inline-flex items-center gap-2 bg-white hover:bg-gray-100 text-primary font-extrabold px-6 py-3 rounded-xl transition-all shadow-xl active:scale-95 text-sm">
-                    <span class="material-symbols-outlined text-[20px]">verified</span> Owner Login
+                <a href="/portals/admin/admin-login.html" class="inline-flex items-center gap-2 bg-white/95 hover:bg-white text-indigo-700 font-extrabold px-5 py-3 rounded-xl transition-all shadow-xl active:scale-95 text-xs sm:text-sm hover:-translate-y-0.5">
+                    <span class="material-symbols-outlined text-lg">admin_panel_settings</span> Admin Login
+                </a>
+                <a href="/portals/driver/driver-login.html" class="inline-flex items-center gap-2 bg-white/95 hover:bg-white text-orange-700 font-extrabold px-5 py-3 rounded-xl transition-all shadow-xl active:scale-95 text-xs sm:text-sm hover:-translate-y-0.5">
+                    <span class="material-symbols-outlined text-lg">local_shipping</span> Driver Login
+                </a>
+                <a href="/portals/owner/owner-login.html" class="inline-flex items-center gap-2 bg-white/95 hover:bg-white text-purple-700 font-extrabold px-5 py-3 rounded-xl transition-all shadow-xl active:scale-95 text-xs sm:text-sm hover:-translate-y-0.5">
+                    <span class="material-symbols-outlined text-lg">verified</span> Owner Login
                 </a>
             </div>
         </div>
@@ -277,7 +475,7 @@
 
     <!-- Footer -->
     <footer class="bg-white py-12 border-t border-gray-100">
-        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-6">
             <div class="flex items-center gap-2">
                 <div class="bg-primary p-2 rounded-xl text-white">
                     <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">directions_bus</span>
@@ -285,22 +483,22 @@
                 <span class="font-bold text-lg text-primary">Cambus Connect</span>
             </div>
             
-            <div class="flex flex-wrap items-center justify-center gap-6 text-sm font-semibold text-gray-500">
-                <a href="#" class="hover:text-primary transition-colors">Privacy Policy</a>
-                <a href="#" class="hover:text-primary transition-colors">Terms of Service</a>
-                <a href="#" class="hover:text-primary transition-colors">Accessibility</a>
-                <a href="#" class="hover:text-primary transition-colors">Contact Support</a>
+            <div class="flex flex-wrap items-center justify-center gap-5 sm:gap-6 text-xs sm:text-sm font-semibold text-gray-500">
+                <a href="/privacy.html" class="hover:text-primary transition-colors">Privacy Policy</a>
+                <a href="/terms.html" class="hover:text-primary transition-colors">Terms of Service</a>
+                <a href="/portals/student/help/help.html#accessibility" class="hover:text-primary transition-colors">Accessibility</a>
+                <a href="/portals/student/support/support.html" class="hover:text-primary transition-colors">Campus Support</a>
+                <a href="/portals/student/empty-state.html" class="hover:text-primary transition-colors">Fleet Schedule State</a>
             </div>
             
             <p class="text-xs text-gray-400">
-                &copy; 2026 Cambus Connect. University Transit Reimagined.
+                &copy; 2026 Cambus Connect. Campus Transit Reimagined.
             </p>
         </div>
     </footer>
 
-
-
     <!-- Script Entry -->
-    <script src="/portals/owner/index.js"></script>
+    <script src="index.js"></script>
 </body>
 </html>
+
