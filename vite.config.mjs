@@ -1,11 +1,11 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 // Backend logic plugin to serve Google Maps configuration during local Vite development
 // Security: Sourced strictly from environment variables without hardcoded fallback credentials
-function backendMapsPlugin() {
-  let runtimeKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || "";
+function backendMapsPlugin(env = {}) {
+  let runtimeKey = env.GOOGLE_MAPS_API_KEY || env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
   return {
     name: 'backend-maps-api',
@@ -76,19 +76,47 @@ function backendMapsPlugin() {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    backendMapsPlugin(),
-  ],
-  server: {
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+
+  return {
+    plugins: [
+      react(),
+      tailwindcss(),
+      backendMapsPlugin(env),
+    ],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                return 'vendor-react';
+              }
+              if (id.includes('firebase')) {
+                return 'vendor-firebase';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('html5-qrcode') || id.includes('jsqr') || id.includes('pngjs')) {
+                return 'vendor-scanner';
+              }
+              return 'vendor-utils';
+            }
+          },
+        },
+      },
+      chunkSizeWarningLimit: 600,
+    },
+    server: {
+      port: 5173,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+        },
       },
     },
-  },
+  };
 });

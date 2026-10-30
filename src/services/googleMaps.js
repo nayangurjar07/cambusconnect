@@ -12,6 +12,14 @@ let loadPromise = null;
 export async function fetchBackendMapsKey() {
   if (cachedKey) return cachedKey;
 
+  // 1. Direct environment variable check
+  const envKey = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY || import.meta.env?.GOOGLE_MAPS_API_KEY;
+  if (envKey) {
+    cachedKey = envKey;
+    return cachedKey;
+  }
+
+  // 2. Fetch from backend API
   try {
     const res = await fetch('/api/maps-config');
     if (res.ok) {
@@ -25,7 +33,7 @@ export async function fetchBackendMapsKey() {
     console.warn('[GoogleMaps] Backend key fetch failed:', err);
   }
 
-  // Fallback to runtime/storage override if offline
+  // 3. Fallback to runtime/storage override
   return localStorage.getItem('custom_maps_key') || null;
 }
 

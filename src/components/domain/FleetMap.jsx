@@ -1,27 +1,17 @@
 // src/components/domain/FleetMap.jsx
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { 
-  Compass, 
-  Layers, 
   Maximize2, 
   Navigation, 
-  RotateCw, 
   AlertTriangle, 
-  Radio, 
-  Users, 
-  MapPin,
-  CheckCircle2,
-  Clock,
-  Map as MapIcon
+  Clock
 } from 'lucide-react';
 import { useTenant } from '../../contexts/TenantContext';
 import { loadGoogleMaps } from '../../services/googleMaps';
 
 /**
  * Evaluates GPS staleness based on timestamp
- * Returns: { label: 'LIVE' | 'STALE' | 'OFFLINE', color: string, minutesAgo: number | null, text: string }
+ * Returns: { label: 'LIVE' | 'STALE' | 'OFFLINE', color: string, text: string }
  */
 function getGpsStatus(bus) {
   if (!bus.location || typeof bus.location.lat !== 'number' || typeof bus.location.lng !== 'number') {
@@ -60,17 +50,8 @@ export function FleetMap({
   className = ''
 }) {
   const { tenant } = useTenant();
-  const [engine, setEngine] = useState(() => {
-    // Default to Google Maps if available or supported, otherwise Leaflet
-    return (typeof window !== 'undefined' && (window.google?.maps || window.__googleMapsReady)) ? 'google' : 'google';
-  });
   const [googleReady, setGoogleReady] = useState(false);
-
-  // References for Leaflet
-  const leafletContainerRef = useRef(null);
-  const leafletMapRef = useRef(null);
-  const leafletMarkersRef = useRef({});
-  const leafletCampusMarkerRef = useRef(null);
+  const [loadError, setLoadError] = useState(null);
 
   // References for Google Maps
   const googleContainerRef = useRef(null);
@@ -84,7 +65,7 @@ export function FleetMap({
     return tenant?.campusCenter || { lat: 22.8225, lng: 75.8370 }; // IIST Indore default
   }, [tenant]);
 
-  // Load Google Maps SDK
+  // Load Google Maps JavaScript API
   useEffect(() => {
     let isMounted = true;
     loadGoogleMaps()
@@ -94,9 +75,9 @@ export function FleetMap({
         }
       })
       .catch((err) => {
-        console.warn('Google Maps load notice, falling back to Leaflet engine:', err);
+        console.error('[FleetMap] Google Maps load error:', err);
         if (isMounted) {
-          setEngine('leaflet');
+          setLoadError(err.message || 'Failed to load Google Maps');
         }
       });
 
@@ -111,11 +92,9 @@ export function FleetMap({
     };
   }, []);
 
-  // ==========================================
-  // GOOGLE MAPS IMPLEMENTATION
-  // ==========================================
+  // Initialize Google Maps instance
   useEffect(() => {
-    if (engine !== 'google' || !googleReady || !googleContainerRef.current) return;
+    if (!googleReady || !googleContainerRef.current) return;
     if (googleMapRef.current) return; // already initialized
 
     try {
@@ -132,7 +111,7 @@ export function FleetMap({
         zoomControlOptions: {
           position: window.google.maps.ControlPosition.RIGHT_BOTTOM
         },
-        streetViewControl: false,
+        streetViewControl: false, // Explicitly disabled
         fullscreenControl: false,
         styles: [
           { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
@@ -143,7 +122,7 @@ export function FleetMap({
       googleMapRef.current = gMap;
       googleInfoWindowRef.current = new window.google.maps.InfoWindow();
 
-      // Add campus pin
+      // Add campus anchor pin
       googleCampusMarkerRef.current = new window.google.maps.Marker({
         position: { lat: defaultCenter.lat, lng: defaultCenter.lng },
         map: gMap,
@@ -158,14 +137,14 @@ export function FleetMap({
         }
       });
     } catch (err) {
-      console.error('Failed to instantiate Google Maps, falling back to Leaflet:', err);
-      setEngine('leaflet');
+      console.error('Failed to instantiate Google Maps:', err);
+      setLoadError(err.message);
     }
-  }, [engine, googleReady, defaultCenter, tenant]);
+  }, [googleReady, defaultCenter, tenant]);
 
-  // Sync Google Markers
+  // Synchronize Google Maps bus markers
   useEffect(() => {
-    if (engine !== 'google' || !googleMapRef.current || !googleReady) return;
+    if (!googleMapRef.current || !googleReady) return;
     const gMap = googleMapRef.current;
     const currentIds = new Set();
 
@@ -186,12 +165,10 @@ export function FleetMap({
       const markerColorEncoded = encodeURIComponent(fillColor);
 
       if (googleMarkersRef.current[bus.id]) {
-        // Update marker
         const marker = googleMarkersRef.current[bus.id];
         marker.setPosition({ lat, lng });
         marker.setZIndex(isSelected ? 9999 : 100);
       } else {
-        // Create new Google Marker
         const marker = new window.google.maps.Marker({
           position: { lat, lng },
           map: gMap,
@@ -239,18 +216,18 @@ export function FleetMap({
       }
     });
 
-    // Remove deleted markers
+    // Remove obsolete markers
     Object.keys(googleMarkersRef.current).forEach(id => {
       if (!currentIds.has(id)) {
         googleMarkersRef.current[id].setMap(null);
         delete googleMarkersRef.current[id];
       }
     });
-  }, [buses, selectedBus, engine, googleReady, onSelectBus]);
+  }, [buses, selectedBus, googleReady, onSelectBus]);
 
   // Google Maps Pan on Select
   useEffect(() => {
-    if (engine !== 'google' || !googleMapRef.current || !selectedBus) return;
+    if (!googleMapRef.current || !selectedBus) return;
     if (selectedBus.location && typeof selectedBus.location.lat === 'number') {
       googleMapRef.current.panTo({
         lat: selectedBus.location.lat,
@@ -260,130 +237,11 @@ export function FleetMap({
         googleInfoWindowRef.current.open(googleMapRef.current, googleMarkersRef.current[selectedBus.id]);
       }
     }
-  }, [selectedBus, engine]);
-
-  // ==========================================
-  // LEAFLET IMPLEMENTATION (Fallback / Alternate)
-  // ==========================================
-  useEffect(() => {
-    if (engine !== 'leaflet' || !leafletContainerRef.current) return;
-    if (leafletMapRef.current) return; // already initialized
-
-    const map = L.map(leafletContainerRef.current, {
-      center: [defaultCenter.lat, defaultCenter.lng],
-      zoom: 13,
-      zoomControl: false,
-      attributionControl: false
-    });
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      subdomains: ['a', 'b', 'c']
-    }).addTo(map);
-
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-    leafletMapRef.current = map;
-
-    return () => {
-      map.remove();
-      leafletMapRef.current = null;
-    };
-  }, [engine, defaultCenter]);
-
-  // Sync Leaflet Markers
-  useEffect(() => {
-    if (engine !== 'leaflet' || !leafletMapRef.current) return;
-    const map = leafletMapRef.current;
-    const currentMarkerIds = new Set();
-
-    buses.forEach(bus => {
-      if (!bus.location || typeof bus.location.lat !== 'number' || typeof bus.location.lng !== 'number') return;
-      const { lat, lng } = bus.location;
-      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
-
-      currentMarkerIds.add(bus.id);
-      const isSelected = selectedBus && selectedBus.id === bus.id;
-      const gps = getGpsStatus(bus);
-
-      let bgStyle = 'background: #16a34a;';
-      let borderStyle = 'border: 2px solid white;';
-      if (bus.status === 'Delayed' || gps.label === 'STALE') bgStyle = 'background: #d97706;';
-      if (bus.status === 'Breakdown' || gps.label === 'OFFLINE') bgStyle = 'background: #dc2626;';
-
-      if (isSelected) {
-        borderStyle = 'border: 3px solid #2563eb; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.35);';
-      }
-
-      const customHtml = `
-        <div style="position: relative; cursor: pointer; transition: transform 0.2s ease; transform: ${isSelected ? 'scale(1.18)' : 'scale(1)'};">
-          <div style="${bgStyle} ${borderStyle} color: white; border-radius: 9999px; padding: 4px 8px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.25); white-space: nowrap;">
-            <span>${bus.number || 'Bus'}</span>
-          </div>
-          <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid ${bus.status === 'Delayed' || gps.label === 'STALE' ? '#d97706' : (bus.status === 'Breakdown' || gps.label === 'OFFLINE' ? '#dc2626' : '#16a34a')}; margin: 0 auto;"></div>
-        </div>
-      `;
-
-      const markerIcon = L.divIcon({
-        className: 'custom-bus-pin',
-        html: customHtml,
-        iconSize: [isSelected ? 68 : 56, 32],
-        iconAnchor: [isSelected ? 34 : 28, 32]
-      });
-
-      if (leafletMarkersRef.current[bus.id]) {
-        const m = leafletMarkersRef.current[bus.id];
-        m.setLatLng([lat, lng]);
-        m.setIcon(markerIcon);
-      } else {
-        const marker = L.marker([lat, lng], { icon: markerIcon }).addTo(map);
-        marker.bindPopup(`
-          <div style="font-family: inherit; font-size: 12px; min-width: 190px; padding: 2px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 6px;">
-              <span style="font-weight: 700; font-size: 13px; color: #0f172a;">Bus ${bus.number}</span>
-              <span style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: #eff6ff; color: #1d4ed8;">
-                ${bus.status || 'On Time'}
-              </span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 3px; color: #475569;">
-              <div><strong>Route:</strong> ${bus.route || 'Campus Route'}</div>
-              <div><strong>Driver:</strong> ${bus.driver || 'Unassigned'}</div>
-              <div><strong>Riders:</strong> ${bus.headcount || 0} / ${bus.capacity || 45}</div>
-              <div><strong>Speed:</strong> ${bus.speed || 0} km/h</div>
-              <div><strong>Telemetry:</strong> ${gps.text}</div>
-            </div>
-          </div>
-        `);
-
-        marker.on('click', () => onSelectBus(bus));
-        leafletMarkersRef.current[bus.id] = marker;
-      }
-    });
-
-    Object.keys(leafletMarkersRef.current).forEach(id => {
-      if (!currentMarkerIds.has(id)) {
-        leafletMarkersRef.current[id].remove();
-        delete leafletMarkersRef.current[id];
-      }
-    });
-  }, [buses, selectedBus, engine, onSelectBus]);
-
-  // Leaflet Pan on Select
-  useEffect(() => {
-    if (engine !== 'leaflet' || !leafletMapRef.current || !selectedBus) return;
-    if (selectedBus.location && typeof selectedBus.location.lat === 'number') {
-      leafletMapRef.current.panTo([selectedBus.location.lat, selectedBus.location.lng], {
-        animate: true,
-        duration: 0.8
-      });
-      if (leafletMarkersRef.current[selectedBus.id]) {
-        leafletMarkersRef.current[selectedBus.id].openPopup();
-      }
-    }
-  }, [selectedBus, engine]);
+  }, [selectedBus]);
 
   // Actions Toolbar
   const fitAllBuses = () => {
-    if (engine === 'google' && googleMapRef.current && window.google?.maps) {
+    if (googleMapRef.current && window.google?.maps) {
       const bounds = new window.google.maps.LatLngBounds();
       let hasPoints = false;
 
@@ -401,33 +259,14 @@ export function FleetMap({
         googleMapRef.current.setCenter({ lat: defaultCenter.lat, lng: defaultCenter.lng });
         googleMapRef.current.setZoom(13);
       }
-    } else if (leafletMapRef.current) {
-      const validLocations = buses
-        .filter(b => b.location && typeof b.location.lat === 'number' && typeof b.location.lng === 'number')
-        .map(b => [b.location.lat, b.location.lng]);
-
-      if (validLocations.length === 0) {
-        leafletMapRef.current.setView([defaultCenter.lat, defaultCenter.lng], 13);
-        return;
-      }
-
-      validLocations.push([defaultCenter.lat, defaultCenter.lng]);
-      const bounds = L.latLngBounds(validLocations);
-      leafletMapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
   };
 
   const centerOnCampus = () => {
-    if (engine === 'google' && googleMapRef.current) {
+    if (googleMapRef.current) {
       googleMapRef.current.panTo({ lat: defaultCenter.lat, lng: defaultCenter.lng });
       googleMapRef.current.setZoom(14);
-    } else if (leafletMapRef.current) {
-      leafletMapRef.current.setView([defaultCenter.lat, defaultCenter.lng], 14, { animate: true });
     }
-  };
-
-  const toggleEngine = () => {
-    setEngine(prev => prev === 'google' ? 'leaflet' : 'google');
   };
 
   const activeGpsBuses = buses.filter(b => b.location && typeof b.location.lat === 'number');
@@ -437,13 +276,22 @@ export function FleetMap({
   return (
     <div className={`relative bg-slate-100 rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm ${className}`} style={{ minHeight: 380 }}>
       {/* Map Surface: Google Maps */}
-      {engine === 'google' && (
-        <div ref={googleContainerRef} className="absolute inset-0 z-0 h-full w-full" />
+      <div ref={googleContainerRef} className="absolute inset-0 z-0 h-full w-full" />
+
+      {/* Loading or Error State */}
+      {!googleReady && !loadError && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-100 text-slate-500 gap-2">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-medium">Loading Google Maps...</span>
+        </div>
       )}
 
-      {/* Map Surface: Leaflet */}
-      {engine === 'leaflet' && (
-        <div ref={leafletContainerRef} className="absolute inset-0 z-0 h-full w-full" />
+      {loadError && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50 text-rose-600 p-6 text-center gap-2">
+          <AlertTriangle className="w-8 h-8 text-rose-500" />
+          <span className="text-sm font-semibold">Google Maps unavailable</span>
+          <span className="text-xs text-slate-500">{loadError}</span>
+        </div>
       )}
 
       {/* Floating Map Controls Top-Right */}
@@ -462,13 +310,6 @@ export function FleetMap({
         >
           <Navigation className="w-4 h-4" />
         </button>
-        <button
-          onClick={toggleEngine}
-          className="p-2.5 bg-white/95 hover:bg-white border border-slate-200 rounded-xl shadow-sm text-slate-700 hover:text-blue-600 transition-all cursor-pointer backdrop-blur-sm"
-          title={`Switch Map Engine (Currently: ${engine === 'google' ? 'Google Maps' : 'OpenStreetMap'})`}
-        >
-          <Layers className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Floating Status Badge Top-Left */}
@@ -482,7 +323,7 @@ export function FleetMap({
           <span className="text-slate-500 font-medium">{buses.length} Fleet</span>
           <span className="text-slate-300">|</span>
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
-            {engine === 'google' ? 'Google Maps' : 'OSM Leaflet'}
+            Google Maps
           </span>
         </div>
 
