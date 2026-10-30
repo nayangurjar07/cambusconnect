@@ -71,8 +71,15 @@ export async function updateStaffMember(email, data) {
 }
 
 export async function deleteStaffMember(email) {
-  const docRef = doc(db, 'users', email.toLowerCase().trim());
-  await deleteDoc(docRef);
+  const cleanEmail = email.toLowerCase().trim();
+  const docRef = doc(db, 'users', cleanEmail);
+  // Soft-delete: Revoke all administrative and operational privileges
+  // Prevents the account from accessing fleet data while preserving audit trails
+  await updateDoc(docRef, {
+    status: 'Terminated',
+    role: 'revoked',
+    terminatedAt: serverTimestamp()
+  });
 }
 
 // ==========================================

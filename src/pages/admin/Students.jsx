@@ -10,7 +10,10 @@ import {
   createStudent, 
   updateStudent, 
   deleteStudent,
-  bulkGeneratePasswords
+  bulkGeneratePasswords,
+  bulkDeleteStudents,
+  bulkUpdateStudentStatus,
+  bulkExtendPassValidity
 } from '../../services/students';
 import { subscribeToRoutes } from '../../services/transit';
 import { subscribeToBuses } from '../../services/transit';
@@ -176,11 +179,11 @@ export function AdminStudents() {
     const isoDate = futureDate.toISOString().split('T')[0];
 
     try {
-      for (const email of selectedEmails) {
-        await updateStudent(email, { passValidity: isoDate, status: 'Active' });
-      }
-      showSuccess(`Extended pass validity for ${selectedEmails.size} students`);
+      const emailList = Array.from(selectedEmails);
+      const res = await bulkExtendPassValidity(emailList, isoDate);
+      showSuccess(`Extended pass validity for ${res.updatedCount} students (Atomic Batch)`);
       setSelectedEmails(new Set());
+      await fetchPage(1);
     } catch (err) {
       showError("Bulk extend failed: " + err.message);
     }
@@ -191,11 +194,11 @@ export function AdminStudents() {
     if (!window.confirm(`Revoke pass privileges for ${selectedEmails.size} students?`)) return;
 
     try {
-      for (const email of selectedEmails) {
-        await updateStudent(email, { status: 'Revoked' });
-      }
-      showSuccess(`Revoked ${selectedEmails.size} passes`);
+      const emailList = Array.from(selectedEmails);
+      const res = await bulkUpdateStudentStatus(emailList, 'Revoked');
+      showSuccess(`Revoked ${res.updatedCount} passes (Atomic Batch)`);
       setSelectedEmails(new Set());
+      await fetchPage(1);
     } catch (err) {
       showError("Bulk revoke failed: " + err.message);
     }
@@ -206,11 +209,11 @@ export function AdminStudents() {
     if (!window.confirm(`PERMANENTLY DELETE ${selectedEmails.size} students? This cannot be undone.`)) return;
 
     try {
-      for (const email of selectedEmails) {
-        await deleteStudent(email);
-      }
-      showSuccess(`Deleted ${selectedEmails.size} student records`);
+      const emailList = Array.from(selectedEmails);
+      const res = await bulkDeleteStudents(emailList);
+      showSuccess(`Permanently deleted ${res.deletedCount} student records (Atomic Batch)`);
       setSelectedEmails(new Set());
+      await fetchPage(1);
     } catch (err) {
       showError("Bulk delete failed: " + err.message);
     }

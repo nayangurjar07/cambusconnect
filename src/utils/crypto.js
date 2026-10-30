@@ -42,6 +42,10 @@ export async function generateTotpPayload(email, secret) {
  * Allows a 1-window grace period (previous 15 mins) to account for clock skew/edge scanning.
  */
 export async function verifyTotp(scannedTotp, secret) {
+  if (!scannedTotp || !secret || typeof secret !== 'string' || secret.trim().length === 0) {
+    return false;
+  }
+
   const currentTimeIndex = Math.floor(Date.now() / TIME_WINDOW_MS);
   
   // Check current time window

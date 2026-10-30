@@ -2,17 +2,21 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-// Backend logic plugin to serve Google Maps configuration securely
+// Backend logic plugin to serve Google Maps configuration during local Vite development
+// Security: Sourced strictly from environment variables without hardcoded fallback credentials
 function backendMapsPlugin() {
-  let runtimeKey = process.env.GOOGLE_MAPS_API_KEY || "AIzaSyD3wNXys4eqg27fxQr-BpzOuALppTDbjPs";
+  let runtimeKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
   return {
     name: 'backend-maps-api',
     configureServer(server) {
       server.middlewares.use('/api/maps-config', (req, res) => {
-        res.setHeader('Access-Control-Allow-Origin', '*');
+        const origin = req.headers.origin || req.headers.host || '';
+        if (origin) {
+          res.setHeader('Access-Control-Allow-Origin', origin);
+        }
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
         if (req.method === 'OPTIONS') {
           res.statusCode = 204;
@@ -22,11 +26,11 @@ function backendMapsPlugin() {
         if (req.method === 'GET') {
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({
-            success: true,
+            success: Boolean(runtimeKey),
             apiKey: runtimeKey,
             provider: 'google_maps',
             libraries: ['geometry'],
-            source: 'backend_server'
+            source: 'vite_dev_server'
           }));
           return;
         }
@@ -38,13 +42,22 @@ function backendMapsPlugin() {
             try {
               const data = JSON.parse(body || '{}');
               if (data.apiKey && typeof data.apiKey === 'string') {
-                runtimeKey = data.apiKey.trim();
+                const trimmed = data.apiKey.trim();
+                if (/^AIza[0-9A-Za-z-_]{35}$/.test(trimmed)) {
+                  runtimeKey = trimmed;
+                } else {
+                  res.statusCode = 400;
+                  res.setHeader('Content-Type', 'application/json');
+                  return res.end(JSON.stringify({ error: 'Invalid Google Maps API key format' }));
+                }
+              } else if (data.apiKey === '') {
+                runtimeKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || "";
               }
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify({
                 success: true,
-                message: 'Google Maps API key saved in backend logic successfully',
-                source: 'backend_server'
+                message: 'Google Maps API key saved in development server logic successfully',
+                source: 'vite_dev_server'
               }));
             } catch (e) {
               res.statusCode = 400;

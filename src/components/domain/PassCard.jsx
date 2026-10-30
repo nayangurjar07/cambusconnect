@@ -25,8 +25,12 @@ export function PassCard({ student, showQR = true }) {
     
     const updateToken = async () => {
       if (!student.email) return;
-      // Use qrSecret if available, fallback to email for legacy students until they are upgraded
-      const secret = student.qrSecret || student.email;
+      // High-Security Enforcement: QR generation strictly requires provisioned 128-bit qrSecret
+      const secret = student.qrSecret;
+      if (!secret) {
+        if (mounted) setTokenString('');
+        return;
+      }
       const payload = await generateTotpPayload(student.email, secret);
       
       if (mounted) {

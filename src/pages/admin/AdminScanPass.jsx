@@ -347,7 +347,18 @@ export function AdminScanPass() {
           return;
         }
         
-        const secret = student.qrSecret || student.email;
+        const secret = student.qrSecret;
+        if (!secret) {
+          playTone('error');
+          setVerificationResult({ 
+            status: 'rejected', 
+            reason: `Student profile does not have a cryptographic QR secret provisioned.`,
+            recommendation: 'Regenerate student QR secret in the administrative directory.'
+          });
+          showError('Invalid pass: No cryptographic secret provisioned');
+          return;
+        }
+
         const isValidTotp = await verifyTotp(tokenPayload.totp, secret);
         
         if (!isValidTotp) {

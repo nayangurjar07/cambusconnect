@@ -1,6 +1,8 @@
 // src/services/googleMaps.js
 // Modular client service communicating with backend logic for Google Maps
 
+import { auth } from '../config/firebase';
+
 let cachedKey = null;
 let loadPromise = null;
 
@@ -29,12 +31,19 @@ export async function fetchBackendMapsKey() {
 
 /**
  * Updates or resets the Google Maps API key on the backend
+ * Requires administrator authentication token.
  */
 export async function updateBackendMapsKey(newKey) {
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (auth.currentUser) {
+      const idToken = await auth.currentUser.getIdToken();
+      headers['Authorization'] = `Bearer ${idToken}`;
+    }
+
     const res = await fetch('/api/maps-config', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ apiKey: newKey })
     });
 

@@ -50,7 +50,7 @@ export function DataTable({
                 <th
                   key={col.key}
                   className={cn(
-                    "text-xs font-medium text-gray-500 uppercase tracking-wide",
+                    "text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap",
                     compact ? "px-3 py-2" : "px-4 py-3"
                   )}
                   style={col.width ? { width: col.width } : undefined}
@@ -74,7 +74,7 @@ export function DataTable({
                   <td
                     key={col.key}
                     className={cn(
-                      "text-sm text-gray-700",
+                      "text-sm text-gray-700 whitespace-nowrap",
                       compact ? "px-3 py-2" : "px-4 py-3"
                     )}
                   >

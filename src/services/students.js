@@ -235,10 +235,44 @@ export async function regenerateQrSecret(email) {
   profileCache.delete(cleanEmail);
 }
 
+/**
+ * Cryptographically secure password generator
+ * Produces high-entropy passwords using Web Crypto API.
+ * Meets standard enterprise authentication requirements (mixed case, digits, symbols).
+ */
+export function generateSecurePassword(length = 12) {
+  const charset = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*';
+  const cryptoObj = typeof globalThis !== 'undefined' ? (globalThis.crypto || globalThis.msCrypto) : (typeof window !== 'undefined' ? window.crypto : null);
+  
+  if (!cryptoObj || typeof cryptoObj.getRandomValues !== 'function') {
+    throw new Error('Secure cryptographic random generator is not available in this environment');
+  }
+
+  const values = new Uint8Array(length);
+  cryptoObj.getRandomValues(values);
+  
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += charset[values[i] % charset.length];
+  }
+  
+  // Ensure diversity: at least one lowercase, one uppercase, one digit, and one special symbol
+  const hasLower = /[a-z]/.test(password);
+  const hasUpper = /[A-Z]/.test(password);
+  const hasDigit = /[0-9]/.test(password);
+  const hasSpecial = /[!@#$%&*]/.test(password);
+  
+  if (!hasLower || !hasUpper || !hasDigit || !hasSpecial) {
+    return generateSecurePassword(length);
+  }
+  
+  return password;
+}
+
 export async function bulkGeneratePasswords(emails) {
   const results = [];
   for (const email of emails) {
-    const password = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase();
+    const password = generateSecurePassword(12);
     try {
       await createSecondaryAuthUser(email, password);
       results.push({ email, password, status: 'Created' });
@@ -251,6 +285,96 @@ export async function bulkGeneratePasswords(emails) {
     }
   }
   return results;
+}
+
+/**
+ * Bulk delete student documents using Firestore writeBatch in chunks of 500.
+ * Guarantees transactional atomicity per chunk and purges local caches.
+ */
+export async function bulkDeleteStudents(emails) {
+  if (!Array.isArray(emails) || emails.length === 0) return { deletedCount: 0 };
+  
+  const BATCH_SIZE = 500;
+  let deletedCount = 0;
+  
+  for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+    const chunk = emails.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+    
+    for (const email of chunk) {
+      const cleanEmail = email.toLowerCase().trim();
+      const docRef = doc(db, 'students', cleanEmail);
+      batch.delete(docRef);
+      profileCache.delete(cleanEmail);
+    }
+    
+    await batch.commit();
+    deletedCount += chunk.length;
+  }
+  
+  totalCountCache.timestamp = 0;
+  return { deletedCount };
+}
+
+/**
+ * Bulk update student status using Firestore writeBatch in chunks of 500.
+ */
+export async function bulkUpdateStudentStatus(emails, status) {
+  if (!Array.isArray(emails) || emails.length === 0) return { updatedCount: 0 };
+  
+  const BATCH_SIZE = 500;
+  let updatedCount = 0;
+  
+  for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+    const chunk = emails.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+    
+    for (const email of chunk) {
+      const cleanEmail = email.toLowerCase().trim();
+      const docRef = doc(db, 'students', cleanEmail);
+      batch.update(docRef, {
+        status,
+        updatedAt: serverTimestamp()
+      });
+      profileCache.delete(cleanEmail);
+    }
+    
+    await batch.commit();
+    updatedCount += chunk.length;
+  }
+  
+  return { updatedCount };
+}
+
+/**
+ * Bulk extend pass validity and activate students using Firestore writeBatch in chunks of 500.
+ */
+export async function bulkExtendPassValidity(emails, passValidityIsoDate) {
+  if (!Array.isArray(emails) || emails.length === 0) return { updatedCount: 0 };
+  
+  const BATCH_SIZE = 500;
+  let updatedCount = 0;
+  
+  for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+    const chunk = emails.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+    
+    for (const email of chunk) {
+      const cleanEmail = email.toLowerCase().trim();
+      const docRef = doc(db, 'students', cleanEmail);
+      batch.update(docRef, {
+        passValidity: passValidityIsoDate,
+        status: 'Active',
+        updatedAt: serverTimestamp()
+      });
+      profileCache.delete(cleanEmail);
+    }
+    
+    await batch.commit();
+    updatedCount += chunk.length;
+  }
+  
+  return { updatedCount };
 }
 
 // ==========================================

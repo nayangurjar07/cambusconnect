@@ -86,7 +86,7 @@ async function verifyFirebaseToken(idToken, apiKey) {
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         res.setHeader('Allow', ['POST']);
-        return res.status(455).json({ error: `Method ${req.method} not allowed` });
+        return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 
     const limitCheck = applyRateLimit(req, res);
@@ -137,12 +137,15 @@ export default async function handler(req, res) {
         const userDoc = await userProfileRes.json();
         const userData = parseFirestoreFields(userDoc.fields);
 
-        if (userData.role !== 'admin') {
-            return res.status(403).json({ error: "Access Denied: Requester must be an administrator" });
+        if (userData.role !== 'admin' && userData.role !== 'superadmin' && userData.role !== 'owner') {
+            return res.status(403).json({ error: "Access Denied: Requester must be an administrator or owner" });
         }
 
-        // Encrypt credentials
-        const encryptionKey = process.env.ENCRYPTION_KEY || "cambusconnectsecretkey123456789012";
+        // Encrypt credentials using dedicated environment key
+        const encryptionKey = process.env.ENCRYPTION_KEY;
+        if (!encryptionKey) {
+            return res.status(500).json({ error: "Server configuration missing ENCRYPTION_KEY environment variable" });
+        }
         const apiKeyEncrypted = encrypt(apiKey, encryptionKey);
         const clientSecretEncrypted = encrypt(clientSecret, encryptionKey);
 

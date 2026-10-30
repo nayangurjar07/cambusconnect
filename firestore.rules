@@ -32,6 +32,14 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.email == email;
     }
 
+    function isNotRevoked() {
+      return !userExists() || (getUserData().role != 'revoked' && (!('status' in getUserData()) || getUserData().status != 'Terminated'));
+    }
+
+    function isAuthorizedUser() {
+      return isAuthenticated() && isNotRevoked();
+    }
+
     // =========================================================================
     // USERS COLLECTION
     // =========================================================================
@@ -50,7 +58,7 @@ service cloud.firestore {
     // STUDENTS COLLECTION
     // =========================================================================
     match /students/{studentId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (isOwnerOf(studentId) || isAdmin());
       allow write: if isAdmin();
     }
 
@@ -58,7 +66,7 @@ service cloud.firestore {
     // ROUTES COLLECTION
     // =========================================================================
     match /routes/{routeId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthorizedUser();
       allow write: if isAdmin();
     }
 
@@ -66,7 +74,7 @@ service cloud.firestore {
     // BUS FLEET & REAL-TIME LOCATIONS
     // =========================================================================
     match /buses/{busId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthorizedUser();
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || (
         isDriverOrConductor() && (
@@ -195,7 +203,7 @@ service cloud.firestore {
     // TRIPS & SESSIONS
     // =========================================================================
     match /trips/{tripId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthorizedUser();
       allow write: if isAdmin() || isDriverOrConductor();
     }
 

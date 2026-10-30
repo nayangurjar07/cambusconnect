@@ -21,6 +21,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { ValidateBusPassScanner } from '../../components/domain/ValidateBusPassScanner';
+import { verifyTotp } from '../../utils/crypto';
 
 export function DriverScanPass() {
   const { profile, user } = useAuth();
@@ -324,6 +325,47 @@ export function DriverScanPass() {
         });
         showError("Invalid Pass: Record not found");
         return;
+      }
+
+      // Cryptographic TOTP Verification
+      if (studentPayload) {
+        if (!studentPayload.totp) {
+          playAudioTone('error');
+          setLastScanResult({
+            status: 'rejected',
+            reason: 'Legacy static QR passes are rejected for security.',
+            recommendation: 'Passenger must present the dynamic rotating pass from their portal.',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          });
+          showError("Legacy pass rejected. Dynamic pass required.");
+          return;
+        }
+
+        const secret = student.qrSecret;
+        if (!secret) {
+          playAudioTone('error');
+          setLastScanResult({
+            status: 'rejected',
+            reason: 'Student profile lacks cryptographic QR secret.',
+            recommendation: 'Transport coordinator must regenerate student QR secret.',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          });
+          showError("Invalid Pass: Secret not provisioned");
+          return;
+        }
+
+        const isValidTotp = await verifyTotp(studentPayload.totp, secret);
+        if (!isValidTotp) {
+          playAudioTone('error');
+          setLastScanResult({
+            status: 'rejected',
+            reason: 'Cryptographic pass verification failed (Expired or Forged token).',
+            recommendation: 'Ask passenger to refresh their digital pass screen.',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          });
+          showError("Pass Verification Failed: Token Expired or Forged");
+          return;
+        }
       }
 
       const sId = student.collegeId || student.enrollment || student.id || student.email;

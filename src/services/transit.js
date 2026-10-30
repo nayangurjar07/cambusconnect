@@ -13,7 +13,8 @@ import {
   query,
   where,
   serverTimestamp,
-  runTransaction
+  runTransaction,
+  getCountFromServer
 } from '../config/firebase';
 
 // ==========================================
@@ -343,25 +344,39 @@ export async function logBoarding({ studentId, studentName, busId, busNumber, ro
 export async function getStudentTripsCount(studentId) {
   if (!studentId) return 0;
   const col = collection(db, 'trips');
-  // First day of current month
-  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  const q = query(col, where('studentId', '==', studentId));
-  
-  try {
-    const snap = await getDocs(q);
-    if (snap.empty) return 0;
+  // First day of current month at midnight
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
 
-    let count = 0;
-    snap.forEach(doc => {
-      const data = doc.data();
-      const ts = data.timestamp?.toDate ? data.timestamp.toDate() : (data.timestamp ? new Date(data.timestamp) : null);
-      if (!ts || ts >= startOfMonth) {
-        count++;
-      }
-    });
-    return count;
-  } catch (err) {
-    console.warn("Error fetching student trips:", err);
-    return 0;
+  try {
+    // High-performance server-side aggregation query (single metadata read)
+    const q = query(
+      col, 
+      where('studentId', '==', studentId),
+      where('timestamp', '>=', startOfMonth)
+    );
+    const snap = await getCountFromServer(q);
+    return snap.data().count;
+  } catch (indexOrNetworkErr) {
+    // Graceful fallback if composite index is pending deployment
+    try {
+      const fallbackQuery = query(col, where('studentId', '==', studentId));
+      const snap = await getDocs(fallbackQuery);
+      if (snap.empty) return 0;
+
+      let count = 0;
+      snap.forEach(doc => {
+        const data = doc.data();
+        const ts = data.timestamp?.toDate ? data.timestamp.toDate() : (data.timestamp ? new Date(data.timestamp) : null);
+        if (!ts || ts >= startOfMonth) {
+          count++;
+        }
+      });
+      return count;
+    } catch (err) {
+      console.warn("[TransitService] Error fetching student trips:", err);
+      return 0;
+    }
   }
 }

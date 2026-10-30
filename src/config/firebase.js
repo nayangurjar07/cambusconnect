@@ -91,11 +91,9 @@ export async function createSecondaryAuthUser(email, password) {
   }
 }
 
-// Expose globals for compat
-if (typeof window !== 'undefined') {
-  window.auth = auth;
-  window.db = db;
-}
+// Security Hardening: Never expose Auth or Firestore instances on global window object
+// in production to prevent console tampering, CSRF/XSS exploitation, and unauthorized SDK access.
+// Direct ESM imports must be used by application modules instead.
 
 export {
   signInWithEmailAndPassword,

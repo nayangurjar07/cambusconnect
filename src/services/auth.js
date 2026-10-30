@@ -39,12 +39,9 @@ export async function loginUser(rawEmailOrId, password, expectedRole = null) {
     if (studentDocSnap.exists()) {
       userData = studentDocSnap.data();
     } else {
-      // If user is owner and no doc exists in current tenant, check owner collection
-      if (expectedRole === 'owner') {
-        userData = { role: 'owner', email: user.email, name: 'Platform Owner' };
-      } else {
-        throw new Error("Profile record not found in system database. Please contact campus transport coordinator.");
-      }
+      // Security Enforcement: Do NOT fabricate synthetic owner roles.
+      // Every user account (including owner/superadmin) must have a verified profile in Firestore.
+      throw new Error("Profile record not found in system database. Please contact campus transport coordinator.");
     }
   }
 
@@ -92,10 +89,12 @@ export async function logoutUser() {
   } catch (err) {
     console.warn("Sign out error:", err);
   }
+  // Clear all persistent session tokens and cached identity metadata
   localStorage.removeItem('isLoggedIn');
   localStorage.removeItem('userEmail');
   localStorage.removeItem('userRole');
   localStorage.removeItem('userTenantId');
+  localStorage.removeItem('activeTenantKey');
   localStorage.removeItem('student');
   localStorage.removeItem('adminName');
   localStorage.removeItem('ownerName');

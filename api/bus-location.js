@@ -89,7 +89,7 @@ async function verifyFirebaseToken(idToken, apiKey) {
 export default async function handler(req, res) {
     if (req.method !== 'GET') {
         res.setHeader('Allow', ['GET']);
-        return res.status(455).json({ error: `Method ${req.method} not allowed` });
+        return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 
     const limitCheck = applyRateLimit(req, res);
@@ -108,7 +108,7 @@ export default async function handler(req, res) {
     // Rely on process.env now instead of tenant configs
     const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
     const firebaseApiKey = process.env.VITE_FIREBASE_API_KEY;
-    const databaseURL = `https://${projectId}-default-rtdb.firebaseio.com`;
+    const databaseURL = process.env.VITE_FIREBASE_DATABASE_URL || `https://${projectId}-default-rtdb.asia-southeast1.firebasedatabase.app`;
 
     if (!projectId || !firebaseApiKey) {
         return res.status(500).json({ error: "Server configuration missing Firebase keys" });
@@ -209,7 +209,10 @@ export default async function handler(req, res) {
         const settings = parseFirestoreFields(settingsDoc.fields);
 
         // 4. Decrypt credentials
-        const encryptionKey = process.env.ENCRYPTION_KEY || "cambusconnectsecretkey123456789012";
+        const encryptionKey = process.env.ENCRYPTION_KEY;
+        if (!encryptionKey) {
+            throw new Error("Server configuration missing ENCRYPTION_KEY environment variable");
+        }
         const mmiApiKey = decrypt(settings.apiKeyEncrypted, encryptionKey);
         const mmiClientSecret = decrypt(settings.clientSecretEncrypted, encryptionKey);
 
