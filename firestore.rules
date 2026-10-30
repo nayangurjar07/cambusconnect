@@ -9,15 +9,33 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid != null;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.token.email)).data;
+    function isOwnerOf(email) {
+      return isAuthenticated() && (
+        request.auth.token.email == email || 
+        request.auth.token.email.lower() == email.lower()
+      );
     }
 
     function userExists() {
       return request.auth != null && 
              request.auth.token != null &&
              request.auth.token.email != null &&
-             exists(/databases/$(database)/documents/users/$(request.auth.token.email));
+             (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) ||
+              exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) ||
+              exists(/databases/$(database)/documents/students/$(request.auth.token.email)) ||
+              exists(/databases/$(database)/documents/students/$(request.auth.token.email.lower())));
+    }
+
+    function getUserData() {
+      let email = request.auth.token.email;
+      let emailLower = request.auth.token.email.lower();
+      return exists(/databases/$(database)/documents/users/$(email)) 
+        ? get(/databases/$(database)/documents/users/$(email)).data
+        : (exists(/databases/$(database)/documents/users/$(emailLower))
+          ? get(/databases/$(database)/documents/users/$(emailLower)).data
+          : (exists(/databases/$(database)/documents/students/$(email))
+            ? get(/databases/$(database)/documents/students/$(email)).data
+            : get(/databases/$(database)/documents/students/$(emailLower)).data));
     }
 
     function isAdmin() {
@@ -26,10 +44,6 @@ service cloud.firestore {
 
     function isDriverOrConductor() {
       return userExists() && (getUserData().role in ['driver', 'conductor']);
-    }
-
-    function isOwnerOf(email) {
-      return isAuthenticated() && request.auth.token.email == email;
     }
 
     function isNotRevoked() {
@@ -44,11 +58,21 @@ service cloud.firestore {
     // USERS COLLECTION
     // =========================================================================
     match /users/{email} {
-      allow read: if isAuthenticated() && (isOwnerOf(email) || isAdmin() || isDriverOrConductor());
-      allow create: if isAdmin() || (isAuthenticated() && isOwnerOf(email));
+      allow read: if isAuthenticated() && (
+        isOwnerOf(email) || 
+        request.auth.token.email.lower() == email.lower() || 
+        isAdmin() || 
+        isDriverOrConductor()
+      );
+      allow create: if isAdmin() || (
+        isAuthenticated() && (
+          isOwnerOf(email) || 
+          request.auth.token.email.lower() == email.lower()
+        )
+      );
       allow update: if isAdmin() || (
         isAuthenticated() && 
-        isOwnerOf(email) && 
+        (isOwnerOf(email) || request.auth.token.email.lower() == email.lower()) && 
         request.resource.data.role == resource.data.role
       );
       allow delete: if isAdmin();
@@ -58,7 +82,11 @@ service cloud.firestore {
     // STUDENTS COLLECTION
     // =========================================================================
     match /students/{studentId} {
-      allow read: if isAuthenticated() && (isOwnerOf(studentId) || isAdmin());
+      allow read: if isAuthenticated() && (
+        isOwnerOf(studentId) || 
+        request.auth.token.email.lower() == studentId.lower() || 
+        isAdmin()
+      );
       allow write: if isAdmin();
     }
 

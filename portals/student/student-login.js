@@ -121,19 +121,37 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('instituteId', tenantInfo.domain);
             localStorage.setItem('activeTenantKey', tenantInfo.tenantKey);
 
-            // Fetch profile from Firestore
+            // Fetch profile from Firestore (Dual-Lookup: users then students)
             const docRef = window.db.collection('users').doc(email);
             let docSnap = await docRef.get();
 
             if (!docSnap.exists) {
-                throw new Error("Profile not found in database. Please contact admin.");
+                // Fallback: check students collection for valid pass holder
+                const studentDocRef = window.db.collection('students').doc(email);
+                docSnap = await studentDocRef.get();
+                
+                if (!docSnap.exists) {
+                    throw new Error("Profile not found in database. Please contact admin.");
+                }
+
+                // Self-healing: auto-mirror student record to users collection
+                try {
+                    await window.db.collection('users').doc(email).set({
+                        ...docSnap.data(),
+                        email: email,
+                        role: 'student'
+                    });
+                } catch (mirrorErr) {
+                    console.warn("User mirror notice:", mirrorErr);
+                }
             }
 
             const userData = docSnap.data();
+            const resolvedRole = (userData.role || 'student').toLowerCase();
 
             // ROLE CHECK: Only allow students
-            if (userData.role !== 'student') {
-                showError(`❌ This portal is for students only. Your role is "${userData.role}". Please use the correct login page.`);
+            if (resolvedRole !== 'student') {
+                showError(`❌ This portal is for students only. Your role is "${resolvedRole}". Please use the correct login page.`);
                 setLoadingState(false);
                 return;
             }
@@ -141,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Check pass validity
             if (userData.passValidity) {
                 const passDate = new Date(userData.passValidity);
-                if (passDate < new Date()) {
+                if (!isNaN(passDate.getTime()) && passDate < new Date()) {
                     throw new Error(`Your bus pass expired on ${passDate.toLocaleDateString()}. Please contact admin to renew.`);
                 }
             }
@@ -150,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('userEmail', email);
             localStorage.setItem('userRole', 'student');
+            localStorage.setItem('instituteId', tenantInfo.domain || 'indoreinstitute.com');
             localStorage.setItem('student', JSON.stringify({ id: email, email: email, ...userData }));
 
             loginButton.textContent = "Login Successful!";

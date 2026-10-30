@@ -9,7 +9,7 @@
  * - Session desync protection: Automatically clears all state and localStorage tokens when Firebase Auth signs out
  */
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, onAuthStateChanged, db, doc, getDoc } from '../config/firebase';
+import { auth, onAuthStateChanged, db, doc, getDoc, setDoc } from '../config/firebase';
 import { loginUser, logoutUser, getCurrentSession } from '../services/auth';
 
 const AuthContext = createContext(null);
@@ -42,6 +42,16 @@ export function AuthProvider({ children }) {
             const studentDocSnap = await getDoc(studentDocRef);
             if (studentDocSnap.exists()) {
               data = studentDocSnap.data();
+              // Self-heal: auto-mirror to users collection
+              try {
+                await setDoc(userDocRef, {
+                  ...data,
+                  email,
+                  role: 'student'
+                }, { merge: true });
+              } catch (syncErr) {
+                console.warn("[AuthContext] Non-blocking user doc sync notice:", syncErr);
+              }
             }
           }
 
@@ -51,7 +61,9 @@ export function AuthProvider({ children }) {
             data.tenantId = canonicalTenantId;
 
             // Privilege verification: Enforce verified role from document
-            const resolvedRole = data.role || 'student';
+            const resolvedRole = (data.role || 'student').toLowerCase();
+            data.role = resolvedRole;
+            data.email = email;
             setProfile(data);
             setRole(resolvedRole);
 
@@ -60,6 +72,8 @@ export function AuthProvider({ children }) {
             localStorage.setItem('userRole', resolvedRole);
             localStorage.setItem('userEmail', email);
             localStorage.setItem('userTenantId', canonicalTenantId);
+            localStorage.setItem('activeTenantKey', canonicalTenantId);
+            localStorage.setItem('instituteId', email.split('@')[1] || 'indoreinstitute.com');
             if (resolvedRole === 'student') {
               localStorage.setItem('student', JSON.stringify({ id: email, email, ...data }));
             }

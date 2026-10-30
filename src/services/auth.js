@@ -26,7 +26,7 @@ export async function loginUser(rawEmailOrId, password, expectedRole = null) {
 
   // Retrieve user document from Firestore
   const userDocRef = doc(db, 'users', email);
-  const userDocSnap = await getDoc(userDocRef);
+  let userDocSnap = await getDoc(userDocRef);
 
   let userData = null;
   if (userDocSnap.exists()) {
@@ -38,6 +38,17 @@ export async function loginUser(rawEmailOrId, password, expectedRole = null) {
     
     if (studentDocSnap.exists()) {
       userData = studentDocSnap.data();
+      // Self-healing auto-mirror to users collection for cross-system compatibility
+      try {
+        await setDoc(userDocRef, {
+          ...userData,
+          email,
+          role: 'student',
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (syncErr) {
+        console.warn("[Auth] Non-blocking user doc sync notice:", syncErr);
+      }
     } else {
       // Security Enforcement: Do NOT fabricate synthetic owner roles.
       // Every user account (including owner/superadmin) must have a verified profile in Firestore.
@@ -45,15 +56,20 @@ export async function loginUser(rawEmailOrId, password, expectedRole = null) {
     }
   }
 
+  // Normalize role
+  const resolvedRole = (userData.role || expectedRole || 'student').toLowerCase();
+  userData.role = resolvedRole;
+  userData.email = email;
+
   // Validate role if expectedRole specified
-  if (expectedRole && userData.role && userData.role !== expectedRole) {
-    throw new Error(`Role mismatch: Account is registered as "${userData.role}", but attempting to access ${expectedRole} portal.`);
+  if (expectedRole && resolvedRole !== expectedRole.toLowerCase()) {
+    throw new Error(`Role mismatch: Account is registered as "${resolvedRole}", but attempting to access ${expectedRole} portal.`);
   }
 
   // Check pass validity if student
-  if (userData.role === 'student' && userData.passValidity) {
+  if (resolvedRole === 'student' && userData.passValidity) {
     const expiry = new Date(userData.passValidity);
-    if (expiry < new Date()) {
+    if (!isNaN(expiry.getTime()) && expiry < new Date()) {
       throw new Error(`Your bus pass expired on ${expiry.toLocaleDateString()}. Please contact transport administration to renew.`);
     }
   }
@@ -65,15 +81,16 @@ export async function loginUser(rawEmailOrId, password, expectedRole = null) {
   // Store active session in localStorage
   localStorage.setItem('isLoggedIn', 'true');
   localStorage.setItem('userEmail', email);
-  localStorage.setItem('userRole', userData.role || expectedRole || 'student');
+  localStorage.setItem('userRole', resolvedRole);
   localStorage.setItem('userTenantId', canonicalTenantId);
   localStorage.setItem('activeTenantKey', canonicalTenantId);
+  localStorage.setItem('instituteId', email.split('@')[1] || 'indoreinstitute.com');
   
-  if (userData.role === 'student') {
+  if (resolvedRole === 'student') {
     localStorage.setItem('student', JSON.stringify({ id: email, email, ...userData }));
-  } else if (userData.role === 'admin') {
+  } else if (resolvedRole === 'admin') {
     localStorage.setItem('adminName', userData.name || 'Campus Administrator');
-  } else if (userData.role === 'owner') {
+  } else if (resolvedRole === 'owner') {
     localStorage.setItem('ownerName', userData.name || 'Platform Owner');
   }
 

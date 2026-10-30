@@ -43,7 +43,10 @@ export function LoginPage() {
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword) {
       setErrorMessage("Please enter both ID/Email and password.");
       return;
     }
@@ -52,14 +55,23 @@ export function LoginPage() {
     setErrorMessage('');
 
     try {
-      await login(email, password, selectedRole);
+      await login(cleanEmail, cleanPassword, selectedRole);
       showSuccess(`Signed in successfully as ${selectedRole}`);
 
       const destination = roles.find(r => r.id === selectedRole)?.path || '/';
       const from = location.state?.from?.pathname || destination;
       navigate(from, { replace: true });
     } catch (err) {
-      let msg = "Invalid credentials or unauthorized access.";
+      let msg = err.message || "Invalid credentials or unauthorized access.";
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+        msg = "Incorrect password. Please verify your credentials and try again.";
+      } else if (err.code === 'auth/user-not-found') {
+        msg = "No account found with this email. Please check your email or contact transport admin.";
+      } else if (err.code === 'auth/too-many-requests') {
+        msg = "Too many failed attempts. Please wait a few moments before trying again.";
+      } else if (err.code === 'auth/network-request-failed') {
+        msg = "Network connection error. Please verify your internet connection.";
+      }
       setErrorMessage(msg);
       showError(msg);
     } finally {

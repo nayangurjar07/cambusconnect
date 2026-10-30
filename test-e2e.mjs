@@ -17,14 +17,14 @@ import {
 } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCr7eid8VwqAD4OharNBSD8NME-kyC2FE4",
-  authDomain: "cambus-medicap.firebaseapp.com",
-  projectId: "cambus-medicap",
-  storageBucket: "cambus-medicap.firebasestorage.app",
-  messagingSenderId: "398140728981",
-  appId: "1:398140728981:web:a2c4ed5d6296ad63185d9c",
-  measurementId: "G-ERLRXBMHPB",
-  databaseURL: "https://cambus-medicap-default-rtdb.firebaseio.com",
+  apiKey: "AIzaSyB2IxQNKHGAZ1blFbA1W_TD7-3nFl_g2w4",
+  authDomain: "cambus-connect-iist.firebaseapp.com",
+  projectId: "cambus-connect-iist",
+  storageBucket: "cambus-connect-iist.firebasestorage.app",
+  messagingSenderId: "289800550418",
+  appId: "1:289800550418:web:9100cd54ecd14a19d2c0cb",
+  measurementId: "G-XV5LJDB6YH",
+  databaseURL: "https://cambus-connect-iist-default-rtdb.asia-southeast1.firebasedatabase.app",
 };
 
 const app = initializeApp(firebaseConfig);

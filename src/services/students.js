@@ -176,39 +176,66 @@ export async function createStudent(data) {
     }
   }
 
-  const docRef = doc(db, 'students', email);
-  await setDoc(docRef, {
+  const qrSecret = generateQrSecret();
+  const collegeId = data.collegeId || data.enrollment || '';
+  const busRoute = data.busRoute || '';
+  const passValidity = data.passValidity || '2026-12-31';
+  const status = data.status || 'Active';
+
+  const studentPayload = {
     name: data.name,
     email,
     role: 'student',
-    qrSecret: generateQrSecret(), // Assign cryptographically secure QR secret
-    collegeId: data.collegeId || data.enrollment || '',
+    qrSecret,
+    collegeId,
+    enrollment: collegeId,
     phone: data.phone || '',
     parentPhone: data.parentPhone || '',
-    busRoute: data.busRoute || '',
+    busRoute,
     assignedBusId: data.assignedBusId || '',
     assignedBusNumber: data.assignedBusNumber || '',
     pickupStop: data.pickupStop || '',
-    passValidity: data.passValidity || '2026-12-31',
+    passValidity,
+    status,
     qrCodeData: JSON.stringify({
       id: email,
-      collegeId: data.collegeId || '',
+      collegeId,
       name: data.name,
-      route: data.busRoute || '',
-      validity: data.passValidity || '2026-12-31'
+      route: busRoute,
+      validity: passValidity
     }),
-    createdAt: serverTimestamp()
-  });
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+
+  // Dual-Write: Populate both /students and /users
+  const studentDocRef = doc(db, 'students', email);
+  const userDocRef = doc(db, 'users', email);
+  
+  await Promise.all([
+    setDoc(studentDocRef, studentPayload, { merge: true }),
+    setDoc(userDocRef, studentPayload, { merge: true })
+  ]);
+
+  profileCache.delete(email);
   return email;
 }
 
 export async function updateStudent(email, data) {
   const cleanEmail = email.toLowerCase().trim();
-  const docRef = doc(db, 'students', cleanEmail);
-  await updateDoc(docRef, {
+  const studentDocRef = doc(db, 'students', cleanEmail);
+  const userDocRef = doc(db, 'users', cleanEmail);
+  
+  const payload = {
     ...data,
+    role: 'student',
     updatedAt: serverTimestamp()
-  });
+  };
+
+  await Promise.allSettled([
+    updateDoc(studentDocRef, payload),
+    setDoc(userDocRef, payload, { merge: true })
+  ]);
   
   // Invalidate cache immediately
   profileCache.delete(cleanEmail);
@@ -218,8 +245,13 @@ export async function updateStudent(email, data) {
 
 export async function deleteStudent(email) {
   const cleanEmail = email.toLowerCase().trim();
-  const docRef = doc(db, 'students', cleanEmail);
-  await deleteDoc(docRef);
+  const studentDocRef = doc(db, 'students', cleanEmail);
+  const userDocRef = doc(db, 'users', cleanEmail);
+  
+  await Promise.allSettled([
+    deleteDoc(studentDocRef),
+    deleteDoc(userDocRef)
+  ]);
   
   // Invalidate cache immediately
   profileCache.delete(cleanEmail);
@@ -288,13 +320,13 @@ export async function bulkGeneratePasswords(emails) {
 }
 
 /**
- * Bulk delete student documents using Firestore writeBatch in chunks of 500.
+ * Bulk delete student documents using Firestore writeBatch in chunks of 200 (400 ops).
  * Guarantees transactional atomicity per chunk and purges local caches.
  */
 export async function bulkDeleteStudents(emails) {
   if (!Array.isArray(emails) || emails.length === 0) return { deletedCount: 0 };
   
-  const BATCH_SIZE = 500;
+  const BATCH_SIZE = 200;
   let deletedCount = 0;
   
   for (let i = 0; i < emails.length; i += BATCH_SIZE) {
@@ -303,8 +335,10 @@ export async function bulkDeleteStudents(emails) {
     
     for (const email of chunk) {
       const cleanEmail = email.toLowerCase().trim();
-      const docRef = doc(db, 'students', cleanEmail);
-      batch.delete(docRef);
+      const studentDocRef = doc(db, 'students', cleanEmail);
+      const userDocRef = doc(db, 'users', cleanEmail);
+      batch.delete(studentDocRef);
+      batch.delete(userDocRef);
       profileCache.delete(cleanEmail);
     }
     
@@ -317,12 +351,12 @@ export async function bulkDeleteStudents(emails) {
 }
 
 /**
- * Bulk update student status using Firestore writeBatch in chunks of 500.
+ * Bulk update student status using Firestore writeBatch in chunks of 200.
  */
 export async function bulkUpdateStudentStatus(emails, status) {
   if (!Array.isArray(emails) || emails.length === 0) return { updatedCount: 0 };
   
-  const BATCH_SIZE = 500;
+  const BATCH_SIZE = 200;
   let updatedCount = 0;
   
   for (let i = 0; i < emails.length; i += BATCH_SIZE) {
@@ -331,11 +365,14 @@ export async function bulkUpdateStudentStatus(emails, status) {
     
     for (const email of chunk) {
       const cleanEmail = email.toLowerCase().trim();
-      const docRef = doc(db, 'students', cleanEmail);
-      batch.update(docRef, {
+      const studentDocRef = doc(db, 'students', cleanEmail);
+      const userDocRef = doc(db, 'users', cleanEmail);
+      const updateData = {
         status,
         updatedAt: serverTimestamp()
-      });
+      };
+      batch.update(studentDocRef, updateData);
+      batch.set(userDocRef, updateData, { merge: true });
       profileCache.delete(cleanEmail);
     }
     
@@ -347,12 +384,12 @@ export async function bulkUpdateStudentStatus(emails, status) {
 }
 
 /**
- * Bulk extend pass validity and activate students using Firestore writeBatch in chunks of 500.
+ * Bulk extend pass validity and activate students using Firestore writeBatch in chunks of 200.
  */
 export async function bulkExtendPassValidity(emails, passValidityIsoDate) {
   if (!Array.isArray(emails) || emails.length === 0) return { updatedCount: 0 };
   
-  const BATCH_SIZE = 500;
+  const BATCH_SIZE = 200;
   let updatedCount = 0;
   
   for (let i = 0; i < emails.length; i += BATCH_SIZE) {
@@ -361,12 +398,15 @@ export async function bulkExtendPassValidity(emails, passValidityIsoDate) {
     
     for (const email of chunk) {
       const cleanEmail = email.toLowerCase().trim();
-      const docRef = doc(db, 'students', cleanEmail);
-      batch.update(docRef, {
+      const studentDocRef = doc(db, 'students', cleanEmail);
+      const userDocRef = doc(db, 'users', cleanEmail);
+      const updateData = {
         passValidity: passValidityIsoDate,
         status: 'Active',
         updatedAt: serverTimestamp()
-      });
+      };
+      batch.update(studentDocRef, updateData);
+      batch.set(userDocRef, updateData, { merge: true });
       profileCache.delete(cleanEmail);
     }
     
@@ -533,7 +573,7 @@ export function validateStudentRow(row, schema = DEFAULT_STUDENT_SCHEMA, routesL
 }
 
 export async function batchImportStudents(validRows, onProgress) {
-  const CHUNK_SIZE = 400;
+  const CHUNK_SIZE = 200;
   let importedCount = 0;
 
   for (let i = 0; i < validRows.length; i += CHUNK_SIZE) {
@@ -544,12 +584,15 @@ export async function batchImportStudents(validRows, onProgress) {
       const email = (student.email || '').toLowerCase().trim();
       if (!email) return;
 
-      const docRef = doc(db, 'students', email);
+      const studentDocRef = doc(db, 'students', email);
+      const userDocRef = doc(db, 'users', email);
+      const collegeId = student.collegeId || student.collegeid || student.enrollment || '';
       
       const payload = {
         name: student.name || '',
         email: email,
-        collegeId: student.collegeId || student.collegeid || student.enrollment || '',
+        collegeId: collegeId,
+        enrollment: collegeId,
         phone: student.phone || '',
         parentPhone: student.parentPhone || student.parentphone || '',
         busRoute: student.busRoute || student.busroute || '',
@@ -562,7 +605,8 @@ export async function batchImportStudents(validRows, onProgress) {
         updatedAt: serverTimestamp()
       };
 
-      batch.set(docRef, payload, { merge: true });
+      batch.set(studentDocRef, payload, { merge: true });
+      batch.set(userDocRef, payload, { merge: true });
     });
 
     await batch.commit();
