@@ -18,7 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     // 2. STATE MANAGEMENT
     // ========================================
-    let qrCheckedIn = false;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    let qrCheckedIn = student.lastCheckInDate === todayIso;
     let qrCodeText = ""; // Holds token for synchronous fallback layout
     const studentId = String(student.collegeId || student.enrollment || student.id || student.email || 'UNKNOWN');
     const studentName = String(student.name || 'Unknown Student');
@@ -34,30 +35,24 @@ document.addEventListener('DOMContentLoaded', () => {
     let checkinHistory = JSON.parse(localStorage.getItem(`checkinHistory_${storageKeySuffix}`)) || [];
 
     // ========================================
-    // 3. GENERATE SECURE CRYPTOGRAPHIC QR CODE
+    // 3. GENERATE SECURE DETERMINISTIC QR CODE
     // ========================================
     async function initSecurePassQR() {
-        const payloadObject = {
-            studentId,
-            name: studentName,
-            studentName,
-            routeName: studentRoute,
-            busRoute: studentRoute,
-            instituteId
-        };
-        const plainText = btoa(unescape(encodeURIComponent(JSON.stringify(payloadObject))));
-        
-        qrCodeText = plainText;
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const collegeId = student.collegeId || student.enrollment || studentId || 'NA';
+        const assignedBus = student.assignedBusId || 'NA';
+        const payload = `CAMBUS:${collegeId}:${assignedBus}:${todayIso}`;
+        qrCodeText = payload;
         
         // Display QR code text
         const qrTextElement = document.getElementById('pass-qrcode-text');
         if (qrTextElement) {
-            qrTextElement.textContent = qrCodeText.substring(0, 24) + '... (Signed)';
+            qrTextElement.textContent = qrCodeText;
             qrTextElement.title = qrCodeText;
         }
         
         // Generate real QR code using QRCode.js library
-        const qrContainer = document.getElementById('qrcode-container');
+        const qrContainer = document.getElementById('qrcode-container') || document.getElementById('qr-grid');
         if (qrContainer && typeof QRCode !== 'undefined') {
             qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
@@ -68,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 colorLight: "#ffffff",
                 correctLevel: QRCode.CorrectLevel.M
             });
-            console.log("✅ Secure Cryptographic QR Code generated");
+            console.log("✅ Secure Deterministic QR Code generated:", qrCodeText);
         } else if (qrContainer) {
             console.warn("⚠️ QRCode.js library not loaded, using fallback grid");
             const qrGrid = document.createElement('div');
@@ -250,6 +245,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 qrCheckedIn = true;
                 scanCount++;
                 lastCheckinTime = new Date().toISOString();
+                const checkInDateIso = lastCheckinTime.slice(0, 10);
+
+                // Persist check-in date to student profile in Firestore
+                const currentEmail = localStorage.getItem('userEmail') || student.email;
+                if (currentEmail && window.dbHelper) {
+                    window.dbHelper.getUsersCol().doc(currentEmail).update({
+                        lastCheckInDate: checkInDateIso
+                    }).catch(err => console.warn("Could not sync lastCheckInDate to users:", err));
+                }
                 
                 checkinHistory.unshift({
                     timestamp: lastCheckinTime,

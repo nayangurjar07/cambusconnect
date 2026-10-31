@@ -120,6 +120,57 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // RULE 9: STAG (Self-Terminating Authentication Guard) Pass Expiry Evaluation
+    function checkPassExpiry() {
+        if (isLoggedIn === 'true' && userRole === 'student') {
+            try {
+                const rawStudent = localStorage.getItem('student');
+                if (rawStudent) {
+                    const student = JSON.parse(rawStudent);
+                    if (student && student.passValidity) {
+                        const expiry = new Date(student.passValidity + 'T23:59:59');
+                        const now = new Date();
+                        if (expiry < now) {
+                            alert('Your bus pass has expired. Redirecting to login.');
+                            if (window.auth && typeof window.auth.signOut === 'function') {
+                                window.auth.signOut();
+                            } else if (typeof firebase !== 'undefined' && firebase.auth) {
+                                firebase.auth().signOut().catch(() => {});
+                            }
+                            localStorage.clear();
+                            window.location.href = loginPath;
+                            return true;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Error parsing student data for pass validity check:', e);
+            }
+        }
+        return false;
+    }
+
+    // Evaluate on page load
+    if (!checkPassExpiry()) {
+        // Schedule continuous 60s polling
+        setInterval(checkPassExpiry, 60000);
+
+        // Schedule precision timer for exact expiry timestamp
+        try {
+            const rawStudent = localStorage.getItem('student');
+            if (rawStudent) {
+                const student = JSON.parse(rawStudent);
+                if (student && student.passValidity) {
+                    const expiry = new Date(student.passValidity + 'T23:59:59');
+                    const diffMs = expiry.getTime() - Date.now();
+                    if (diffMs > 0 && diffMs <= 2147483647) {
+                        setTimeout(checkPassExpiry, diffMs);
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
     console.log(`Auth guard passed initial sync check for ${page}`);
 
     // RULE 8: Asynchronously verify Firebase Auth session has not expired or desynchronized

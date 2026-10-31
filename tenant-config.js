@@ -14,15 +14,17 @@ export function getSubdomain() {
     return 'default';
 }
 
+const env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : (typeof window !== 'undefined' && window.__CAMBUS_CONFIG__ ? window.__CAMBUS_CONFIG__ : {});
+
 const defaultFirebaseConfig = {
-    apiKey: "AIzaSyB2IxQNKHGAZ1blFbA1W_TD7-3nFl_g2w4",
-    authDomain: "cambus-connect-iist.firebaseapp.com",
-    projectId: "cambus-connect-iist",
-    storageBucket: "cambus-connect-iist.firebasestorage.app",
-    messagingSenderId: "289800550418",
-    appId: "1:289800550418:web:9100cd54ecd14a19d2c0cb",
-    measurementId: "G-XV5LJDB6YH",
-    databaseURL: "https://cambus-connect-iist-default-rtdb.asia-southeast1.firebasedatabase.app"
+    apiKey: env.VITE_FIREBASE_API_KEY || (typeof window !== 'undefined' && window.FIREBASE_API_KEY) || "",
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "cambus-connect-iist.firebaseapp.com",
+    projectId: env.VITE_FIREBASE_PROJECT_ID || "cambus-connect-iist",
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "cambus-connect-iist.firebasestorage.app",
+    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "289800550418",
+    appId: env.VITE_FIREBASE_APP_ID || "1:289800550418:web:9100cd54ecd14a19d2c0cb",
+    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || "G-XV5LJDB6YH",
+    databaseURL: env.VITE_FIREBASE_DATABASE_URL || "https://cambus-connect-iist-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
 export const tenantConfigs = {

@@ -45,4 +45,20 @@ document.addEventListener('DOMContentLoaded', () => {
             faqContainer.insertAdjacentHTML('beforeend', faqItem);
         });
     }
+
+    // Bind support phone and email from dynamic CAMBUS_CONFIG
+    const phoneEl = document.getElementById('help-desk-phone');
+    const emailEl = document.getElementById('help-desk-email');
+    const cfg = window.CAMBUS_CONFIG || {};
+    const supportPhone = cfg.supportPhone || '+91 731 401 0000';
+    const supportEmail = cfg.supportEmail || 'transport@indoreinstitute.com';
+
+    if (phoneEl) {
+        phoneEl.textContent = supportPhone;
+        phoneEl.href = `tel:${supportPhone.replace(/\s+/g, '')}`;
+    }
+    if (emailEl) {
+        emailEl.textContent = supportEmail;
+        emailEl.href = `mailto:${supportEmail}`;
+    }
 });

@@ -198,23 +198,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        function deleteBus(busId, busNumber) {
-            const confirmMsg = `Are you sure you want to delete Bus ${busNumber || busId}? This will permanently remove it from the fleet roster.`;
+        async function deleteBus(busId, busNumber) {
+            const confirmMsg = `Are you sure you want to delete Bus ${busNumber || busId}? This will permanently remove it from the fleet roster and mark assigned students as Not Assigned.`;
             if (!confirm(confirmMsg)) return;
 
-            dbHelper.getBusesCol().doc(busId).delete()
-                .then(() => {
-                    console.log(`✅ Bus ${busId} deleted successfully`);
-                    if (typeof showToast === 'function') {
-                        showToast(`Bus ${busNumber || ''} removed from fleet`, 'success');
-                    } else {
-                        alert(`Bus ${busNumber || ''} removed from fleet.`);
-                    }
-                })
-                .catch(err => {
-                    console.error("❌ Error deleting bus:", err);
-                    alert("Failed to delete bus: " + err.message);
+            try {
+                const firestoreDb = window.db || (firebase && firebase.firestore());
+                const batch = firestoreDb.batch();
+                batch.delete(dbHelper.getBusesCol().doc(busId));
+
+                // Clear assignedBusId and busRoute for affected students in users collection
+                const affected = await dbHelper.getUsersCol().where('assignedBusId', '==', busId).get();
+                affected.forEach(docSnap => {
+                    batch.update(docSnap.ref, { assignedBusId: '', busRoute: 'Not Assigned' });
                 });
+
+                await batch.commit();
+                console.log(`✅ Bus ${busId} and assigned students updated successfully`);
+                if (typeof showToast === 'function') {
+                    showToast(`Bus ${busNumber || ''} removed from fleet`, 'success');
+                } else {
+                    alert(`Bus ${busNumber || ''} removed from fleet.`);
+                }
+            } catch (err) {
+                console.error("❌ Error deleting bus:", err);
+                alert("Failed to delete bus: " + err.message);
+            }
         }
 
         function updateBusStatus(busId, status) {

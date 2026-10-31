@@ -60,6 +60,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =============================================================================
+    // REAL-TIME FIRESTORE PROFILE & PASS VALIDITY SYNC (STAG)
+    // =============================================================================
+    const userEmail = localStorage.getItem('userEmail');
+    const firestoreDb = window.db || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+
+    if (userEmail && firestoreDb) {
+        firestoreDb.collection('users').doc(userEmail).onSnapshot(doc => {
+            if (!doc.exists) {
+                console.warn("⚠️ Student profile document deleted from database. Logging out.");
+                localStorage.clear();
+                window.location.href = 'student-login.html';
+                return;
+            }
+            const freshStudent = doc.data();
+            freshStudent.id = doc.id;
+
+            // Check pass expiry (STAG)
+            if (freshStudent.passValidity) {
+                const expiry = new Date(freshStudent.passValidity + 'T23:59:59');
+                if (expiry < new Date()) {
+                    alert('Your bus pass has expired. Redirecting to login.');
+                    if (typeof auth !== 'undefined' && auth) {
+                        auth.signOut().catch(() => {});
+                    } else if (typeof firebase !== 'undefined' && firebase.auth) {
+                        firebase.auth().signOut().catch(() => {});
+                    }
+                    localStorage.clear();
+                    window.location.href = 'student-login.html';
+                    return;
+                }
+            }
+
+            localStorage.setItem('student', JSON.stringify(freshStudent));
+            const headerEl = document.getElementById('student-name-header');
+            if (headerEl) headerEl.textContent = freshStudent.name || 'Student';
+            window.dispatchEvent(new CustomEvent('studentDataUpdated', { detail: freshStudent }));
+            console.log("🔄 Real-time student profile synced successfully");
+        }, err => {
+            console.warn("⚠️ Real-time student sync listener note:", err);
+        });
+    }
+
+    // =============================================================================
     // 2. UPDATE HEADER WITH STUDENT NAME
     // =============================================================================
     const studentNameHeader = document.getElementById('student-name-header');

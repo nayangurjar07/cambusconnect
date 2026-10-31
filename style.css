@@ -519,7 +519,11 @@ a {
    =================================================================== */
 input:focus,
 select:focus,
-textarea:focus,
+textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgb(37, 99, 235);
+}
+
 button:focus {
     outline: none;
 }

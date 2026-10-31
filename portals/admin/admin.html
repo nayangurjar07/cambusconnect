@@ -3,6 +3,8 @@
 <head>
     <meta charset="utf-8">
     <title>Redirecting | Cambus Connect</title>
+    <!-- Auth Guard check -->
+    <script src="../../auth-guard.js"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const tab = urlParams.get('tab') || 'buses';

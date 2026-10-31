@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     <p class="text-sm font-medium text-gray-600">Pass Valid Until</p>
                 </div>
-                <p class="font-semibold text-green-600 break-words-safe text-xs sm:text-sm">${escapeHTML(student.passValidity || '31 Dec 2025')}</p>
+                <p class="font-semibold text-green-600 break-words-safe text-xs sm:text-sm">${escapeHTML(student.passValidity || 'Not Set')}</p>
             </div>
         `;
         
@@ -463,6 +463,119 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Real-time synchronization when student profile updates
+    window.addEventListener('studentDataUpdated', (e) => {
+        const fresh = e.detail;
+        if (!fresh) return;
+        if (profileName && fresh.name) profileName.textContent = fresh.name;
+        if (profileId && (fresh.collegeId || fresh.enrollment)) profileId.textContent = fresh.collegeId || fresh.enrollment;
+        
+        // Refresh validity badge
+        if (passStatusBadge) {
+            const rawValidity = fresh.validUntil || fresh.passValidity;
+            if (rawValidity) {
+                const validityDate = new Date(rawValidity + 'T23:59:59');
+                if (!isNaN(validityDate.getTime()) && validityDate >= new Date()) {
+                    passStatusBadge.textContent = 'Pass Valid';
+                    passStatusBadge.className = 'px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold';
+                } else {
+                    passStatusBadge.textContent = 'Pass Expired';
+                    passStatusBadge.className = 'px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold';
+                }
+            }
+        }
+
+        // Refresh details
+        if (profileDetails) {
+            const escapeHTML = str => String(str).replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[tag] || tag));
+
+            profileDetails.innerHTML = `
+                <div class="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 min-w-0">
+                    <div class="flex items-center space-x-2 mb-2 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        <p class="text-sm font-medium text-gray-600">Email</p>
+                    </div>
+                    <p class="font-semibold text-gray-800 break-all text-xs sm:text-sm">${escapeHTML(fresh.email || 'N/A')}</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 min-w-0">
+                    <div class="flex items-center space-x-2 mb-2 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        <p class="text-sm font-medium text-gray-600">Phone</p>
+                    </div>
+                    <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(fresh.phone || 'N/A')}</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl border border-purple-100 min-w-0">
+                    <div class="flex items-center space-x-2 mb-2 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                        <p class="text-sm font-medium text-gray-600">Department</p>
+                    </div>
+                    <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(fresh.department || 'N/A')}</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-100 min-w-0">
+                    <div class="flex items-center space-x-2 mb-2 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        <p class="text-sm font-medium text-gray-600">Academic Year</p>
+                    </div>
+                    <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(fresh.year || 'N/A')}</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-100 min-w-0">
+                    <div class="flex items-center space-x-2 mb-2 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <p class="text-sm font-medium text-gray-600">Address</p>
+                    </div>
+                    <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(fresh.address || 'N/A')}</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-cyan-50 to-sky-50 rounded-xl border border-cyan-100 min-w-0">
+                    <div class="flex items-center space-x-2 mb-2 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        <p class="text-sm font-medium text-gray-600">Pass Valid Until</p>
+                    </div>
+                    <p class="font-semibold text-green-600 break-words-safe text-xs sm:text-sm">${escapeHTML(fresh.passValidity || 'Not Set')}</p>
+                </div>
+            `;
+        }
+
+        // Refresh bus info
+        if (busInfo) {
+            const escapeHTML = str => String(str).replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[tag] || tag));
+
+            busInfo.innerHTML = `
+                <div class="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100 min-w-0">
+                    <div class="flex items-center space-x-2 mb-2 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                        <p class="text-sm font-medium text-gray-600">Assigned Route</p>
+                    </div>
+                    <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(fresh.busRoute || 'Not Assigned')}</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-100 min-w-0">
+                    <div class="flex items-center space-x-2 mb-2 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 7.6 16 5 12 5s-6.7 2.6-8.5 6.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2"/><circle cx="7" cy="17.5" r="2.5"/><circle cx="17" cy="17.5" r="2.5"/></svg>
+                        <p class="text-sm font-medium text-gray-600">Bus ID</p>
+                    </div>
+                    <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(fresh.assignedBusId || 'Not Assigned')}</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-green-50 to-teal-50 rounded-xl border border-green-100 min-w-0">
+                    <div class="flex items-center space-x-2 mb-2 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <p class="text-sm font-medium text-gray-600">Pickup Time</p>
+                    </div>
+                    <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">7:30 AM (Approx)</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl border border-yellow-100 min-w-0">
+                    <div class="flex items-center space-x-2 mb-2 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <p class="text-sm font-medium text-gray-600">Pickup Stop</p>
+                    </div>
+                    <p class="font-semibold text-gray-800 break-words-safe text-xs sm:text-sm">${escapeHTML(fresh.pickupStop || 'Main Gate')}</p>
+                </div>
+            `;
+        }
+    });
 
     // ========================================
     // 11. INITIALIZATION COMPLETE

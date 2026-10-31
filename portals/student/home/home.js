@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     const validityDisplay = document.getElementById('home-validity');
     if (validityDisplay) {
-        validityDisplay.textContent = studentData.passValidity || "31 Dec 2025";
+        validityDisplay.textContent = studentData.passValidity || "Not Set";
     }
 
     // ========================================
@@ -142,7 +142,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("✅ Bus data received:", bus);
 
                 if (routeDisplay) {
+                    routeDisplay.classList.remove('text-green-600', 'text-orange-600', 'text-red-600', 'text-red-400', 'text-red-500', 'text-gray-400', 'text-gray-500');
                     routeDisplay.textContent = `${bus.number} - ${bus.route}`;
+                }
+
+                const homeEtaMsg = document.getElementById('home-eta-message');
+                if (homeEtaMsg) {
+                    if (bus.eta) {
+                        homeEtaMsg.innerHTML = `Your next bus is arriving in approximately <span id="eta-minutes" class="font-bold">${bus.eta}</span> minutes.`;
+                    } else if (bus.status) {
+                        homeEtaMsg.innerHTML = `Your assigned bus is currently <span class="font-bold">${bus.status}</span>.`;
+                    }
                 }
 
                 if (typeof updateLiveEta === 'function') {
@@ -223,17 +233,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof renderDynamicSchedule === 'function') {
                     renderDynamicSchedule(null);
                 }
+                const homeEtaMsg = document.getElementById('home-eta-message');
+                if (homeEtaMsg) {
+                    homeEtaMsg.innerHTML = `No bus is currently assigned to your account.`;
+                }
             }
         }, err => {
             console.error("❌ Error fetching bus:", err);
             if (routeDisplay) {
+                routeDisplay.classList.remove('text-green-600', 'text-orange-600', 'text-red-600', 'text-gray-400', 'text-gray-500');
                 routeDisplay.textContent = "Error loading route";
                 routeDisplay.classList.add('text-red-400');
             }
         });
     } else {
         console.warn("⚠️ No bus assigned to student");
+        const homeEtaMsg = document.getElementById('home-eta-message');
+        if (homeEtaMsg) {
+            homeEtaMsg.innerHTML = `No bus is currently assigned to your account.`;
+        }
         if (routeDisplay) {
+            routeDisplay.classList.remove('text-green-600', 'text-orange-600', 'text-red-600', 'text-red-400', 'text-red-500', 'text-gray-500');
             routeDisplay.textContent = "Not Assigned";
             routeDisplay.classList.add('text-gray-400');
         }
@@ -609,6 +629,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const cards = document.querySelectorAll('.animate-slideIn');
     cards.forEach((card, index) => {
         card.style.animationDelay = `${index * 0.1}s`;
+    });
+
+    // Real-time synchronization when student profile updates
+    window.addEventListener('studentDataUpdated', (e) => {
+        const fresh = e.detail;
+        if (fresh) {
+            const valEl = document.getElementById('home-validity');
+            if (valEl) valEl.textContent = fresh.passValidity || 'Not Set';
+            const welcomeEl = document.getElementById('welcome-message');
+            if (welcomeEl && fresh.name) {
+                const firstName = fresh.name.split(' ')[0];
+                const hour = new Date().getHours();
+                let gr = 'Good Morning';
+                if (hour >= 12 && hour < 17) gr = 'Good Afternoon';
+                else if (hour >= 17) gr = 'Good Evening';
+                welcomeEl.textContent = `${gr}, ${firstName}!`;
+            }
+        }
     });
 });
 

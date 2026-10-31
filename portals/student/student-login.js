@@ -68,7 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedKey && configs[savedKey]) return { tenantKey: savedKey, domain: configs[savedKey].emailDomains ? configs[savedKey].emailDomains[0] : '' };
         const firstKey = Object.keys(configs)[0];
         if (firstKey && configs[firstKey]) return { tenantKey: firstKey, domain: configs[firstKey].emailDomains ? configs[firstKey].emailDomains[0] : '' };
-        return { tenantKey: 'iist', domain: 'indoreinstitute.com' };
+        const defaultDomain = (window.CAMBUS_CONFIG && window.CAMBUS_CONFIG.defaultDomain) || 'indoreinstitute.com';
+        return { tenantKey: 'default', domain: defaultDomain };
     };
 
     // Login handler
@@ -156,19 +157,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Check pass validity
+            // Check pass validity (end of expiration day)
             if (userData.passValidity) {
-                const passDate = new Date(userData.passValidity);
+                const passDate = new Date(userData.passValidity + 'T23:59:59');
                 if (!isNaN(passDate.getTime()) && passDate < new Date()) {
-                    throw new Error(`Your bus pass expired on ${passDate.toLocaleDateString()}. Please contact admin to renew.`);
+                    throw new Error(`Your bus pass expired on ${new Date(userData.passValidity + 'T00:00:00').toLocaleDateString()}. Please contact admin to renew.`);
                 }
             }
 
             // Save session
+            const defaultDomain = (window.CAMBUS_CONFIG && window.CAMBUS_CONFIG.defaultDomain) || 'indoreinstitute.com';
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('userEmail', email);
             localStorage.setItem('userRole', 'student');
-            localStorage.setItem('instituteId', tenantInfo.domain || 'indoreinstitute.com');
+            localStorage.setItem('instituteId', tenantInfo.domain || defaultDomain);
             localStorage.setItem('student', JSON.stringify({ id: email, email: email, ...userData }));
 
             loginButton.textContent = "Login Successful!";

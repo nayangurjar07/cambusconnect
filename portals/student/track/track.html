@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html class="light" lang="en">
 <head>
     <meta charset="utf-8"/>
@@ -286,14 +286,17 @@
 
                 <div class="space-y-2">
                     <div class="flex items-center justify-between px-1">
-                        <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">All Active Shuttles</p>
+                        <div>
+                            <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">All Active Shuttles</p>
+                            <p id="nearby-buses-count" class="text-sm font-semibold text-slate-800">Loading buses...</p>
+                        </div>
                         <span class="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                             <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Live Telematics
                         </span>
                     </div>
                     
                     <!-- Dynamic Bus List Container (Includes Skeleton Loaders by default) -->
-                    <div id="bus-list" class="space-y-3">
+                    <div id="buses-list" class="space-y-3">
                         <!-- Skeleton Loading Interface (replaced upon data arrival) -->
                         <div class="space-y-3" id="skeleton-loader">
                             <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm space-y-3">
@@ -359,8 +362,26 @@
     <script src="../../../db-helper.js"></script>
     <script src="../../../main.js"></script>
     <script src="track.js"></script>
-    <!-- Google Maps API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD3wNXys4eqg27fxQr-BpzOuALppTDbjPs&callback=initMap&libraries=geometry&loading=async" async defer></script>
+    <!-- Google Maps API (Loaded dynamically from backend /api/maps-config) -->
+    <script>
+      (function() {
+        fetch('/api/maps-config')
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.apiKey) {
+              const script = document.createElement('script');
+              script.setAttribute('data-gmaps', 'true');
+              script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(data.apiKey)}&callback=initMap&libraries=geometry&loading=async`;
+              script.async = true;
+              script.defer = true;
+              document.head.appendChild(script);
+            }
+          })
+          .catch(err => {
+            console.warn('[Student Track] Could not load Google Maps configuration:', err);
+          });
+      })();
+    </script>
 </body>
 </html>
 

@@ -14,6 +14,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const auth = firebase.auth();
         const db = firebase.firestore();
 
+        function escapeHtml(str) {
+            if (typeof window.escapeHtml === 'function') return window.escapeHtml(str);
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         // Display admin name from localStorage
         const adminNameDisplay = document.getElementById('admin-name-display');
         if (adminNameDisplay) {
@@ -181,31 +192,31 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <span class="material-symbols-outlined text-[20px]">${isFound ? 'check_circle' : 'inventory_2'}</span>
                             </div>
                             <div>
-                                <h4 class="font-black text-slate-900 text-base">${item.item || item.itemName || 'Unnamed Item'}</h4>
-                                <p class="text-[11px] text-slate-400 mt-0.5">Report ID: ${item.id.slice(0, 10)} • ${dateStr}</p>
+                                <h4 class="font-black text-slate-900 text-base">${escapeHtml(item.item || item.itemName || 'Unnamed Item')}</h4>
+                                <p class="text-[11px] text-slate-400 mt-0.5">Report ID: ${escapeHtml(item.id.slice(0, 10))} • ${dateStr}</p>
                             </div>
                         </div>
                         <div>${statusBadge}</div>
                     </div>
 
                     <p class="text-slate-700 text-sm leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-100 font-medium">
-                        ${item.description || 'No description provided.'}
+                        ${escapeHtml(item.description || 'No description provided.')}
                     </p>
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                         <div class="p-3 bg-blue-50/70 border border-blue-100 rounded-xl">
                             <p class="text-[10px] font-bold text-blue-700 uppercase tracking-wider mb-1">Student</p>
-                            <p class="font-bold text-slate-900 text-sm">${item.userName || item.reportedBy || 'Unknown'}</p>
-                            <p class="text-slate-500 text-[11px] mt-0.5">${item.userId ? `ID: ${item.userId}` : ''}</p>
+                            <p class="font-bold text-slate-900 text-sm">${escapeHtml(item.userName || item.reportedBy || 'Unknown')}</p>
+                            <p class="text-slate-500 text-[11px] mt-0.5">${item.userId ? `ID: ${escapeHtml(item.userId)}` : ''}</p>
                         </div>
                         <div class="p-3 bg-purple-50/70 border border-purple-100 rounded-xl">
                             <p class="text-[10px] font-bold text-purple-700 uppercase tracking-wider mb-1">${item.locationType === 'CAMPUS' ? 'Campus Location' : 'Route & Transit'}</p>
-                            <p class="font-bold text-slate-900 text-sm">${item.location || item.route || 'Campus Area'}</p>
+                            <p class="font-bold text-slate-900 text-sm">${escapeHtml(item.location || item.route || 'Campus Area')}</p>
                         </div>
                         <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl">
                             <p class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider mb-1">Contact Details</p>
-                            <p class="font-semibold text-slate-800 truncate">${item.userEmail || item.userPhone || 'No contact'}</p>
-                            ${item.userPhone && item.userPhone !== 'Not Available' ? `<p class="text-[11px] text-indigo-600 font-bold mt-0.5">Ph: ${item.userPhone}</p>` : ''}
+                            <p class="font-semibold text-slate-800 truncate">${escapeHtml(item.userEmail || item.userPhone || 'No contact')}</p>
+                            ${item.userPhone && item.userPhone !== 'Not Available' ? `<p class="text-[11px] text-indigo-600 font-bold mt-0.5">Ph: ${escapeHtml(item.userPhone)}</p>` : ''}
                         </div>
                     </div>
 

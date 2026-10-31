@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html class="light" lang="en">
 
 <head>
@@ -398,7 +398,26 @@
     <!-- Scripts -->
     <script src="../../db-helper.js"></script>
     <script src="admin-track.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD3wNXys4eqg27fxQr-BpzOuALppTDbjPs&callback=initMap&libraries=geometry&loading=async" async defer></script>
+    <!-- Google Maps API (Loaded dynamically from backend /api/maps-config) -->
+    <script>
+      (function() {
+        fetch('/api/maps-config')
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.apiKey) {
+              const script = document.createElement('script');
+              script.setAttribute('data-gmaps', 'true');
+              script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(data.apiKey)}&callback=initMap&libraries=geometry&loading=async`;
+              script.async = true;
+              script.defer = true;
+              document.head.appendChild(script);
+            }
+          })
+          .catch(err => {
+            console.warn('[Admin Track] Could not load Google Maps configuration:', err);
+          });
+      })();
+    </script>
 
     <!-- Inline script to display Admin details -->
     <script>

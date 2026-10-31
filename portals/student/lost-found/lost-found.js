@@ -44,6 +44,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentSearchTerm = '';
     let currentStatusFilter = 'all';
 
+    function escapeHtml(str) {
+        if (typeof window.escapeHtml === 'function') return window.escapeHtml(str);
+        if (typeof window.escapeHTML === 'function') return window.escapeHTML(str);
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     if (!listContainer || !form || !submitButton) {
         console.error('Lost & Found UI elements missing.');
         return;
@@ -285,8 +297,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ? { color: 'red', icon: '🔍', gradient: 'from-red-500 to-pink-500' }
                 : { color: 'green', icon: '✅', gradient: 'from-green-500 to-emerald-500' };
 
+            const isFound = (item.status || '').toLowerCase() === 'found';
+            const markFoundButton = isOwner && !isFound ? 
+                `<button data-id="${escapeHtml(item.id)}" class="mark-found-button px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                    Mark Found
+                </button>` : '';
+
             const deleteButton = isOwner ? 
-                `<button data-id="${item.id}" class="delete-item-button px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                `<button data-id="${escapeHtml(item.id)}" class="delete-item-button px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 6h18"/>
                         <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
@@ -310,16 +329,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 ${statusConfig.icon}
                             </div>
                             <div>
-                                <h4 class="font-bold text-gray-900 text-xl">${displayName}</h4>
+                                <h4 class="font-bold text-gray-900 text-xl">${escapeHtml(displayName)}</h4>
                                 <span class="inline-block mt-1 px-3 py-1 bg-gradient-to-r ${statusConfig.gradient} text-white text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm">
-                                    ${item.status || 'Lost'}
+                                    ${escapeHtml(item.status || 'Lost')}
                                 </span>
                             </div>
                         </div>
                     </div>
                     
                     <p class="text-gray-700 font-medium mb-6 leading-relaxed bg-gradient-to-br from-gray-50 to-blue-50 p-4 rounded-2xl border border-gray-200">
-                        ${item.description || 'No description provided.'}
+                        ${escapeHtml(item.description || 'No description provided.')}
                     </p>
                     
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
@@ -328,7 +347,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <span class="material-symbols-outlined text-[18px] text-purple-600">person</span>
                                 <p class="text-xs font-bold text-purple-700 uppercase tracking-wide">Reporter</p>
                             </div>
-                            <p class="text-sm font-bold text-gray-900">${item.userName || item.reportedBy || 'Anonymous'}</p>
+                            <p class="text-sm font-bold text-gray-900">${escapeHtml(item.userName || item.reportedBy || 'Anonymous')}</p>
                         </div>
                         
                         <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-3 border border-blue-100">
@@ -336,7 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <span class="material-symbols-outlined text-[18px] text-blue-600">calendar_today</span>
                                 <p class="text-xs font-bold text-blue-700 uppercase tracking-wide">Date</p>
                             </div>
-                            <p class="text-sm font-bold text-gray-900">${reportedDate}</p>
+                            <p class="text-sm font-bold text-gray-900">${escapeHtml(reportedDate)}</p>
                         </div>
                         
                         <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-3 border border-indigo-100">
@@ -344,20 +363,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <span class="material-symbols-outlined text-[18px] text-indigo-600">${locIcon}</span>
                                 <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide">${locLabel}</p>
                             </div>
-                            <p class="text-sm font-bold text-gray-900 truncate">${locValue}</p>
+                            <p class="text-sm font-bold text-gray-900 truncate">${escapeHtml(locValue)}</p>
                         </div>
                     </div>
                     
                     <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t-2 border-gray-100">
-                        <button class="contact-button flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-4 rounded-2xl text-sm font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 cursor-pointer" data-id="${item.id}">
+                        <button class="contact-button flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-4 rounded-2xl text-sm font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 cursor-pointer" data-id="${escapeHtml(item.id)}">
                             <span class="material-symbols-outlined text-[18px]">contact_phone</span>
                             Contact Reporter
                         </button>
+                        ${markFoundButton}
                         ${deleteButton}
                     </div>
                 </div>
             `;
             listContainer.insertAdjacentHTML('beforeend', itemHtml);
+        });
+
+        document.querySelectorAll('.mark-found-button').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const itemId = e.currentTarget.dataset.id;
+                try {
+                    await dbHelper.getLostItemsCol().doc(itemId).update({ status: 'Found' });
+                } catch (err) {
+                    alert('Failed to update status: ' + err.message);
+                }
+            });
         });
 
         document.querySelectorAll('.delete-item-button').forEach(button => {
@@ -393,11 +424,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-4 border-2 border-purple-200">
                     <div class="flex items-center gap-3 mb-2">
                         <div class="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                            ${itemData.userName ? itemData.userName.charAt(0).toUpperCase() : '?'}
+                            ${itemData.userName ? escapeHtml(itemData.userName.charAt(0).toUpperCase()) : '?'}
                         </div>
                         <div>
                             <p class="text-xs font-bold text-purple-700 uppercase tracking-wide">Reported By</p>
-                            <p class="font-bold text-gray-900 text-lg">${itemData.userName || 'Anonymous'}</p>
+                            <p class="font-bold text-gray-900 text-lg">${escapeHtml(itemData.userName || 'Anonymous')}</p>
                         </div>
                     </div>
                 </div>
@@ -411,9 +442,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </svg>
                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Email Address</p>
                         </div>
-                        <p class="text-gray-900 font-semibold break-all text-xs sm:text-sm">${itemData.userEmail || 'Not Available'}</p>
+                        <p class="text-gray-900 font-semibold break-all text-xs sm:text-sm">${escapeHtml(itemData.userEmail || 'Not Available')}</p>
                         ${itemData.userEmail && itemData.userEmail !== 'Not Available' ? `
-                            <a href="mailto:${itemData.userEmail}" class="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:shadow-lg transition-all">
+                            <a href="mailto:${encodeURIComponent(itemData.userEmail)}" class="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:shadow-lg transition-all">
                                 Send Email →
                             </a>
                         ` : ''}

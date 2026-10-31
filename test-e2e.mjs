@@ -16,15 +16,28 @@ import {
   increment 
 } from 'firebase/firestore';
 
+import fs from 'fs';
+import path from 'path';
+
+// Safely read .env credentials for local E2E test runner
+let envApiKey = process.env.VITE_FIREBASE_API_KEY;
+if (!envApiKey) {
+  try {
+    const envFile = fs.readFileSync(path.resolve('.env'), 'utf8');
+    const match = envFile.match(/^VITE_FIREBASE_API_KEY=(.*)$/m);
+    if (match) envApiKey = match[1].trim();
+  } catch (e) {}
+}
+
 const firebaseConfig = {
-  apiKey: "AIzaSyB2IxQNKHGAZ1blFbA1W_TD7-3nFl_g2w4",
-  authDomain: "cambus-connect-iist.firebaseapp.com",
-  projectId: "cambus-connect-iist",
-  storageBucket: "cambus-connect-iist.firebasestorage.app",
-  messagingSenderId: "289800550418",
-  appId: "1:289800550418:web:9100cd54ecd14a19d2c0cb",
-  measurementId: "G-XV5LJDB6YH",
-  databaseURL: "https://cambus-connect-iist-default-rtdb.asia-southeast1.firebasedatabase.app",
+  apiKey: envApiKey || process.env.FIREBASE_API_KEY || "",
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || "cambus-connect-iist.firebaseapp.com",
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID || "cambus-connect-iist",
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || "cambus-connect-iist.firebasestorage.app",
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "289800550418",
+  appId: process.env.VITE_FIREBASE_APP_ID || "1:289800550418:web:9100cd54ecd14a19d2c0cb",
+  measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID || "G-XV5LJDB6YH",
+  databaseURL: process.env.VITE_FIREBASE_DATABASE_URL || "https://cambus-connect-iist-default-rtdb.asia-southeast1.firebasedatabase.app",
 };
 
 const app = initializeApp(firebaseConfig);

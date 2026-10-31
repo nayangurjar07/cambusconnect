@@ -222,9 +222,13 @@ function startBusTracking() {
         }
 
         const activeBusesEl = document.getElementById('active-buses-count');
+        const nearbyBusesCountEl = document.getElementById('nearby-buses-count');
         const lastUpdateEl = document.getElementById('last-update-time');
 
         if (activeBusesEl) activeBusesEl.textContent = activeBuses;
+        if (nearbyBusesCountEl) {
+            nearbyBusesCountEl.textContent = `${busesData.length} bus${busesData.length === 1 ? '' : 'es'} active`;
+        }
         if (lastUpdateEl) {
             lastUpdateEl.textContent = new Date().toLocaleTimeString([], {
                 hour: '2-digit',
@@ -242,7 +246,7 @@ function startBusTracking() {
             focusMyBus();
         }
     }, () => {
-        const busListEl = document.getElementById('bus-list');
+        const busListEl = document.getElementById('buses-list') || document.getElementById('bus-list');
         if (busListEl) {
             busListEl.innerHTML = `
                 <div class="glass-effect rounded-xl p-8 text-center border-2 border-red-200">
@@ -436,7 +440,7 @@ function calculateETA() {
 // 8. RENDER BUS LIST
 // ========================================
 function renderBusList(buses) {
-    const listContainer = document.getElementById('bus-list');
+    const listContainer = document.getElementById('buses-list') || document.getElementById('bus-list');
     if (!listContainer) return;
 
     listContainer.innerHTML = '';
@@ -488,7 +492,7 @@ function renderBusList(buses) {
         const sourceLabel = getSourceLabel(bus.locationSource || bus.tracking?.sourceType);
 
         const card = document.createElement('div');
-        card.className = `bg-white rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all border ${
+        card.className = `relative bg-white rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all border ${
             isTrackedBus ? 'border-primary ring-2 ring-blue-100' : 'border-gray-200'
         }`;
 
