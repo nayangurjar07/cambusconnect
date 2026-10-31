@@ -428,12 +428,16 @@
 
             <!-- Recent Boardings -->
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-4">
-                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100 flex-wrap gap-2">
                     <div class="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
                         <span class="material-symbols-outlined text-teal-600 text-[20px]">history</span>
                         <span>Recent Boardings</span>
                         <span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg text-[10px] font-bold">Last 4 Hours</span>
                     </div>
+                    <button id="btn-export-csv" class="text-xs bg-slate-900 hover:bg-slate-800 text-white font-bold py-1.5 px-3 rounded-xl uppercase tracking-wider shadow-sm transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        <span class="material-symbols-outlined text-[16px]">download</span>
+                        <span>Export CSV</span>
+                    </button>
                 </div>
                 <div id="boardings-list" class="space-y-2 max-h-[320px] overflow-y-auto custom-scrollbar pr-1 min-h-[120px] flex flex-col gap-2">
                     <p class="text-center py-10 text-slate-400 text-xs font-semibold" id="log-empty-state">

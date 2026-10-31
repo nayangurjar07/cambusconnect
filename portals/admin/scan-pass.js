@@ -340,6 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
         subscribeToBoardingsUpdates(newBusId);
     }
 
+    let currentBusBoardings = [];
     function subscribeToBoardingsUpdates(busId) {
         if (!boardingsList) return;
         const dateStr = new Date().toISOString().split('T')[0];
@@ -369,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Sort descending (newest first)
                 items.sort((a, b) => b.time - a.time);
+                currentBusBoardings = items;
 
                 if (items.length === 0) {
                     boardingsList.innerHTML = '<p class="text-center py-10 text-slate-400 text-xs font-semibold" id="log-empty-state"><span class="material-symbols-outlined text-3xl text-slate-300 block mb-2">history_toggle_off</span><span>No passengers today.</span></p>';
@@ -1317,40 +1319,54 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     // 9. Export CSV Logic
     // =========================================================================
-    const exportBtn = document.createElement('button');
-    exportBtn.className = "text-[10px] bg-slate-800 text-white font-bold py-1 px-3 rounded-lg uppercase tracking-wider shadow-sm hover:bg-slate-700 ml-auto";
-    exportBtn.innerHTML = '<span class="material-symbols-outlined text-[14px] align-middle mr-1">download</span> Export CSV';
-    exportBtn.onclick = async () => {
+    function exportRecentBoardingsCsv() {
         const dateStr = new Date().toISOString().split('T')[0];
+        if (!currentBusBoardings || currentBusBoardings.length === 0) {
+            showToast(false, "Export Notice", "No recent boardings recorded for today to export.");
+            return;
+        }
+
         try {
-            const snap = await getFirestoreDb().collectionGroup('boardings').where('date', '==', dateStr).get();
-            let csv = "Student ID,Name,Check-In Bus,Check-In Time,Check-Out Bus,Check-Out Time\n";
-            snap.forEach(doc => {
-                const d = doc.data();
-                const ciTime = d.checkInTime && d.checkInTime.toDate ? d.checkInTime.toDate().toLocaleString() : '';
-                const coTime = d.checkOutTime && d.checkOutTime.toDate ? d.checkOutTime.toDate().toLocaleString() : '';
-                csv += `"${d.studentId || doc.id.split('_')[0]}","${d.studentName || ''}","${d.checkInBus || ''}","${ciTime}","${d.checkOutBus || ''}","${coTime}"\n`;
+            const headers = ['Student ID', 'Passenger Name', 'Bus ID', 'Route', 'Check-In Time', 'Status'];
+            const rows = currentBusBoardings.map(item => {
+                const sId = item.id || '';
+                const sName = item.data.studentName || item.data.name || 'Student';
+                const bus = selectedBusId || '';
+                const route = item.data.routeName || item.data.busRoute || 'Campus Route';
+                const timeStr = item.time instanceof Date ? item.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
+                const status = item.data.checkOutTime ? 'Checked Out' : 'Checked In';
+
+                return [
+                    `"${String(sId).replace(/"/g, '""')}"`,
+                    `"${String(sName).replace(/"/g, '""')}"`,
+                    `"${String(bus).replace(/"/g, '""')}"`,
+                    `"${String(route).replace(/"/g, '""')}"`,
+                    `"${timeStr}"`,
+                    `"${status}"`
+                ].join(',');
             });
-            const blob = new Blob([csv], { type: 'text/csv' });
+
+            const csv = `${headers.join(',')}\n${rows.join('\n')}\n`;
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
-            a.setAttribute('download', `boardings_${dateStr}.csv`);
+            a.setAttribute('download', `cambus_recent_boardings_${dateStr}.csv`);
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            showToast(true, "Export Complete", `Exported ${currentBusBoardings.length} recent boarding logs to CSV.`);
         } catch (e) {
-            alert("Error exporting CSV: " + e.message);
+            console.error("Export error:", e);
+            showToast(false, "Export Failed", e.message);
         }
-    };
-    
-    // Append the export button to the header once the DOM is loaded
-    setTimeout(() => {
-        const boardingsHeader = document.querySelector('#boardings-list').previousElementSibling;
-        if (boardingsHeader) {
-            boardingsHeader.style.display = 'flex';
-            boardingsHeader.style.alignItems = 'center';
-            boardingsHeader.appendChild(exportBtn);
-        }
-    }, 500);
+    }
+
+    const staticExportBtn = document.getElementById('btn-export-csv');
+    if (staticExportBtn) {
+        staticExportBtn.addEventListener('click', exportRecentBoardingsCsv);
+    }
 
     loadFleetBuses();
 });    

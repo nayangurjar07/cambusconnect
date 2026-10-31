@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   QrCode, Search, CheckCircle2, XCircle, Plus, Minus, RotateCcw, 
-  ShieldCheck, Clock, Trash2, Lock, Sparkles, Upload 
+  ShieldCheck, Clock, Trash2, Lock, Sparkles, Upload, Download 
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { decodeQrFromImageFile } from '../../services/qrDecoder';
@@ -468,6 +468,58 @@ export function AdminScanPass() {
     }
   };
 
+  const handleExportCsv = () => {
+    if (boardingLog.length === 0) {
+      showError("No recent boarding records available to export.");
+      return;
+    }
+
+    const busNum = selectedBus?.number || 'Bus';
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const headers = [
+      'Student ID',
+      'Passenger Name',
+      'Email',
+      'Bus Number',
+      'Route Name',
+      'Check-In Date',
+      'Check-In Time',
+      'Verification Method'
+    ];
+
+    const rows = boardingLog.map((log) => {
+      const timeStr = log.time instanceof Date && !isNaN(log.time)
+        ? log.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        : '—';
+      const dateVal = log.date || (log.time instanceof Date && !isNaN(log.time) ? log.time.toISOString().split('T')[0] : dateStr);
+
+      return [
+        `"${String(log.studentId || '').replace(/"/g, '""')}"`,
+        `"${String(log.studentName || 'Student').replace(/"/g, '""')}"`,
+        `"${String(log.studentEmail || '').replace(/"/g, '""')}"`,
+        `"${String(log.busNumber || selectedBus?.number || '').replace(/"/g, '""')}"`,
+        `"${String(log.routeName || selectedBus?.route || 'Campus Route').replace(/"/g, '""')}"`,
+        `"${dateVal}"`,
+        `"${timeStr}"`,
+        `"${String(log.method || 'Scanner').replace(/"/g, '""')}"`
+      ].join(',');
+    });
+
+    const csvContent = `${headers.join(',')}\n${rows.join('\n')}\n`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `cambus_recent_boardings_bus_${busNum}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showSuccess(`Exported ${boardingLog.length} boarding records to CSV`);
+  };
+
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12 font-sans relative">
       {/* Decorative ambient background for premium spatial feel */}
@@ -864,15 +916,27 @@ export function AdminScanPass() {
 
       {/* ─── Bottom Section: Recent Boardings Audit Trail ─── */}
       <Card className="backdrop-blur-xl bg-white/80 border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-gray-900/5 transition-all">
-        <CardHeader>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-gray-500" />
             <CardTitle>Recent Boardings</CardTitle>
             <span className="text-xs text-gray-400 font-normal ml-1">Today's Run</span>
+            <span className="ml-2 text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+              {boardingLog.length} Recorded Check-Ins
+            </span>
           </div>
-          <span className="text-xs font-medium text-gray-500">
-            {boardingLog.length} Recorded Check-Ins
-          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={Download}
+              onClick={handleExportCsv}
+              disabled={boardingLog.length === 0}
+              className="text-xs font-semibold gap-1.5"
+            >
+              Export CSV
+            </Button>
+          </div>
         </CardHeader>
         <CardBody className="p-0">
           {boardingLog.length > 0 ? (

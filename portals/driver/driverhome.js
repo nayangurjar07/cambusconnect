@@ -481,6 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    let currentDriverBoardings = [];
     function subscribeToBoardingsUpdates(busId) {
         const boardingsList = document.getElementById('boardings-list');
         if (!boardingsList) return;
@@ -511,6 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 items.sort((a, b) => b.time - a.time);
+                currentDriverBoardings = items;
 
                 if (items.length === 0) {
                     boardingsList.innerHTML = '<p style="text-align:center; color:#9ca3af; font-size:13px; padding:12px 0;">No passengers today.</p>';
@@ -2082,39 +2084,76 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     // 9. Export CSV Logic
     // =========================================================================
-    const exportBtn = document.createElement('button');
-    exportBtn.className = "text-[10px] bg-slate-800 text-white font-bold py-1 px-3 rounded-lg uppercase tracking-wider shadow-sm hover:bg-slate-700 ml-auto";
-    exportBtn.style.cssText = "font-size:10px; background:#1e293b; color:#fff; font-weight:bold; padding:4px 12px; border-radius:8px; text-transform:uppercase; letter-spacing:0.05em; border:none; cursor:pointer;";
-    exportBtn.innerHTML = '<span class="material-symbols-outlined text-[14px] align-middle mr-1" style="font-size:14px; vertical-align:middle; margin-right:4px;">download</span> Export CSV';
-    exportBtn.onclick = async () => {
+    async function exportDriverBoardingsCsv() {
         const dateStr = new Date().toISOString().split('T')[0];
         try {
-            const snap = await getFirestoreDb().collection(`daily_boardings/${dateStr}/logs`).get();
-            let csv = "Student ID,Name,Check-In Bus,Check-In Time,Check-Out Bus,Check-Out Time\n";
-            snap.forEach(doc => {
-                const d = doc.data();
-                const ciTime = d.checkInTime && d.checkInTime.toDate ? d.checkInTime.toDate().toLocaleString() : '';
-                const coTime = d.checkOutTime && d.checkOutTime.toDate ? d.checkOutTime.toDate().toLocaleString() : '';
-                csv += `"${d.studentId || doc.id}","${d.studentName || ''}","${d.checkInBus || ''}","${ciTime}","${d.checkOutBus || ''}","${coTime}"\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
+            let records = [];
+
+            if (currentDriverBoardings && currentDriverBoardings.length > 0) {
+                records = currentDriverBoardings.map(item => ({
+                    studentId: item.id,
+                    studentName: item.data.studentName || item.data.name || 'Unknown Student',
+                    bus: (assignedBus && assignedBus.number) || '',
+                    route: item.data.routeName || item.data.busRoute || (assignedBus && assignedBus.route) || 'Campus Route',
+                    timeStr: item.time instanceof Date ? item.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—',
+                    status: item.data.checkOutTime ? 'Checked Out' : 'Checked In'
+                }));
+            } else if (assignedBus && assignedBus.id) {
+                // Fallback query to assigned bus's boardings
+                const snap = await (window.db || firebase.firestore()).collection(`buses/${assignedBus.id}/boardings`).get();
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    if (d.date !== dateStr && !doc.id.endsWith(`_${dateStr}`)) return;
+                    let t = '—';
+                    if (d.checkInTime) {
+                        const dateObj = d.checkInTime.toDate ? d.checkInTime.toDate() : new Date(d.checkInTime);
+                        t = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    }
+                    records.push({
+                        studentId: doc.id.split('_')[0],
+                        studentName: d.studentName || d.name || 'Student',
+                        bus: assignedBus.number || '',
+                        route: d.routeName || assignedBus.route || 'Campus Route',
+                        timeStr: t,
+                        status: d.checkOutTime ? 'Checked Out' : 'Checked In'
+                    });
+                });
+            }
+
+            if (records.length === 0) {
+                alert("No recent boardings recorded for today to export.");
+                return;
+            }
+
+            const headers = ['Student ID', 'Passenger Name', 'Bus Number', 'Route', 'Check-In Time', 'Status'];
+            const rows = records.map(r => [
+                `"${String(r.studentId).replace(/"/g, '""')}"`,
+                `"${String(r.studentName).replace(/"/g, '""')}"`,
+                `"${String(r.bus).replace(/"/g, '""')}"`,
+                `"${String(r.route).replace(/"/g, '""')}"`,
+                `"${r.timeStr}"`,
+                `"${r.status}"`
+            ].join(','));
+
+            const csv = `${headers.join(',')}\n${rows.join('\n')}\n`;
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
-            a.setAttribute('download', `boardings_${dateStr}.csv`);
+            a.setAttribute('download', `cambus_driver_boardings_${dateStr}.csv`);
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
         } catch (e) {
+            console.error("Error exporting CSV:", e);
             alert("Error exporting CSV: " + e.message);
         }
-    };
-    
-    setTimeout(() => {
-        const boardingsHeader = document.querySelector('#boardings-list').previousElementSibling;
-        if (boardingsHeader) {
-            boardingsHeader.style.display = 'flex';
-            boardingsHeader.style.alignItems = 'center';
-            boardingsHeader.appendChild(exportBtn);
-        }
-    }, 500);
+    }
+
+    const driverExportBtn = document.getElementById('btn-export-driver-boardings-csv');
+    if (driverExportBtn) {
+        driverExportBtn.addEventListener('click', exportDriverBoardingsCsv);
+    }
 
 });

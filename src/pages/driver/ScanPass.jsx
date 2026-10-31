@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   QrCode, Search, CheckCircle2, XCircle, ArrowLeft, ShieldCheck, 
   Users, Plus, Minus, RotateCcw, Camera, CameraOff, AlertTriangle, 
-  Bus, Clock, UserCheck, RefreshCw, Trash2, Lock, ArrowRight, Check, Upload
+  Bus, Clock, UserCheck, RefreshCw, Trash2, Lock, ArrowRight, Check, Upload, Download
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -459,6 +459,54 @@ export function DriverScanPass() {
     }
   };
 
+  const handleExportCsv = () => {
+    if (recentBoardings.length === 0) {
+      showError("No recent boarding records available to export.");
+      return;
+    }
+
+    const busNum = activeBusData?.number || 'Bus';
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const headers = [
+      'Student ID',
+      'Passenger Name',
+      'Bus Number',
+      'Route Name',
+      'Check-In Date',
+      'Check-In Time'
+    ];
+
+    const rows = recentBoardings.map((b) => {
+      const timeStr = b.time instanceof Date && !isNaN(b.time)
+        ? b.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        : '—';
+      const dateVal = b.date || (b.time instanceof Date && !isNaN(b.time) ? b.time.toISOString().split('T')[0] : dateStr);
+
+      return [
+        `"${String(b.studentId || '').replace(/"/g, '""')}"`,
+        `"${String(b.studentName || 'Student').replace(/"/g, '""')}"`,
+        `"${String(activeBusData?.number || '').replace(/"/g, '""')}"`,
+        `"${String(b.routeName || activeBusData?.route || 'Campus Express').replace(/"/g, '""')}"`,
+        `"${dateVal}"`,
+        `"${timeStr}"`
+      ].join(',');
+    });
+
+    const csvContent = `${headers.join(',')}\n${rows.join('\n')}\n`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `cambus_driver_boardings_bus_${busNum}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showSuccess(`Exported ${recentBoardings.length} boarding records to CSV`);
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12 font-sans">
       {/* Return to Dashboard */}
@@ -735,9 +783,21 @@ export function DriverScanPass() {
                 <Clock className="w-4 h-4 text-teal-600" />
                 <span>Recent Boardings</span>
               </div>
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
-                {recentBoardings.length} Riders
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                  {recentBoardings.length} Riders
+                </span>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  icon={Download}
+                  onClick={handleExportCsv}
+                  disabled={recentBoardings.length === 0}
+                  className="text-[11px] font-bold py-1 px-2.5 rounded-xl gap-1"
+                >
+                  Export CSV
+                </Button>
+              </div>
             </div>
 
             <div className="max-h-[460px] overflow-y-auto space-y-2 pr-1">

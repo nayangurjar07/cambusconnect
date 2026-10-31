@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Clock, Bus, Users, Search, Calendar, Save, CheckCircle2, 
-  AlertCircle, Radio, User, Phone, Plus, Trash2 
+  AlertCircle, Radio, User, Phone, Plus, Trash2, Download 
 } from 'lucide-react';
 import { 
   db, collection, doc, query, where, orderBy, limit, onSnapshot, serverTimestamp 
@@ -219,6 +219,54 @@ export function AdminShifts() {
       route.includes(search) ||
       email.includes(search);
   });
+
+  const handleExportSubmittedBoardingsCsv = () => {
+    if (filteredSubmitted.length === 0) {
+      showError("No submitted boarding records to export.");
+      return;
+    }
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    const headers = [
+      'Student Name',
+      'Student ID',
+      'Bus Number',
+      'Route Name',
+      'Scanned At',
+      'Submitted At',
+      'Driver Email'
+    ];
+
+    const rows = filteredSubmitted.map(rec => {
+      const scannedDate = rec.scannedAt ? new Date(rec.scannedAt) : null;
+      const scannedStr = scannedDate ? scannedDate.toLocaleString() : '—';
+      const subTime = rec.submittedAt?.toDate ? rec.submittedAt.toDate() : (rec.submittedAt ? new Date(rec.submittedAt) : null);
+      const subStr = subTime ? subTime.toLocaleString() : '—';
+
+      return [
+        `"${String(rec.studentName || 'Student').replace(/"/g, '""')}"`,
+        `"${String(rec.studentId || '').replace(/"/g, '""')}"`,
+        `"${String(rec.busNumber || '').replace(/"/g, '""')}"`,
+        `"${String(rec.routeName || '').replace(/"/g, '""')}"`,
+        `"${scannedStr}"`,
+        `"${subStr}"`,
+        `"${String(rec.driverEmail || '').replace(/"/g, '""')}"`
+      ].join(',');
+    });
+
+    const csvContent = `${headers.join(',')}\n${rows.join('\n')}\n`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `cambus_submitted_boardings_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showSuccess(`Exported ${filteredSubmitted.length} submitted boardings to CSV`);
+  };
 
   const tabs = [
     { id: 'live', label: 'Live Runs', count: activeSessions.length },
@@ -554,13 +602,25 @@ export function AdminShifts() {
       {/* ---------------- SUBMITTED BOARDINGS TAB ---------------- */}
       {activeTab === 'submitted' && (
         <div className="space-y-3">
-          <div className="max-w-xs w-full">
-            <Input
-              icon={Search}
-              placeholder="Search by student, ID, or bus..."
-              value={submittedSearch}
-              onChange={(e) => setSubmittedSearch(e.target.value)}
-            />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="max-w-xs w-full">
+              <Input
+                icon={Search}
+                placeholder="Search by student, ID, or bus..."
+                value={submittedSearch}
+                onChange={(e) => setSubmittedSearch(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={Download}
+              onClick={handleExportSubmittedBoardingsCsv}
+              disabled={filteredSubmitted.length === 0}
+              className="text-xs font-semibold gap-1.5 self-start sm:self-auto"
+            >
+              Export CSV
+            </Button>
           </div>
 
           <Card>
