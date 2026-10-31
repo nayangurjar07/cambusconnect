@@ -653,9 +653,9 @@ export function AdminScanPass() {
               </div>
             </div>
 
-            {/* Viewfinder Area */}
+            {/* Viewfinder Area - Minimalist & Compact */}
             <div 
-              className="p-5 bg-slate-50/50"
+              className="p-6 bg-slate-50/40 flex flex-col items-center justify-center border-b border-slate-100"
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
             >
@@ -668,14 +668,14 @@ export function AdminScanPass() {
                 embedded={true}
               />
 
-              <div className="mt-3.5 text-center">
+              <div className="mt-3 text-center">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-gray-500 hover:text-blue-600 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="text-xs text-slate-500 hover:text-blue-600 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Upload className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Or <strong className="font-semibold underline">upload QR code screenshot / image file</strong> (PNG, JPG)</span>
+                  <span>Or <strong className="font-semibold underline">upload QR screenshot / image file</strong></span>
                 </button>
               </div>
             </div>
