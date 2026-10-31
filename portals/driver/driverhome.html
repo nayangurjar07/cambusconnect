@@ -581,6 +581,20 @@
 
                                 <div id="qr-reader" style="width:100%; height:100%;"></div>
 
+                                <!-- Quick Action HUD Controls Overlay -->
+                                <div id="scanner-hud-controls" style="position:absolute; bottom:12px; left:0; right:0; display:flex; justify-content:center; align-items:center; gap:12px; z-index:30; pointer-events:auto;">
+                                    <button id="btn-toggle-torch" type="button" style="width:38px; height:38px; border-radius:50%; background:rgba(15,23,42,0.8); color:#fff; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Toggle Flashlight">
+                                        <span class="material-symbols-outlined" style="font-size:18px;">flash_on</span>
+                                    </button>
+                                    <button id="btn-flip-camera" type="button" style="width:38px; height:38px; border-radius:50%; background:rgba(15,23,42,0.8); color:#fff; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Switch Camera">
+                                        <span class="material-symbols-outlined" style="font-size:18px;">cameraswitch</span>
+                                    </button>
+                                    <button id="btn-manual-id" type="button" style="height:38px; padding:0 14px; border-radius:19px; background:rgba(15,23,42,0.8); color:#fff; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; cursor:pointer;" title="Manual ID Entry">
+                                        <span class="material-symbols-outlined" style="font-size:16px;">keyboard</span>
+                                        <span>Manual ID</span>
+                                    </button>
+                                </div>
+
                                 <!-- Placeholder -->
                                 <div id="qr-reader-placeholder" style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:rgba(15,23,42,0.85); z-index:20;">
                                     <div style="width:56px; height:56px; border-radius:9999px; background:rgba(30,41,59,0.9); display:flex; align-items:center; justify-content:center; margin-bottom:8px;">
@@ -745,6 +759,43 @@
             <div class="modal-footer">
                 <button id="btn-cancel-confirm" class="btn-modal-cancel">Cancel</button>
                 <button id="btn-action-confirm" class="btn-modal-confirm">Confirm & Add (+1)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide-Up Instant Verification Bottom Sheet -->
+    <div id="verification-bottom-sheet" style="position:fixed; bottom:0; left:0; right:0; z-index:250; transform:translateY(110%); transition:transform 0.3s cubic-bezier(0,0,0.2,1); padding:16px; max-width:480px; margin:0 auto; pointer-events:none;">
+        <div id="bottom-sheet-card" style="background:#fff; border-radius:24px; padding:20px; box-shadow:0 20px 40px rgba(0,0,0,0.25); border:2px solid #10b981; pointer-events:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div id="sheet-icon-wrapper" style="width:48px; height:48px; border-radius:14px; background:#ecfdf5; color:#059669; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <span id="sheet-icon" class="material-symbols-outlined" style="font-size:28px;">verified</span>
+                    </div>
+                    <div>
+                        <div id="sheet-badge" style="display:inline-block; padding:2px 8px; border-radius:9999px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; background:#d1fae5; color:#065f46;">
+                            VERIFIED — ALLOW BOARDING
+                        </div>
+                        <h3 id="sheet-student-name" style="margin:2px 0 0; font-size:17px; font-weight:800; color:#0f172a;">Student Name</h3>
+                    </div>
+                </div>
+                <button id="btn-close-bottom-sheet" style="background:none; border:none; color:#94a3b8; cursor:pointer; padding:4px;">
+                    <span class="material-symbols-outlined" style="font-size:20px;">close</span>
+                </button>
+            </div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px; background:#f8fafc; padding:12px; border-radius:14px; border:1px solid #f1f5f9;">
+                <div>
+                    <span style="color:#94a3b8; font-size:10px; text-transform:uppercase; font-weight:700;">Enrollment ID:</span>
+                    <p id="sheet-enrollment" style="margin:2px 0 0; font-weight:700; color:#1e293b; font-family:monospace;">0818CS221001</p>
+                </div>
+                <div>
+                    <span style="color:#94a3b8; font-size:10px; text-transform:uppercase; font-weight:700;">Assigned Route:</span>
+                    <p id="sheet-route" style="margin:2px 0 0; font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Route 5</p>
+                </div>
+                <div style="grid-column:span 2;">
+                    <span style="color:#94a3b8; font-size:10px; text-transform:uppercase; font-weight:700;">Verification Note:</span>
+                    <p id="sheet-note" style="margin:2px 0 0; font-weight:500; color:#475569;">Passenger verified and headcount updated.</p>
+                </div>
             </div>
         </div>
     </div>

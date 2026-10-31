@@ -900,6 +900,222 @@ document.addEventListener('DOMContentLoaded', () => {
     const cameraBtnText = document.getElementById('camera-btn-text');
     const cameraBtnIcon = document.getElementById('camera-btn-icon');
 
+    let currentFacingMode = "environment";
+    let isTorchActive = false;
+    let bottomSheetTimer = null;
+
+    // Web Audio API Synthesized Transit Chimes
+    const audioCtx = (typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext))
+        ? new (window.AudioContext || window.webkitAudioContext)()
+        : null;
+
+    function playAudioFeedback(type) {
+        if (!audioCtx) return;
+        try {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'valid') {
+                // High-pitched pleasant transit chime (880Hz -> 1320Hz)
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.28);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.28);
+            } else {
+                // Low double buzz for warning / invalid
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.15);
+
+                setTimeout(() => {
+                    if (!audioCtx) return;
+                    const osc2 = audioCtx.createOscillator();
+                    const gain2 = audioCtx.createGain();
+                    osc2.type = 'sawtooth';
+                    osc2.connect(gain2);
+                    gain2.connect(audioCtx.destination);
+                    osc2.frequency.setValueAtTime(180, audioCtx.currentTime);
+                    gain2.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+                    osc2.start(audioCtx.currentTime);
+                    osc2.stop(audioCtx.currentTime + 0.18);
+                }, 180);
+            }
+        } catch (e) {
+            console.warn('Audio feedback warning:', e);
+        }
+    }
+
+    function triggerHaptic(isValid) {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            try {
+                navigator.vibrate(isValid ? [80] : [120, 60, 120]);
+            } catch (e) {}
+        }
+    }
+
+    function showVerificationSheet(state, data = {}) {
+        const sheet = document.getElementById('verification-bottom-sheet');
+        const card = document.getElementById('bottom-sheet-card');
+        const iconWrapper = document.getElementById('sheet-icon-wrapper');
+        const icon = document.getElementById('sheet-icon');
+        const badge = document.getElementById('sheet-badge');
+        const nameEl = document.getElementById('sheet-student-name');
+        const enrollEl = document.getElementById('sheet-enrollment');
+        const routeEl = document.getElementById('sheet-route');
+        const noteEl = document.getElementById('sheet-note');
+        if (!sheet || !card) return;
+
+        if (bottomSheetTimer) clearTimeout(bottomSheetTimer);
+
+        if (state === 'valid') {
+            playAudioFeedback('valid');
+            triggerHaptic(true);
+            card.style.borderColor = '#10b981';
+            if (iconWrapper) {
+                iconWrapper.style.background = '#ecfdf5';
+                iconWrapper.style.color = '#059669';
+            }
+            if (icon) icon.textContent = 'verified';
+            if (badge) {
+                badge.style.background = '#d1fae5';
+                badge.style.color = '#065f46';
+                badge.textContent = 'VERIFIED — ALLOW BOARDING';
+            }
+            if (nameEl) nameEl.textContent = data.name || 'Student';
+            if (enrollEl) enrollEl.textContent = data.enrollment || data.id || 'N/A';
+            if (routeEl) routeEl.textContent = data.route || 'Valid Route';
+            if (noteEl) noteEl.textContent = data.note || 'Passenger verified. Headcount automatically incremented.';
+
+            // Hands-free auto dismiss after 2.2 seconds
+            bottomSheetTimer = setTimeout(() => {
+                sheet.style.transform = 'translateY(110%)';
+            }, 2200);
+        } else if (state === 'locked') {
+            playAudioFeedback('invalid');
+            triggerHaptic(false);
+            card.style.borderColor = '#f59e0b';
+            if (iconWrapper) {
+                iconWrapper.style.background = '#fffbeb';
+                iconWrapper.style.color = '#d97706';
+            }
+            if (icon) icon.textContent = 'lock_clock';
+            if (badge) {
+                badge.style.background = '#fef3c7';
+                badge.style.color = '#92400e';
+                badge.textContent = 'ANTI-PASSBACK LOCK — ALREADY SCANNED TODAY';
+            }
+            if (nameEl) nameEl.textContent = data.name || 'Student';
+            if (enrollEl) enrollEl.textContent = data.enrollment || data.id || 'N/A';
+            if (routeEl) routeEl.textContent = data.route || 'N/A';
+            if (noteEl) noteEl.textContent = data.note || `Scanned today at ${data.scannedAt || new Date().toLocaleTimeString()}. Pass-sharing prevented.`;
+
+            bottomSheetTimer = setTimeout(() => {
+                sheet.style.transform = 'translateY(110%)';
+            }, 3800);
+        } else {
+            playAudioFeedback('invalid');
+            triggerHaptic(false);
+            card.style.borderColor = '#ef4444';
+            if (iconWrapper) {
+                iconWrapper.style.background = '#fef2f2';
+                iconWrapper.style.color = '#dc2626';
+            }
+            if (icon) icon.textContent = 'block';
+            if (badge) {
+                badge.style.background = '#fee2e2';
+                badge.style.color = '#991b1b';
+                badge.textContent = 'DENIED — PASS EXPIRED OR WRONG ROUTE';
+            }
+            if (nameEl) nameEl.textContent = data.name || 'Access Denied';
+            if (enrollEl) enrollEl.textContent = data.enrollment || data.id || 'N/A';
+            if (routeEl) routeEl.textContent = data.route || 'Route Mismatch';
+            if (noteEl) noteEl.textContent = data.note || 'Invalid credentials or expired semester pass.';
+
+            bottomSheetTimer = setTimeout(() => {
+                sheet.style.transform = 'translateY(110%)';
+            }, 3800);
+        }
+
+        sheet.style.transform = 'translateY(0)';
+    }
+
+    // Close button for bottom sheet
+    const btnCloseSheet = document.getElementById('btn-close-bottom-sheet');
+    if (btnCloseSheet) {
+        btnCloseSheet.addEventListener('click', () => {
+            const sheet = document.getElementById('verification-bottom-sheet');
+            if (sheet) sheet.style.transform = 'translateY(110%)';
+        });
+    }
+
+    // Torch / Flashlight Toggle
+    const btnToggleTorch = document.getElementById('btn-toggle-torch');
+    if (btnToggleTorch) {
+        btnToggleTorch.addEventListener('click', async () => {
+            try {
+                if (!html5QrScanner || !html5QrScanner.isScanning) {
+                    alert('Please start the scanner camera first to toggle flashlight.');
+                    return;
+                }
+                const track = (html5QrScanner.getRunningTrackCameraCapabilities && html5QrScanner.getRunningTrackCameraCapabilities()) || null;
+                // Alternatively check video element track
+                const videoEl = document.querySelector('#qr-reader video');
+                const stream = videoEl && videoEl.srcObject;
+                const videoTrack = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
+                if (videoTrack) {
+                    const caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+                    if (caps.torch) {
+                        isTorchActive = !isTorchActive;
+                        await videoTrack.applyConstraints({ advanced: [{ torch: isTorchActive }] });
+                        btnToggleTorch.style.color = isTorchActive ? '#fbbf24' : '#fff';
+                    } else {
+                        alert('Torch is not supported on this camera device.');
+                    }
+                } else {
+                    alert('Camera video stream is not accessible for torch control.');
+                }
+            } catch (err) {
+                console.warn('Torch control warning:', err);
+                alert('Flashlight toggle failed: ' + err.message);
+            }
+        });
+    }
+
+    // Switch Camera (Rear <-> Front)
+    const btnFlipCamera = document.getElementById('btn-flip-camera');
+    if (btnFlipCamera) {
+        btnFlipCamera.addEventListener('click', () => {
+            currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+            if (html5QrScanner && html5QrScanner.isScanning) {
+                stopCameraScanner().then(() => {
+                    setTimeout(() => startCameraScanner(), 200);
+                });
+            }
+        });
+    }
+
+    // Manual ID Entry Shortcut
+    const btnManualId = document.getElementById('btn-manual-id');
+    if (btnManualId) {
+        btnManualId.addEventListener('click', () => {
+            const simInput = document.getElementById('sim-college-id');
+            if (simInput) {
+                simInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                simInput.focus();
+            }
+        });
+    }
+
     function startCameraScanner() {
         if (!assignedBus) {
             if (scannerStatus) {
@@ -1082,6 +1298,141 @@ document.addEventListener('DOMContentLoaded', () => {
             scannerStatus.style.color = "#2563eb";
         }
 
+        // 1. Dedicated transit QR format: CAMBUS:${collegeId}:${assignedBus}:${todayIso}
+        if (rawText.startsWith('CAMBUS:')) {
+            const parts = rawText.split(':');
+            const scannedCollegeId = parts[1] || 'UNKNOWN';
+            const scannedBusId = parts[2] || '';
+            const scannedDate = parts[3] || '';
+            const todayIso = new Date().toISOString().slice(0, 10);
+
+            // Fetch matching student record
+            let student = null;
+            try {
+                const snapshot = await dbHelper.getUsersCol().get();
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const sId = (data.collegeId || '').toString().toLowerCase();
+                    const enroll = (data.enrollment || '').toString().toLowerCase();
+                    const email = (data.email || doc.id || '').toString().toLowerCase();
+                    if (sId === scannedCollegeId.toLowerCase() || enroll === scannedCollegeId.toLowerCase() || email === scannedCollegeId.toLowerCase()) {
+                        student = { id: doc.id, ...data };
+                    }
+                });
+            } catch (e) {
+                console.warn("DB lookup error during CAMBUS pass scan:", e);
+            }
+
+            const studentName = student ? (student.name || student.studentName || 'Student') : `Student (${scannedCollegeId})`;
+            const enrollment = student ? (student.collegeId || student.enrollment || scannedCollegeId) : scannedCollegeId;
+            const assignedRoute = (student && student.busRoute) || (assignedBus && assignedBus.routeName) || `Bus ${scannedBusId}`;
+
+            // Check Pass Expiration
+            let isExpired = false;
+            let validityDateStr = '';
+            if (student && student.passValidity) {
+                const validityDate = new Date(student.passValidity);
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                if (validityDate < today) {
+                    isExpired = true;
+                    validityDateStr = validityDate.toLocaleDateString();
+                }
+            }
+
+            if (isExpired) {
+                showVerificationSheet('denied', {
+                    name: studentName,
+                    enrollment: enrollment,
+                    route: assignedRoute,
+                    note: `Pass expired on ${validityDateStr}. Boarding denied.`
+                });
+                if (scannerStatus) {
+                    scannerStatus.textContent = `Expired Pass: ${studentName}`;
+                    scannerStatus.style.color = "#e53935";
+                }
+                return;
+            }
+
+            // Check Bus/Route match if assignedBus is active
+            if (assignedBus && scannedBusId && scannedBusId !== 'NA' && scannedBusId !== assignedBus.id && scannedBusId !== assignedBus.number && student && student.assignedBusId && student.assignedBusId !== assignedBus.id) {
+                showVerificationSheet('denied', {
+                    name: studentName,
+                    enrollment: enrollment,
+                    route: assignedRoute,
+                    note: `Route mismatch: Student assigned to Bus ${scannedBusId}, this is Bus ${assignedBus.number || assignedBus.id}.`
+                });
+                if (scannerStatus) {
+                    scannerStatus.textContent = `Wrong Route: ${studentName}`;
+                    scannerStatus.style.color = "#e53935";
+                }
+                return;
+            }
+
+            // Anti-passback check: check if already scanned today
+            const sId = student ? (student.id || student.collegeId) : scannedCollegeId;
+            const currentBusId = assignedBus ? assignedBus.id : (scannedBusId || 'campus_transit');
+            const logRef = (window.db || firebase.firestore()).collection(`buses/${currentBusId}/boardings`).doc(`${sId}_${todayIso}`);
+            
+            try {
+                const logSnap = await logRef.get();
+                if (logSnap.exists && logSnap.data() && logSnap.data().checkInTime) {
+                    const checkInData = logSnap.data();
+                    let scanTimeStr = 'earlier today';
+                    if (checkInData.checkInTime && checkInData.checkInTime.toDate) {
+                        scanTimeStr = checkInData.checkInTime.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    }
+                    showVerificationSheet('locked', {
+                        name: studentName,
+                        enrollment: enrollment,
+                        route: assignedRoute,
+                        scannedAt: scanTimeStr,
+                        note: `Anti-passback active. Already checked in at ${scanTimeStr}. Pass-sharing prevented.`
+                    });
+                    if (scannerStatus) {
+                        scannerStatus.textContent = `Locked: Already scanned today at ${scanTimeStr}`;
+                        scannerStatus.style.color = "#f59e0b";
+                    }
+                    return;
+                }
+
+                // Valid boarding!
+                if (assignedBus && assignedBus.id) {
+                    const busRef = dbHelper.getBusesCol().doc(assignedBus.id);
+                    await busRef.set({ headcount: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+                }
+                await logRef.set({
+                    studentId: sId,
+                    studentName: studentName,
+                    busNumber: assignedBus ? (assignedBus.number || assignedBus.id) : scannedBusId,
+                    checkInTime: firebase.firestore.FieldValue.serverTimestamp(),
+                    checkInBus: currentBusId,
+                    date: todayIso,
+                    routeName: assignedRoute
+                }, { merge: true });
+
+                showVerificationSheet('valid', {
+                    name: studentName,
+                    enrollment: enrollment,
+                    route: assignedRoute,
+                    note: 'Pass authenticated. Headcount auto-incremented.'
+                });
+                if (scannerStatus) {
+                    scannerStatus.textContent = `Verified: ${studentName}`;
+                    scannerStatus.style.color = "#10b981";
+                }
+            } catch (err) {
+                console.error("Boarding verification error:", err);
+                showVerificationSheet('valid', {
+                    name: studentName,
+                    enrollment: enrollment,
+                    route: assignedRoute,
+                    note: 'Verified offline mode.'
+                });
+            }
+            return;
+        }
+
         if (rawText.length > 20 && !rawText.includes(' ')) {
             let payloadObject = null;
             try {
@@ -1173,6 +1524,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!matchedStudent) {
                     playBeep(220, 300);
                     const reason = "Student not found in registry.";
+                    showVerificationSheet('denied', {
+                        name: 'Unknown Student',
+                        enrollment: rawText,
+                        route: 'N/A',
+                        note: reason
+                    });
                     if (scannerStatus) {
                         scannerStatus.textContent = reason;
                         scannerStatus.style.color = "#e53935";
@@ -1192,6 +1549,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!studentDomain || !allowedDomains.includes(studentDomain)) {
                         playBeep(220, 300);
                         const reason = `Scan rejected. Student domain (${studentDomain || 'unknown'}) is not authorized for this institute.`;
+                        showVerificationSheet('denied', {
+                            name: matchedStudent.name || 'Student',
+                            enrollment: matchedStudent.collegeId || matchedStudent.enrollment || matchedStudent.id,
+                            route: matchedStudent.busRoute || 'N/A',
+                            note: reason
+                        });
                         if (scannerStatus) {
                             scannerStatus.textContent = reason;
                             scannerStatus.style.color = "#e53935";
@@ -1217,6 +1580,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isExpired) {
                     playBeep(220, 300);
                     const reason = `Pass Expired on ${validityDate.toLocaleDateString()}`;
+                    showVerificationSheet('denied', {
+                        name: matchedStudent.name || 'Student',
+                        enrollment: matchedStudent.collegeId || matchedStudent.enrollment || matchedStudent.id,
+                        route: matchedStudent.busRoute || 'N/A',
+                        note: reason
+                    });
                     if (scannerStatus) {
                         scannerStatus.textContent = reason;
                         scannerStatus.style.color = "#e53935";
@@ -1283,6 +1652,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mode === 'verify') {
             playBeep(880, 150);
             showToast(true, "Verified", `${student.name || student.studentName} pass is valid.`);
+            showVerificationSheet('valid', {
+                name: student.name || student.studentName,
+                enrollment: sId,
+                route: student.busRoute || student.routeName || (assignedBus ? assignedBus.routeName : 'Assigned Route'),
+                note: 'Pass authenticated successfully.'
+            });
             if (scannerStatus) {
                 scannerStatus.textContent = `Verified: ${student.name || student.studentName}`;
                 scannerStatus.style.color = "#3b82f6";
@@ -1303,7 +1678,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mode === 'checkin') {
                 if (data && data.checkInTime) {
                     playBeep(220, 300);
+                    let scanTimeStr = 'earlier today';
+                    if (data.checkInTime && data.checkInTime.toDate) {
+                        scanTimeStr = data.checkInTime.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
                     showToast(false, "Check-In Denied", "Student already checked in today.");
+                    showVerificationSheet('locked', {
+                        name: student.name || student.studentName,
+                        enrollment: sId,
+                        route: student.busRoute || student.routeName || (assignedBus ? assignedBus.routeName : 'Assigned Route'),
+                        scannedAt: scanTimeStr,
+                        note: `Anti-passback active. Already checked in at ${scanTimeStr}. Pass-sharing prevented.`
+                    });
                     if(scannerStatus) {
                         scannerStatus.textContent = "Already Checked In";
                         scannerStatus.style.color = "#ef4444";
@@ -1324,6 +1710,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 playBeep(880, 150);
                 showToast(true, "Checked In", `${student.name || student.studentName} checked in.`);
+                showVerificationSheet('valid', {
+                    name: student.name || student.studentName,
+                    enrollment: sId,
+                    route: student.busRoute || student.routeName || (assignedBus ? assignedBus.routeName : 'Assigned Route'),
+                    note: 'Pass authenticated. Headcount auto-incremented.'
+                });
                 if (scannerStatus) {
                     scannerStatus.textContent = `Checked In: ${student.name || student.studentName}`;
                     scannerStatus.style.color = "#10b981";

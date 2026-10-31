@@ -105,21 +105,91 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ========================================
-    // 5. DISPLAY PASS INFORMATION
+    // 5. DISPLAY PASS INFORMATION & WALLET CARD
     // ========================================
     if(student) {
         const passName = document.getElementById('pass-name');
+        const passDeptYear = document.getElementById('pass-dept-year');
         const passCollegeId = document.getElementById('pass-college-id');
         const passRoute = document.getElementById('pass-route');
+        const passBusNumber = document.getElementById('pass-bus-number');
+        const passBusRoute = document.getElementById('pass-bus-route');
+        const passValidThrough = document.getElementById('pass-valid-through');
+        const passValidCountdown = document.getElementById('pass-valid-countdown');
+        const passStatusPill = document.getElementById('pass-status-pill');
+        const passStatusText = document.getElementById('pass-status-text');
         
         if(passName) passName.textContent = studentName;
+        if(passDeptYear) passDeptYear.textContent = `${student.department || 'Transit Student'}${student.year ? ' • ' + student.year : ''}`;
         if(passCollegeId) passCollegeId.textContent = studentId;
         if(passRoute) passRoute.textContent = studentRoute;
-        
-        const validityBadge = document.getElementById('pass-validity-badge');
-        if(validityBadge) {
-            const validityDate = student.passValidity || '31 Dec 2025';
-            validityBadge.querySelector('p:last-child').textContent = validityDate;
+        if(passBusNumber) passBusNumber.textContent = student.assignedBusNumber ? `BUS ${student.assignedBusNumber}` : (student.assignedBusId ? `BUS ${student.assignedBusId}` : 'BUS --');
+        if(passBusRoute) passBusRoute.textContent = studentRoute || 'General Campus Route';
+
+        // Calculate days left & format expiration date
+        let validityDate = null;
+        if (student.passValidity) {
+            validityDate = new Date(student.passValidity + 'T23:59:59');
+        }
+        const now = new Date();
+        const isExpired = validityDate && !isNaN(validityDate.getTime()) && validityDate < now;
+        const daysLeft = validityDate && !isNaN(validityDate.getTime()) ? Math.ceil((validityDate - now) / (1000 * 60 * 60 * 24)) : null;
+
+        if (passValidThrough) {
+            passValidThrough.textContent = student.passValidity ? new Date(student.passValidity + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' }) : 'Not Set';
+        }
+        if (passValidCountdown) {
+            if (isExpired) {
+                passValidCountdown.textContent = 'Expired';
+                passValidCountdown.className = 'text-[10px] text-red-600 font-bold mt-0.5';
+            } else if (daysLeft !== null) {
+                passValidCountdown.textContent = `${daysLeft} days remaining`;
+                passValidCountdown.className = 'text-[10px] text-emerald-600 font-semibold mt-0.5';
+            } else {
+                passValidCountdown.textContent = 'Active Status';
+            }
+        }
+
+        if (passStatusPill && passStatusText) {
+            if (isExpired) {
+                passStatusPill.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-400/30 backdrop-blur-md';
+                passStatusText.textContent = 'EXPIRED';
+            } else {
+                passStatusPill.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 backdrop-blur-md';
+                passStatusText.textContent = 'ACTIVE PASS';
+            }
+        }
+
+        // Live Anti-Screenshot Security Clock (updates every second)
+        function updateLiveSecurityClock() {
+            const clockEl = document.getElementById('live-security-clock');
+            if (!clockEl) return;
+            const cur = new Date();
+            const timeStr = cur.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateStr = cur.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
+            clockEl.textContent = `${timeStr} • ${dateStr}`;
+        }
+        setInterval(updateLiveSecurityClock, 1000);
+        updateLiveSecurityClock();
+
+        // Max Brightness / Zoom QR Toggle
+        const btnZoomQr = document.getElementById('btn-zoom-qr');
+        const qrFrameWrapper = document.getElementById('qr-frame-wrapper');
+        const zoomQrText = document.getElementById('zoom-qr-text');
+        let isZoomed = false;
+        if (btnZoomQr && qrFrameWrapper) {
+            btnZoomQr.addEventListener('click', () => {
+                isZoomed = !isZoomed;
+                if (isZoomed) {
+                    qrFrameWrapper.classList.add('scale-110', 'z-20');
+                    btnZoomQr.classList.add('bg-amber-100', 'border-amber-300', 'text-amber-900');
+                    if (zoomQrText) zoomQrText.textContent = 'Exit Zoom';
+                } else {
+                    qrFrameWrapper.classList.remove('scale-110', 'z-20');
+                    btnZoomQr.classList.remove('bg-amber-100', 'border-amber-300', 'text-amber-900');
+                    if (zoomQrText) zoomQrText.textContent = 'Max Brightness / Zoom';
+                }
+            });
         }
         
         const escapeHTML = str => String(str).replace(/[&<>'"]/g, 
@@ -148,15 +218,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 min-w-0">
                     <p class="text-xs text-gray-500 mb-1">Valid Until</p>
-                    <p class="font-semibold text-green-600 break-words-safe">${escapeHTML(student.passValidity || '31 Dec 2025')}</p>
+                    <p class="font-semibold text-green-600 break-words-safe">${escapeHTML(student.passValidity || 'Not Set')}</p>
                 </div>
                 <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 min-w-0">
                     <p class="text-xs text-gray-500 mb-1">Pass Type</p>
-                    <p class="font-semibold text-gray-800 break-words-safe">Yearly Student Pass</p>
+                    <p class="font-semibold text-gray-800 break-words-safe">Institutional Student Transit Pass</p>
                 </div>
                 <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 min-w-0">
-                    <p class="text-xs text-gray-500 mb-1">Pass ID</p>
-                    <p class="font-semibold text-gray-800 break-all">${escapeHTML(qrCodeText)}</p>
+                    <p class="text-xs text-gray-500 mb-1">Pass Token</p>
+                    <p class="font-semibold text-gray-800 break-all font-mono text-xs">${escapeHTML(qrCodeText)}</p>
                 </div>
             `;
         }
@@ -210,6 +280,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateCheckinStatus() {
         const statusEl = document.getElementById('checkin-status');
         const buttonEl = document.getElementById('checkin-button');
+        const passBoardingPill = document.getElementById('pass-boarding-pill');
+        
+        if (passBoardingPill) {
+            if (qrCheckedIn) {
+                passBoardingPill.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300';
+                passBoardingPill.innerHTML = '<span class="material-symbols-outlined text-[14px] text-emerald-600">check_circle</span><span>Boarded Today • Locked</span>';
+            } else {
+                passBoardingPill.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200';
+                passBoardingPill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span><span>Ready to Board</span>';
+            }
+        }
         
         if(statusEl && buttonEl) {
             if(qrCheckedIn) {

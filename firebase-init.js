@@ -33,6 +33,7 @@ import {
     signOut as fbSignOut,
     onAuthStateChanged,
     GoogleAuthProvider,
+    signInWithPopup,
     linkWithPopup as fbLinkWithPopup,
     signInWithCredential
 } from "firebase/auth";
@@ -225,6 +226,15 @@ class CompatAuth {
     }
     signInWithEmailAndPassword(email, password) {
         return signInWithEmailAndPassword(this._auth, email, password);
+    }
+    signInWithPopup(provider) {
+        const rawProvider = (provider && provider.provider) || provider;
+        return signInWithPopup(this._auth, rawProvider).then(cred => {
+            return {
+                ...cred,
+                user: wrapUser(cred.user)
+            };
+        });
     }
     createUserWithEmailAndPassword(email, password) {
         return createUserWithEmailAndPassword(this._auth, email, password);

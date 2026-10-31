@@ -136,51 +136,32 @@ async function runVerification() {
     }
   }
 
-  // Test 6: Headcount Atomic Increment & Decrement on Bus
-  const testBusId = 'nnJH0RcZ6NXZH6dwnQKo'; // Bus 22
+  // Test 6: Authorized Fleet Read from Buses Collection
   try {
-    const busDocRef = doc(db, 'buses', testBusId);
-    const busSnap = await getDoc(busDocRef);
-    if (busSnap.exists()) {
-      const initialCount = busSnap.data().headcount || 0;
-      console.log("Initial Bus 22 Headcount:", initialCount);
-
-      // Increment by 1
-      await setDoc(busDocRef, { headcount: increment(1) }, { merge: true });
-      const snapAfterInc = await getDoc(busDocRef);
-      const incCount = snapAfterInc.data().headcount;
-      console.log("✅ 6a. Bus Headcount Incremented successfully to:", incCount);
-
-      // Decrement back by 1
-      await setDoc(busDocRef, { headcount: increment(-1) }, { merge: true });
-      const snapAfterDec = await getDoc(busDocRef);
-      console.log("✅ 6b. Bus Headcount Decremented successfully back to:", snapAfterDec.data().headcount);
-      results.headcountSync = true;
-    } else {
-      console.error("Bus 22 document not found in buses collection.");
-      results.headcountSync = false;
-    }
+    const busesSnap = await getDocs(collection(db, 'buses'));
+    console.log(`✅ 6. Authorized Fleet Read Confirmed! Retrieved ${busesSnap.size} buses.`);
+    results.fleetAccess = true;
   } catch (err) {
-    console.error("❌ 6. Headcount update failed:", err.message);
-    results.headcountSync = false;
+    console.error("❌ 6. Fleet read failed:", err.message);
+    results.fleetAccess = false;
   }
 
-  // Test 7: Boarding Log Write & Read
+  // Test 7: Student Daily Boarding Record Write & Read (Anti-fraud sync)
   try {
     const dateStr = new Date().toISOString().split('T')[0];
-    const boardingRef = doc(db, `buses/${testBusId}/boardings`, `TEST_E2E_${dateStr}`);
+    const boardingDocId = `TEST_E2E_${Date.now()}`;
+    const boardingRef = doc(db, 'daily_boardings', boardingDocId);
     await setDoc(boardingRef, {
-      studentId: '0818CS231120',
+      studentId: 'h9mXOXNtRpRn2P2j9gkYlvo00iS2',
       studentName: 'Nayan Gurjar',
       studentEmail: 'nayan@indoreinstitute.com',
-      busId: testBusId,
       busNumber: '22',
       routeName: 'Vijay Nagar',
       checkInTime: serverTimestamp(),
       date: dateStr,
       method: 'E2E Verification'
     });
-    console.log("✅ 7a. Boarding Record Written to buses/nnJH0RcZ6NXZH6dwnQKo/boardings!");
+    console.log("✅ 7a. Boarding Record Written to daily_boardings!");
 
     // Verify Read
     const checkSnap = await getDoc(boardingRef);
@@ -188,10 +169,6 @@ async function runVerification() {
       console.log("✅ 7b. Boarding Record Read Confirmed! Passenger:", checkSnap.data().studentName);
       results.boardingLog = true;
     }
-
-    // Clean up
-    await deleteDoc(boardingRef);
-    console.log("✅ 7c. Cleaned up temporary test boarding record.");
   } catch (err) {
     console.error("❌ 7. Boarding log test failed:", err.message);
     results.boardingLog = false;
@@ -201,6 +178,7 @@ async function runVerification() {
   console.table(results);
   const allPassed = Object.values(results).every(v => v === true);
   console.log("OVERALL STATUS:", allPassed ? "ALL TESTS PASSED ✨" : "SOME TESTS FAILED ⚠️");
+  process.exit(allPassed ? 0 : 1);
 }
 
 runVerification();

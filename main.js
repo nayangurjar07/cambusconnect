@@ -23,6 +23,25 @@ window.escapeHTML = function escapeHTML(value) {
         .replace(/`/g, '&#x60;');
 };
 
+// Fail-safe global CambusCache reference
+if (!window.CambusCache) {
+    window.CambusCache = {
+        _prefix: 'cambus_swr_',
+        set(key, data) {
+            try { sessionStorage.setItem(this._prefix + key, JSON.stringify({ timestamp: Date.now(), data })); } catch (e) {}
+        },
+        get(key, maxAgeMs = 300000) {
+            try {
+                const raw = sessionStorage.getItem(this._prefix + key) || localStorage.getItem(this._prefix + key);
+                if (!raw) return null;
+                const rec = JSON.parse(raw);
+                if (rec && rec.timestamp && (Date.now() - rec.timestamp < maxAgeMs)) return rec.data;
+            } catch (e) {}
+            return null;
+        }
+    };
+}
+
 // =============================================================================
 // MAIN.JS - CAMBUS CONNECT Shared Components & Logic
 // =============================================================================
@@ -481,7 +500,18 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("✅ Global error handlers registered");
 
     // =============================================================================
-    // 12. INITIALIZATION COMPLETE
+    // 12. SERVICE WORKER REGISTRATION (OFFLINE-FIRST SWR)
+    // =============================================================================
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('✅ ServiceWorker registered with scope:', reg.scope))
+                .catch(err => console.warn('⚠️ ServiceWorker registration failed:', err));
+        });
+    }
+
+    // =============================================================================
+    // 13. INITIALIZATION COMPLETE
     // =============================================================================
     
     console.log("✅ Main.js initialization complete");

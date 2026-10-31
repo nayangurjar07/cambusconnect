@@ -148,36 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const userData = docSnap.data();
-            const resolvedRole = (userData.role || 'student').toLowerCase();
-
-            // ROLE CHECK: Only allow students
-            if (resolvedRole !== 'student') {
-                showError(`❌ This portal is for students only. Your role is "${resolvedRole}". Please use the correct login page.`);
-                setLoadingState(false);
-                return;
-            }
-
-            // Check pass validity (end of expiration day)
-            if (userData.passValidity) {
-                const passDate = new Date(userData.passValidity + 'T23:59:59');
-                if (!isNaN(passDate.getTime()) && passDate < new Date()) {
-                    throw new Error(`Your bus pass expired on ${new Date(userData.passValidity + 'T00:00:00').toLocaleDateString()}. Please contact admin to renew.`);
-                }
-            }
-
-            // Save session
-            const defaultDomain = (window.CAMBUS_CONFIG && window.CAMBUS_CONFIG.defaultDomain) || 'indoreinstitute.com';
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('userEmail', email);
-            localStorage.setItem('userRole', 'student');
-            localStorage.setItem('instituteId', tenantInfo.domain || defaultDomain);
-            localStorage.setItem('student', JSON.stringify({ id: email, email: email, ...userData }));
-
-            loginButton.textContent = "Login Successful!";
-            loginButton.classList.remove('bg-blue-600');
-            loginButton.classList.add('bg-green-600');
-
-            setTimeout(() => { window.location.href = 'home/home.html'; }, 500);
+            completeLoginSession(email, userData, tenantInfo);
 
         } catch (error) {
             console.error("❌ Student LOGIN ERROR:", error.code, error.message);
@@ -212,6 +183,88 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (emailInput) emailInput.disabled = loading;
         if (passwordInput) passwordInput.disabled = loading;
+    }
+
+    function completeLoginSession(email, userData, tenantInfo) {
+        const resolvedRole = (userData.role || 'student').toLowerCase();
+
+        // ROLE CHECK: Only allow students
+        if (resolvedRole !== 'student') {
+            showError(`❌ This portal is for students only. Your role is "${resolvedRole}". Please use the correct login page.`);
+            setLoadingState(false);
+            return;
+        }
+
+        // Check pass validity (end of expiration day)
+        if (userData.passValidity) {
+            const passDate = new Date(userData.passValidity + 'T23:59:59');
+            if (!isNaN(passDate.getTime()) && passDate < new Date()) {
+                showError(`Your bus pass expired on ${new Date(userData.passValidity + 'T00:00:00').toLocaleDateString()}. Please contact admin to renew.`);
+                setLoadingState(false);
+                return;
+            }
+        }
+
+        // Save session
+        const defaultDomain = (window.CAMBUS_CONFIG && window.CAMBUS_CONFIG.defaultDomain) || 'indoreinstitute.com';
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('userRole', 'student');
+        localStorage.setItem('instituteId', (tenantInfo && tenantInfo.domain) || defaultDomain);
+        localStorage.setItem('student', JSON.stringify({ id: email, email: email, ...userData }));
+
+        loginButton.textContent = "Login Successful!";
+        loginButton.classList.remove('bg-blue-600');
+        loginButton.classList.add('bg-green-600');
+
+        setTimeout(() => { window.location.href = 'home/home.html'; }, 500);
+    }
+
+    // Institutional Google SSO Handler (Step 5.1)
+    const ssoBtn = document.getElementById('btn-google-sso');
+    if (ssoBtn) {
+        ssoBtn.addEventListener('click', async () => {
+            try {
+                setLoadingState(true);
+                hideError();
+                const provider = new firebase.auth.GoogleAuthProvider();
+                const domain = (window.CAMBUS_CONFIG && window.CAMBUS_CONFIG.defaultDomain) || 'indoreinstitute.com';
+                provider.setCustomParameters({ hd: domain, prompt: 'select_account' });
+
+                const result = await window.auth.signInWithPopup(provider);
+                const email = (result.user.email || '').toLowerCase().trim();
+                
+                let tenantInfo = getTenantInfoFromEmail(email);
+                if (!tenantInfo) tenantInfo = getFallbackTenantInfo();
+
+                const docRef = window.db.collection('users').doc(email);
+                let docSnap = await docRef.get();
+
+                if (!docSnap.exists) {
+                    const studentDocRef = window.db.collection('students').doc(email);
+                    docSnap = await studentDocRef.get();
+                    if (!docSnap.exists) {
+                        await window.auth.signOut();
+                        throw new Error(`No registered bus pass found for ${email}. Please ask Admin to register your enrollment ID.`);
+                    }
+                    try {
+                        await window.db.collection('users').doc(email).set({
+                            ...docSnap.data(),
+                            email: email,
+                            role: 'student'
+                        });
+                    } catch (mErr) {
+                        console.warn("Mirror warning:", mErr);
+                    }
+                }
+
+                completeLoginSession(email, docSnap.data(), tenantInfo);
+            } catch (err) {
+                console.error("SSO Error:", err);
+                showError(err.message || 'Google SSO sign-in failed.');
+                setLoadingState(false);
+            }
+        });
     }
 
     loginForm.addEventListener('submit', handleLogin);

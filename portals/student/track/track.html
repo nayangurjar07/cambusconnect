@@ -290,9 +290,15 @@
                             <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">All Active Shuttles</p>
                             <p id="nearby-buses-count" class="text-sm font-semibold text-slate-800">Loading buses...</p>
                         </div>
-                        <span class="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Live Telematics
-                        </span>
+                        <div class="flex items-center gap-2">
+                            <button id="btn-refresh-routes" type="button" class="text-[10px] text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-full font-bold flex items-center gap-1 transition-all active:scale-95 cursor-pointer" title="Refresh all campus routes">
+                                <span class="material-symbols-outlined text-[13px]">refresh</span>
+                                <span>Refresh All Routes</span>
+                            </button>
+                            <span class="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Live Telematics
+                            </span>
+                        </div>
                     </div>
                     
                     <!-- Dynamic Bus List Container (Includes Skeleton Loaders by default) -->
@@ -359,6 +365,7 @@
     </main>
 
     <!-- Scripts -->
+    <script src="../../../cache-manager.js"></script>
     <script src="../../../db-helper.js"></script>
     <script src="../../../main.js"></script>
     <script src="track.js"></script>

@@ -10,7 +10,7 @@
  */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, onAuthStateChanged, db, doc, getDoc, setDoc } from '../config/firebase';
-import { loginUser, logoutUser, getCurrentSession } from '../services/auth';
+import { loginUser, loginWithGoogle, logoutUser, getCurrentSession } from '../services/auth';
 
 const AuthContext = createContext(null);
 
@@ -121,6 +121,19 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const loginGoogle = async (expectedRole = null) => {
+    setLoading(true);
+    try {
+      const res = await loginWithGoogle(expectedRole);
+      setCurrentUser(res.user);
+      setProfile(res.profile);
+      setRole(res.profile.role || expectedRole);
+      return res;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     await logoutUser();
     setCurrentUser(null);
@@ -163,6 +176,7 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(currentUser),
       loading,
       login,
+      loginGoogle,
       logout,
       refreshProfile
     }}>

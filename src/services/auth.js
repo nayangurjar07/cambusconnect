@@ -4,6 +4,8 @@ import {
   db, 
   signInWithEmailAndPassword, 
   firebaseSignOut, 
+  GoogleAuthProvider,
+  signInWithPopup,
   doc, 
   getDoc,
   setDoc,
@@ -98,6 +100,72 @@ export async function loginUser(rawEmailOrId, password, expectedRole = null) {
     user,
     profile: userData
   };
+}
+
+export async function loginWithGoogle(expectedRole = null) {
+  const provider = new GoogleAuthProvider();
+  const domain = (window.CAMBUS_CONFIG && window.CAMBUS_CONFIG.defaultDomain) || 'indoreinstitute.com';
+  provider.setCustomParameters({ hd: domain, prompt: 'select_account' });
+
+  const result = await signInWithPopup(auth, provider);
+  const email = (result.user.email || '').toLowerCase().trim();
+
+  // Retrieve user document from Firestore
+  const userDocRef = doc(db, 'users', email);
+  let userDocSnap = await getDoc(userDocRef);
+
+  let userData = null;
+  if (userDocSnap.exists()) {
+    userData = userDocSnap.data();
+  } else {
+    const studentDocRef = doc(db, 'students', email);
+    const studentDocSnap = await getDoc(studentDocRef);
+    if (studentDocSnap.exists()) {
+      userData = studentDocSnap.data();
+      try {
+        await setDoc(userDocRef, {
+          ...userData,
+          email,
+          role: 'student',
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (syncErr) {
+        console.warn("[Auth] Sync notice:", syncErr);
+      }
+    } else {
+      await firebaseSignOut(auth);
+      throw new Error(`No registered profile found for ${email}. Please contact transport admin.`);
+    }
+  }
+
+  const resolvedRole = (userData.role || expectedRole || 'student').toLowerCase();
+  userData.role = resolvedRole;
+  userData.email = email;
+
+  if (expectedRole && resolvedRole !== expectedRole.toLowerCase()) {
+    throw new Error(`Role mismatch: Account is registered as "${resolvedRole}", but attempting to access ${expectedRole} portal.`);
+  }
+
+  if (resolvedRole === 'student' && userData.passValidity) {
+    const expiry = new Date(userData.passValidity);
+    if (!isNaN(expiry.getTime()) && expiry < new Date()) {
+      throw new Error(`Your bus pass expired on ${expiry.toLocaleDateString()}. Please contact transport administration to renew.`);
+    }
+  }
+
+  localStorage.setItem('isLoggedIn', 'true');
+  localStorage.setItem('userEmail', email);
+  localStorage.setItem('userRole', resolvedRole);
+  localStorage.setItem('profile', JSON.stringify(userData));
+  if (resolvedRole === 'student') {
+    localStorage.setItem('student', JSON.stringify({ id: email, email, ...userData }));
+  } else if (resolvedRole === 'admin') {
+    localStorage.setItem('adminName', userData.name || 'Campus Administrator');
+  } else if (resolvedRole === 'owner') {
+    localStorage.setItem('ownerName', userData.name || 'Platform Owner');
+  }
+
+  return { user: result.user, profile: userData };
 }
 
 export async function logoutUser() {

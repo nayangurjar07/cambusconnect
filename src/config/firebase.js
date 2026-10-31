@@ -7,6 +7,7 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithCredential
 } from 'firebase/auth';
 import { 
@@ -101,6 +102,7 @@ export {
   firebaseSignOut,
   onAuthStateChanged,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithCredential,
   collection,
   doc,

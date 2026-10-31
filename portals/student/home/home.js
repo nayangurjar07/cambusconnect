@@ -128,116 +128,118 @@ document.addEventListener('DOMContentLoaded', () => {
     const busStatusDisplay = document.getElementById('bus-status');
     const busId = studentData.assignedBusId;
 
-    if (routeDisplay) {
-        routeDisplay.textContent = "Loading...";
-    }
+    let unsubscribeAssignedBus = null;
 
-    if (busId) {
-        console.log("Fetching bus data for ID:", busId);
+    function handleBusSnapshot(doc) {
+        if (!doc) return;
+        if (doc.exists) {
+            const bus = typeof doc.data === 'function' ? doc.data() : doc;
+            if (window.CambusCache && busId) window.CambusCache.set('assignedBus_' + busId, bus);
+            console.log("✅ Bus data received:", bus);
 
-        // Real-time listener for assigned bus
-        dbHelper.getBusesCol().doc(busId).onSnapshot(doc => {
-            if (doc.exists) {
-                const bus = doc.data();
-                console.log("✅ Bus data received:", bus);
+            if (routeDisplay) {
+                routeDisplay.classList.remove('text-green-600', 'text-orange-600', 'text-red-600', 'text-red-400', 'text-red-500', 'text-gray-400', 'text-gray-500');
+                routeDisplay.textContent = `${bus.number} - ${bus.route}`;
+            }
 
-                if (routeDisplay) {
-                    routeDisplay.classList.remove('text-green-600', 'text-orange-600', 'text-red-600', 'text-red-400', 'text-red-500', 'text-gray-400', 'text-gray-500');
-                    routeDisplay.textContent = `${bus.number} - ${bus.route}`;
-                }
-
-                const homeEtaMsg = document.getElementById('home-eta-message');
-                if (homeEtaMsg) {
-                    if (bus.eta) {
-                        homeEtaMsg.innerHTML = `Your next bus is arriving in approximately <span id="eta-minutes" class="font-bold">${bus.eta}</span> minutes.`;
-                    } else if (bus.status) {
-                        homeEtaMsg.innerHTML = `Your assigned bus is currently <span class="font-bold">${bus.status}</span>.`;
-                    }
-                }
-
-                if (typeof updateLiveEta === 'function') {
-                    updateLiveEta(bus);
-                }
-                if (typeof renderDynamicSchedule === 'function') {
-                    renderDynamicSchedule(bus);
-                }
-
-                // NEW FEATURE: Update bus status with visual indicator
-                if (busStatusDisplay) {
-                    const statusConfig = {
-                        'On Time': {
-                            color: 'text-green-400',
-                            bgColor: 'bg-green-400',
-                            text: 'On Time'
-                        },
-                        'Delayed': {
-                            color: 'text-orange-400',
-                            bgColor: 'bg-orange-400',
-                            text: 'Delayed'
-                        },
-                        'Breakdown': {
-                            color: 'text-red-400',
-                            bgColor: 'bg-red-400',
-                            text: 'Issue'
-                        }
-                    };
-
-                    const config = statusConfig[bus.status] || statusConfig['On Time'];
-
-                    busStatusDisplay.innerHTML = `
-                        <span class="w-2 h-2 ${config.bgColor} rounded-full mr-2 animate-pulse"></span>
-                        ${config.text}
-                    `;
-                    busStatusDisplay.className = `font-bold text-lg flex items-center ${config.color}`;
-                }
-
-                // Handle next-day ETA and holiday state
-                const nextDayInfo = document.getElementById('next-day-arrival-info');
-                const nextDayText = document.getElementById('next-day-arrival-text');
-                const nextDayHoliday = document.getElementById('next-day-holiday-text');
-
-                if (nextDayInfo) {
-                    if (bus.nextDayArrivalTime) {
-                        nextDayInfo.classList.remove('hidden');
-                        if (nextDayText) {
-                            nextDayText.textContent = `Expected Arrival Time Tomorrow: ${bus.nextDayArrivalTime}`;
-                        }
-                        if (nextDayHoliday) {
-                            nextDayHoliday.textContent = `Tomorrow's Schedule State: ${bus.nextDayState || 'NORMAL_COLLEGE'}`;
-                        }
-                    } else {
-                        nextDayInfo.classList.add('hidden');
-                    }
-                }
-            } else {
-                // Bus document no longer exists — this student has an orphaned assignedBusId.
-                // Clear it from the local session so we stop re-fetching a deleted document.
-                console.info("ℹ️ Bus document not found for ID:", busId, "— likely deleted. Clearing stale reference from session.");
-                const storedStudent = JSON.parse(localStorage.getItem('student') || '{}');
-                delete storedStudent.assignedBusId;
-                localStorage.setItem('student', JSON.stringify(storedStudent));
-
-                if (routeDisplay) {
-                    routeDisplay.textContent = "Not Assigned";
-                    routeDisplay.classList.remove('text-red-400');
-                    routeDisplay.classList.add('text-gray-400');
-                }
-                if (busStatusDisplay) {
-                    busStatusDisplay.innerHTML = `
-                        <span class="w-2 h-2 bg-gray-300 rounded-full mr-2"></span>
-                        N/A
-                    `;
-                    busStatusDisplay.className = 'font-bold text-lg flex items-center text-gray-400';
-                }
-                // Render fallback schedule so the widget isn't stuck on "Loading..."
-                if (typeof renderDynamicSchedule === 'function') {
-                    renderDynamicSchedule(null);
-                }
-                const homeEtaMsg = document.getElementById('home-eta-message');
-                if (homeEtaMsg) {
-                    homeEtaMsg.innerHTML = `No bus is currently assigned to your account.`;
+            const homeEtaMsg = document.getElementById('home-eta-message');
+            if (homeEtaMsg) {
+                if (bus.eta) {
+                    homeEtaMsg.innerHTML = `Your next bus is arriving in approximately <span id="eta-minutes" class="font-bold">${bus.eta}</span> minutes.`;
+                } else if (bus.status) {
+                    homeEtaMsg.innerHTML = `Your assigned bus is currently <span class="font-bold">${bus.status}</span>.`;
                 }
             }
+
+            if (typeof updateLiveEta === 'function') {
+                updateLiveEta(bus);
+            }
+            if (typeof renderDynamicSchedule === 'function') {
+                renderDynamicSchedule(bus);
+            }
+
+            if (busStatusDisplay) {
+                const statusConfig = {
+                    'On Time': {
+                        color: 'text-green-400',
+                        bgColor: 'bg-green-400',
+                        text: 'On Time'
+                    },
+                    'Delayed': {
+                        color: 'text-orange-400',
+                        bgColor: 'bg-orange-400',
+                        text: 'Delayed'
+                    },
+                    'Breakdown': {
+                        color: 'text-red-400',
+                        bgColor: 'bg-red-400',
+                        text: 'Issue'
+                    }
+                };
+
+                const config = statusConfig[bus.status] || statusConfig['On Time'];
+
+                busStatusDisplay.innerHTML = `
+                    <span class="w-2 h-2 ${config.bgColor} rounded-full mr-2 animate-pulse"></span>
+                    ${config.text}
+                `;
+                busStatusDisplay.className = `font-bold text-lg flex items-center ${config.color}`;
+            }
+
+            const nextDayInfo = document.getElementById('next-day-arrival-info');
+            const nextDayText = document.getElementById('next-day-arrival-text');
+            const nextDayHoliday = document.getElementById('next-day-holiday-text');
+
+            if (nextDayInfo) {
+                if (bus.nextDayArrivalTime) {
+                    nextDayInfo.classList.remove('hidden');
+                    if (nextDayText) {
+                        nextDayText.textContent = `Expected Arrival Time Tomorrow: ${bus.nextDayArrivalTime}`;
+                    }
+                    if (nextDayHoliday) {
+                        nextDayHoliday.textContent = `Tomorrow's Schedule State: ${bus.nextDayState || 'NORMAL_COLLEGE'}`;
+                    }
+                } else {
+                    nextDayInfo.classList.add('hidden');
+                }
+            }
+        } else {
+            console.info("ℹ️ Bus document not found for ID:", busId);
+            const storedStudent = JSON.parse(localStorage.getItem('student') || '{}');
+            delete storedStudent.assignedBusId;
+            localStorage.setItem('student', JSON.stringify(storedStudent));
+
+            if (routeDisplay) {
+                routeDisplay.textContent = "Not Assigned";
+                routeDisplay.classList.remove('text-red-400');
+                routeDisplay.classList.add('text-gray-400');
+            }
+            if (busStatusDisplay) {
+                busStatusDisplay.innerHTML = `
+                    <span class="w-2 h-2 bg-gray-300 rounded-full mr-2"></span>
+                    N/A
+                `;
+                busStatusDisplay.className = 'font-bold text-lg flex items-center text-gray-400';
+            }
+            if (typeof renderDynamicSchedule === 'function') {
+                renderDynamicSchedule(null);
+            }
+            const homeEtaMsg = document.getElementById('home-eta-message');
+            if (homeEtaMsg) {
+                homeEtaMsg.innerHTML = `No bus is currently assigned to your account.`;
+            }
+        }
+    }
+
+    function subscribeAssignedBus(id) {
+        if (unsubscribeAssignedBus) {
+            unsubscribeAssignedBus();
+            unsubscribeAssignedBus = null;
+        }
+        if (!id || document.hidden) return;
+
+        unsubscribeAssignedBus = dbHelper.getBusesCol().doc(id).onSnapshot(doc => {
+            handleBusSnapshot(doc);
         }, err => {
             console.error("❌ Error fetching bus:", err);
             if (routeDisplay) {
@@ -246,6 +248,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 routeDisplay.classList.add('text-red-400');
             }
         });
+    }
+
+    // Auto-pause listener on screen lock / hidden tab to conserve Firestore reads
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && unsubscribeAssignedBus) {
+            unsubscribeAssignedBus();
+            unsubscribeAssignedBus = null;
+        } else if (!document.hidden && studentData && studentData.assignedBusId) {
+            subscribeAssignedBus(studentData.assignedBusId);
+        }
+    });
+
+    // 0ms SWR Initial Render from Cache
+    if (busId && window.CambusCache) {
+        const cachedBus = window.CambusCache.get('assignedBus_' + busId, 300000);
+        if (cachedBus) {
+            handleBusSnapshot({ exists: true, data: () => cachedBus });
+        }
+    }
+
+    if (busId) {
+        console.log("Fetching bus data for ID:", busId);
+        subscribeAssignedBus(busId);
     } else {
         console.warn("⚠️ No bus assigned to student");
         const homeEtaMsg = document.getElementById('home-eta-message');
@@ -271,11 +296,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const notificationsContainer = document.getElementById('home-notifications');
 
     if (notificationsContainer) {
-        // Show loading state with modern design
+        // Show skeleton shimmer placeholders to prevent CLS
         notificationsContainer.innerHTML = `
-            <div class="text-center py-6">
-                <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p class="text-xs text-gray-400 mt-3">Loading updates...</p>
+            <div class="space-y-3 py-2">
+                <div class="bg-white rounded-xl p-3 border border-slate-100 shadow-sm space-y-2">
+                    <div class="skeleton-shimmer h-3.5 w-1/2 rounded"></div>
+                    <div class="skeleton-shimmer h-3 w-3/4 rounded"></div>
+                </div>
+                <div class="bg-white rounded-xl p-3 border border-slate-100 shadow-sm space-y-2">
+                    <div class="skeleton-shimmer h-3.5 w-2/5 rounded"></div>
+                    <div class="skeleton-shimmer h-3 w-2/3 rounded"></div>
+                </div>
             </div>
         `;
 

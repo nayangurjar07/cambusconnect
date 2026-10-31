@@ -7,14 +7,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // Show loading state
+    // Show skeleton shimmer placeholders to prevent CLS
     notificationsList.innerHTML = `
-        <div class="glass-card rounded-3xl p-12 text-center">
-            <div class="animate-spin rounded-full h-16 w-16 border-4 border-purple-200 border-t-purple-600 mx-auto mb-4"></div>
-            <p class="text-gray-700 font-semibold">Loading notifications...</p>
-            <p class="text-gray-500 text-sm mt-2">Please wait a moment</p>
+        <div class="space-y-4">
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="skeleton-shimmer h-4 w-32 rounded-md"></div>
+                    <div class="skeleton-shimmer h-4 w-16 rounded-md"></div>
+                </div>
+                <div class="skeleton-shimmer h-4 w-3/4 rounded-md"></div>
+                <div class="skeleton-shimmer h-3 w-1/2 rounded-md"></div>
+            </div>
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="skeleton-shimmer h-4 w-28 rounded-md"></div>
+                    <div class="skeleton-shimmer h-4 w-16 rounded-md"></div>
+                </div>
+                <div class="skeleton-shimmer h-4 w-2/3 rounded-md"></div>
+                <div class="skeleton-shimmer h-3 w-1/3 rounded-md"></div>
+            </div>
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="skeleton-shimmer h-4 w-36 rounded-md"></div>
+                    <div class="skeleton-shimmer h-4 w-16 rounded-md"></div>
+                </div>
+                <div class="skeleton-shimmer h-4 w-4/5 rounded-md"></div>
+                <div class="skeleton-shimmer h-3 w-2/5 rounded-md"></div>
+            </div>
         </div>
     `;
+
+    // 0ms SWR Initial Render from Cache
+    if (window.CambusCache) {
+        const cached = window.CambusCache.get('notifications_all', 300000);
+        if (cached && Array.isArray(cached) && cached.length > 0) {
+            renderNotifications(cached);
+        }
+    }
 
     const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
     if (typeof authGuard === 'function') {
@@ -41,6 +70,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const filtered = notifications.filter(n => {
                 return !n.targetRouteId || n.targetRouteId === 'all' || n.targetRouteId === studentRoute;
             });
+
+            if (window.CambusCache) {
+                window.CambusCache.set('notifications_all', filtered);
+            }
 
             renderNotifications(filtered);
         }, error => {
