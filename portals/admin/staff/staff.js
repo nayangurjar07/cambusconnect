@@ -109,6 +109,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const bus = buses.find(b => b.id === staff.assignedBusId);
                 const busInfo = bus ? `Bus ${bus.number} - ${bus.route}` : 'Not Assigned';
                 
+                const tierLabel = staff.roleTier === 'secondary' ? 'Secondary' : 'Primary';
+                const roleBadge = staff.role === 'driver'
+                    ? (staff.roleTier === 'secondary' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700')
+                    : (staff.roleTier === 'secondary' ? 'bg-teal-100 text-teal-700' : 'bg-emerald-100 text-emerald-700');
+                const roleText = staff.role === 'driver'
+                    ? `${tierLabel} Driver`
+                    : `${tierLabel} Conductor`;
+
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-slate-50 transition-colors';
                 row.innerHTML = `
@@ -118,18 +126,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                                ${staff.name ? staff.name.charAt(0).toUpperCase() : 'S'}
                            </div>
                            <div class="min-w-0">
-                               <p class="font-bold text-slate-800 break-words-safe">${staff.name || 'Unknown'}</p>
+                               <p class="font-bold text-slate-800 break-words-safe">${escapeHtml(staff.name || 'Unknown')}</p>
                            </div>
                        </div>
                     </td>
-                    <td class="px-6 py-4 text-slate-700 font-medium break-email max-w-[200px]">${staff.email || 'N/A'}</td>
-                    <td class="px-6 py-4 text-slate-700 font-medium break-words-safe">${staff.phone || 'N/A'}</td>
+                    <td class="px-6 py-4 text-slate-700 font-medium break-email max-w-[200px]">${escapeHtml(staff.email || 'N/A')}</td>
+                    <td class="px-6 py-4 text-slate-700 font-medium break-words-safe">${escapeHtml(staff.phone || 'N/A')}</td>
                     <td class="px-6 py-4">
-                        <span class="px-2 py-1 text-xs font-bold rounded-lg ${staff.role === 'driver' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">
-                            ${staff.role ? staff.role.toUpperCase() : 'N/A'}
+                        <span class="px-2 py-1 text-xs font-bold rounded-lg ${roleBadge}">
+                            ${escapeHtml(roleText)}
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-slate-700 text-sm font-semibold break-words-safe max-w-[180px]">${busInfo}</td>
+                    <td class="px-6 py-4 text-slate-700 text-sm font-semibold break-words-safe max-w-[180px]">${escapeHtml(busInfo)}</td>
                     <td class="px-6 py-4 text-right shrink-0">
                         <div class="flex items-center justify-end gap-2">
                             <button class="btn-edit-staff px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg transition-colors cursor-pointer whitespace-nowrap" data-id="${staff.id}">
@@ -161,6 +169,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
+        function checkStaffConflict(busId, role, roleTier, excludeDocId = null) {
+            if (!busId || !role) return null;
+            const targetTier = roleTier || 'primary';
+            return staffList.find(s => {
+                if (excludeDocId && (s.id === excludeDocId || s.email === excludeDocId)) return false;
+                if (s.assignedBusId !== busId) return false;
+                if (s.role !== role) return false;
+                const sTier = s.roleTier || 'primary';
+                return sTier === targetTier;
+            });
+        }
+
         function openEditModal(staffId) {
             const staff = staffList.find(s => s.id === staffId);
             if (!staff || !modalEditStaff) return;
@@ -171,6 +191,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('edit-staff-original-role').value = staff.role || 'driver';
             document.getElementById('edit-staff-name').value = staff.name || '';
             document.getElementById('edit-staff-role').value = staff.role || 'driver';
+            const tierEl = document.getElementById('edit-staff-role-tier');
+            if (tierEl) tierEl.value = staff.roleTier || 'primary';
             document.getElementById('edit-staff-email').value = staff.email || '';
             document.getElementById('edit-staff-phone').value = staff.phone || '';
             if (editStaffBusSelect) {
@@ -200,14 +222,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const origRole = formData.get('originalRole');
                 const newName = formData.get('name').trim();
                 const newRole = formData.get('role');
+                const newRoleTier = formData.get('roleTier') || 'primary';
                 const newPhone = formData.get('phone').trim();
                 const newBusId = formData.get('assignedBusId') || '';
+
+                // Role conflict check
+                if (newBusId) {
+                    const conflict = checkStaffConflict(newBusId, newRole, newRoleTier, docId);
+                    if (conflict) {
+                        alert(`⚠️ Role Conflict: Selected bus already has a ${newRoleTier === 'primary' ? 'Primary' : 'Secondary'} ${newRole === 'driver' ? 'Driver' : 'Conductor'} (${conflict.name || conflict.email}). Please choose another tier or bus.`);
+                        return;
+                    }
+                }
 
                 try {
                     // Update user doc
                     await dbHelper.getUsersCol().doc(docId).update({
                         name: newName,
                         role: newRole,
+                        roleTier: newRoleTier,
                         phone: newPhone,
                         assignedBusId: newBusId,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -228,21 +261,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     // Sync new bus if assigned
-                    if (newBusId && (newBusId !== origBusId || newRole !== origRole)) {
+                    if (newBusId) {
                         const newBusRef = dbHelper.getBusesCol().doc(newBusId);
+                        const busUpdate = {};
                         if (newRole === 'driver') {
-                            await newBusRef.update({
-                                driverEmails: firebase.firestore.FieldValue.arrayUnion(origEmail),
-                                driver: newName,
-                                phone: newPhone
-                            }).catch(() => {});
+                            busUpdate.driverEmails = firebase.firestore.FieldValue.arrayUnion(origEmail);
+                            if (newRoleTier === 'primary') {
+                                busUpdate.driver = newName;
+                                busUpdate.phone = newPhone;
+                                busUpdate.primaryDriver = { name: newName, email: origEmail, phone: newPhone };
+                            } else {
+                                busUpdate.secondaryDriver = { name: newName, email: origEmail, phone: newPhone };
+                            }
                         } else {
-                            await newBusRef.update({
-                                conductorEmails: firebase.firestore.FieldValue.arrayUnion(origEmail),
-                                conductor: newName,
-                                conductorPhone: newPhone
-                            }).catch(() => {});
+                            busUpdate.conductorEmails = firebase.firestore.FieldValue.arrayUnion(origEmail);
+                            if (newRoleTier === 'primary') {
+                                busUpdate.conductor = newName;
+                                busUpdate.conductorPhone = newPhone;
+                                busUpdate.primaryConductor = { name: newName, email: origEmail, phone: newPhone };
+                            } else {
+                                busUpdate.secondaryConductor = { name: newName, email: origEmail, phone: newPhone };
+                            }
                         }
+                        await newBusRef.update(busUpdate).catch(() => {});
                     }
 
                     alert('✅ Staff member updated successfully!');
@@ -306,12 +347,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 
-                const name = formData.get('name');
+                const name = formData.get('name').trim();
                 const role = formData.get('role');
-                const email = formData.get('email');
-                const phone = formData.get('phone');
+                const roleTier = formData.get('roleTier') || 'primary';
+                const email = formData.get('email').trim().toLowerCase();
+                const phone = formData.get('phone').trim();
                 const password = formData.get('password');
                 const assignedBusId = formData.get('assignedBusId');
+
+                // Role conflict check
+                if (assignedBusId) {
+                    const conflict = checkStaffConflict(assignedBusId, role, roleTier);
+                    if (conflict) {
+                        alert(`⚠️ Role Conflict: Selected bus already has a ${roleTier === 'primary' ? 'Primary' : 'Secondary'} ${role === 'driver' ? 'Driver' : 'Conductor'} (${conflict.name || conflict.email}). Please choose another tier or bus.`);
+                        return;
+                    }
+                }
                 
                 try {
                     const userId = await window.createSecondaryAuthUser(email, password);
@@ -321,36 +372,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                         email: email,
                         phone: phone,
                         role: role,
+                        roleTier: roleTier,
                         assignedBusId: assignedBusId,
                         uid: userId,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     
                     if (assignedBusId) {
-                        const updateData = {};
                         const busRef = dbHelper.getBusesCol().doc(assignedBusId);
-                        const busDoc = await busRef.get();
-                        
+                        const busUpdate = {};
                         if (role === 'driver') {
-                            updateData.driverEmails = firebase.firestore.FieldValue.arrayUnion(email);
-                            if (busDoc.exists) {
-                                const busData = busDoc.data();
-                                if (!busData.driver || busData.driver === 'No Driver') {
-                                    updateData.driver = name;
-                                    updateData.phone = phone;
-                                }
+                            busUpdate.driverEmails = firebase.firestore.FieldValue.arrayUnion(email);
+                            if (roleTier === 'primary') {
+                                busUpdate.driver = name;
+                                busUpdate.phone = phone;
+                                busUpdate.primaryDriver = { name, email, phone };
+                            } else {
+                                busUpdate.secondaryDriver = { name, email, phone };
                             }
                         } else if (role === 'conductor') {
-                            updateData.conductorEmails = firebase.firestore.FieldValue.arrayUnion(email);
-                            if (busDoc.exists) {
-                                const busData = busDoc.data();
-                                if (!busData.conductor || busData.conductor === '') {
-                                    updateData.conductor = name;
-                                    updateData.conductorPhone = phone;
-                                }
+                            busUpdate.conductorEmails = firebase.firestore.FieldValue.arrayUnion(email);
+                            if (roleTier === 'primary') {
+                                busUpdate.conductor = name;
+                                busUpdate.conductorPhone = phone;
+                                busUpdate.primaryConductor = { name, email, phone };
+                            } else {
+                                busUpdate.secondaryConductor = { name, email, phone };
                             }
                         }
-                        await busRef.update(updateData);
+                        await busRef.update(busUpdate).catch(() => {});
                     }
                     
                     alert('✅ Staff member registered successfully!');

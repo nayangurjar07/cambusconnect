@@ -88,7 +88,7 @@ export function App() {
                 <Route path="profile" element={<StudentProfile />} />
               </Route>
 
-              {/* Driver Portal */}
+              {/* Driver Portal (Shared by Driver & Conductor onboard crew) */}
               <Route path="/driver" element={<AppShell allowedRole="driver" />}>
                 <Route index element={<Navigate to="/driver/dashboard" replace />} />
                 <Route path="dashboard" element={<DriverDashboard />} />
@@ -97,6 +97,12 @@ export function App() {
                 <Route path="schedule" element={<DriverDashboard />} />
                 <Route path="support" element={<DriverSupport />} />
               </Route>
+
+              {/* Conductor Portal Aliases */}
+              <Route path="/conductor" element={<Navigate to="/driver/dashboard" replace />} />
+              <Route path="/conductor/dashboard" element={<Navigate to="/driver/dashboard" replace />} />
+              <Route path="/conductor/scan-pass" element={<Navigate to="/driver/scan-pass" replace />} />
+              <Route path="/conductor/*" element={<Navigate to="/driver/dashboard" replace />} />
 
               {/* Admin Portal */}
               <Route path="/admin" element={<AppShell allowedRole="admin" />}>

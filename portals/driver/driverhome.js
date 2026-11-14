@@ -69,6 +69,68 @@ document.addEventListener('DOMContentLoaded', () => {
     let busListenerUnsubscribe = null;
     let boardingsListenerUnsubscribe = null;
 
+    // Simulation Mode State & Transit Waypoints (Indore Loop)
+    let isSimulating = false;
+    let simInterval = null;
+    let simWaypointIndex = 0;
+    const INDORE_TRANSIT_WAYPOINTS = [
+        { lat: 22.7533, lng: 75.8937, label: 'IIST Campus Gate' },
+        { lat: 22.7480, lng: 75.8910, label: 'Rau Circle' },
+        { lat: 22.7350, lng: 75.8820, label: 'Rajendra Nagar' },
+        { lat: 22.7196, lng: 75.8577, label: 'Bhawarkua Square' },
+        { lat: 22.7120, lng: 75.8640, label: 'Navlakha Square' },
+        { lat: 22.7050, lng: 75.8750, label: 'Geeta Bhawan' },
+        { lat: 22.7190, lng: 75.8850, label: 'Palasia Square' },
+        { lat: 22.7533, lng: 75.8937, label: 'IIST Return' }
+    ];
+
+    function getCrewPriority() {
+        const role = (driverProfile?.role || 'driver').toLowerCase();
+        const tier = (driverProfile?.roleTier || 'primary').toLowerCase();
+        if (role === 'driver') {
+            return tier === 'secondary' 
+                ? { priority: 2, label: 'Secondary Driver', role: 'driver', tier: 'secondary' }
+                : { priority: 1, label: 'Primary Driver', role: 'driver', tier: 'primary' };
+        } else {
+            return tier === 'secondary'
+                ? { priority: 4, label: 'Secondary Conductor', role: 'conductor', tier: 'secondary' }
+                : { priority: 3, label: 'Primary Conductor', role: 'conductor', tier: 'primary' };
+        }
+    }
+
+    function checkActiveBroadcasterStandby() {
+        if (!assignedBus || !assignedBus.activeBroadcaster) {
+            hideStandbyBanner();
+            return false;
+        }
+        const b = assignedBus.activeBroadcaster;
+        const myInfo = getCrewPriority();
+        
+        let updatedTimeMs = 0;
+        if (b.updatedAt && b.updatedAt.toMillis) updatedTimeMs = b.updatedAt.toMillis();
+        else if (b.updatedAt) updatedTimeMs = new Date(b.updatedAt).getTime();
+        const isFresh = (Date.now() - updatedTimeMs) < 25000;
+
+        if (isFresh && b.userEmail !== driverEmail && b.priority < myInfo.priority) {
+            showStandbyBanner(b.label || 'Primary Crew', b.userEmail);
+            return true;
+        }
+        hideStandbyBanner();
+        return false;
+    }
+
+    function showStandbyBanner(crewLabel, crewEmail) {
+        const banner = document.getElementById('driver-stream-standby-banner');
+        const text = document.getElementById('driver-stream-standby-text');
+        if (banner) banner.style.display = 'flex';
+        if (text) text.textContent = `Standby: ${crewLabel} (${crewEmail}) is broadcasting live GPS.`;
+    }
+
+    function hideStandbyBanner() {
+        const banner = document.getElementById('driver-stream-standby-banner');
+        if (banner) banner.style.display = 'none';
+    }
+
     // Scanner variables
     let html5QrScanner = null;
     const dbReferenceLogs = {}; // Anti-loop scan cache
@@ -776,12 +838,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }).catch(err => console.error('Session stop error:', err));
         }
 
+        if (isSimulating) {
+            stopSimulation();
+        }
+
         // Update bus to Offline instead of Breakdown
         if (assignedBus) {
             dbHelper.getBusesCol().doc(assignedBus.id).set({
                 status:     'Offline',
                 lastUpdate: 'Shift ended',
-                headcount:  0
+                headcount:  0,
+                activeBroadcaster: null
             }, { merge: true }).catch(err => console.error('Bus stop error:', err));
         }
     }
@@ -862,7 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
         watchId = setInterval(pollTracker, 10000);
     }
 
-    // ─── Phone GPS ─────────────────────────────────────────────────────────────
+    // ─── Phone GPS with Single Active Stream Guard ──────────────────────────────
     function startPhoneGPS() {
         if (!navigator.geolocation) {
             latDisplay.textContent = '--';
@@ -879,13 +946,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 lngDisplay.textContent      = lng.toFixed(6);
                 accuracyDisplay.textContent = `±${Math.round(accuracy)}m`;
 
+                // Single Active Stream Guard: Check if a higher-priority crew member is broadcasting
+                const inStandby = checkActiveBroadcasterStandby();
+                if (inStandby) return; // Yield GPS coordinate stream
+
+                const myCrew = getCrewPriority();
                 dbHelper.getBusesCol().doc(assignedBus.id).set({
                     location:       { lat, lng },
                     status:         'On Time',
                     locationSource: 'driver_phone',
                     speed:          speed != null ? Math.round(speed * 3.6) : 0,
                     lastUpdate:     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    updatedAt:      firebase.firestore.FieldValue.serverTimestamp()
+                    updatedAt:      firebase.firestore.FieldValue.serverTimestamp(),
+                    activeBroadcaster: {
+                        userEmail:  driverEmail,
+                        role:       myCrew.role,
+                        roleTier:   myCrew.tier,
+                        label:      myCrew.label,
+                        priority:   myCrew.priority,
+                        updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
+                    }
                 }, { merge: true }).catch(err => console.error('Phone GPS write error:', err));
             },
             (error) => {
@@ -896,6 +976,96 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
         );
+    }
+
+    // ─── GPS Testing & Simulation Mode ─────────────────────────────────────────
+    const btnToggleSim = document.getElementById('btn-toggle-sim');
+    const simBtnLabel  = document.getElementById('sim-btn-label');
+
+    if (btnToggleSim) {
+        btnToggleSim.addEventListener('click', () => {
+            if (!assignedBus) {
+                alert('No bus assignment loaded yet. Please wait.');
+                return;
+            }
+            if (isSimulating) {
+                stopSimulation();
+            } else {
+                startSimulation();
+            }
+        });
+    }
+
+    function startSimulation() {
+        if (!isTracking) startShift();
+        isSimulating = true;
+        if (btnToggleSim) {
+            btnToggleSim.style.background = '#fef3c7';
+            btnToggleSim.style.color = '#b45309';
+            btnToggleSim.style.borderColor = '#f59e0b';
+        }
+        if (simBtnLabel) simBtnLabel.textContent = "Stop GPS Simulation";
+
+        // Stop physical GPS watcher while simulation is active
+        if (watchId && navigator.geolocation) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+
+        simWaypointIndex = 0;
+        broadcastSimWaypoint();
+        simInterval = setInterval(broadcastSimWaypoint, 3500);
+    }
+
+    function stopSimulation() {
+        isSimulating = false;
+        if (simInterval) {
+            clearInterval(simInterval);
+            simInterval = null;
+        }
+        if (btnToggleSim) {
+            btnToggleSim.style.background = '#eff6ff';
+            btnToggleSim.style.color = '#1d4ed8';
+            btnToggleSim.style.borderColor = '#3b82f6';
+        }
+        if (simBtnLabel) simBtnLabel.textContent = "Test GPS Simulation Mode";
+
+        if (assignedBus) {
+            dbHelper.getBusesCol().doc(assignedBus.id).set({
+                activeBroadcaster: null
+            }, { merge: true }).catch(() => {});
+        }
+    }
+
+    function broadcastSimWaypoint() {
+        if (!assignedBus || !isSimulating) return;
+        const inStandby = checkActiveBroadcasterStandby();
+        const pt = INDORE_TRANSIT_WAYPOINTS[simWaypointIndex % INDORE_TRANSIT_WAYPOINTS.length];
+        simWaypointIndex++;
+
+        latDisplay.textContent = pt.lat.toFixed(6);
+        lngDisplay.textContent = pt.lng.toFixed(6);
+        accuracyDisplay.textContent = 'Sim ~36 km/h';
+
+        if (inStandby) return; // Yield to higher-priority crew
+
+        const myCrew = getCrewPriority();
+        dbHelper.getBusesCol().doc(assignedBus.id).set({
+            location:       { lat: pt.lat, lng: pt.lng },
+            status:         'On Time',
+            locationSource: 'simulated_test',
+            speed:          36,
+            lastUpdate:     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            updatedAt:      firebase.firestore.FieldValue.serverTimestamp(),
+            activeBroadcaster: {
+                userEmail:  driverEmail,
+                role:       myCrew.role,
+                roleTier:   myCrew.tier,
+                label:      myCrew.label,
+                priority:   myCrew.priority,
+                updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
+            }
+        }, { merge: true }).catch(err => console.error('Sim waypoint broadcast error:', err));
     }
 
     // ─── Camera QR Scanner Lifecycle ─────────────────────────────────────────

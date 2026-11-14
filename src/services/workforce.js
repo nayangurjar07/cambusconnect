@@ -35,6 +35,106 @@ export function subscribeToStaff(onUpdate, onError) {
   });
 }
 
+export function getStaffRoleLabel(role, roleTier) {
+  if (role === 'driver') {
+    return roleTier === 'secondary' ? 'Secondary (Sub) Driver' : 'Primary Driver';
+  }
+  if (role === 'conductor') {
+    return roleTier === 'secondary' ? 'Secondary (Sub) Conductor' : 'Primary Conductor';
+  }
+  if (role === 'staff') return 'Route Coordinator';
+  if (role === 'admin') return 'System Admin';
+  return role || 'Staff';
+}
+
+export function validateStaffRoleConflict(staffList, busNumber, role, roleTier, currentEmail = null) {
+  if (!busNumber || !role || (role !== 'driver' && role !== 'conductor')) {
+    return { hasConflict: false };
+  }
+
+  const cleanBus = String(busNumber).trim().toLowerCase();
+  const cleanEmail = currentEmail ? String(currentEmail).trim().toLowerCase() : null;
+  const targetTier = roleTier || 'primary';
+
+  const conflictingMember = staffList.find(s => {
+    if (cleanEmail && s.email && s.email.toLowerCase() === cleanEmail) return false;
+    if (s.status === 'Terminated' || s.role === 'revoked') return false;
+    const sBus = String(s.assignedBus || '').trim().toLowerCase();
+    if (sBus !== cleanBus) return false;
+    if (s.role !== role) return false;
+    const sTier = s.roleTier || 'primary';
+    return sTier === targetTier;
+  });
+
+  if (conflictingMember) {
+    const roleTitle = role === 'driver' ? 'Driver' : 'Conductor';
+    const tierTitle = targetTier === 'primary' ? 'Primary' : 'Secondary';
+    return {
+      hasConflict: true,
+      conflictingMember,
+      message: `Bus ${busNumber} already has an assigned ${tierTitle} ${roleTitle} (${conflictingMember.name || conflictingMember.email}).`
+    };
+  }
+
+  return { hasConflict: false };
+}
+
+export async function syncStaffToBus(busNumber, staffData) {
+  if (!busNumber) return;
+  try {
+    const busesCol = collection(db, 'buses');
+    const q = query(busesCol, where('number', '==', String(busNumber).trim()));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const busDoc = snap.docs[0];
+      const busRef = doc(db, 'buses', busDoc.id);
+      const busData = busDoc.data();
+      const role = staffData.role;
+      const tier = staffData.roleTier || 'primary';
+      const staffObj = {
+        name: staffData.name || '',
+        email: staffData.email?.toLowerCase().trim() || '',
+        phone: staffData.phone || ''
+      };
+
+      const busUpdate = {};
+      if (role === 'driver') {
+        if (tier === 'primary') {
+          busUpdate.primaryDriver = staffObj;
+          busUpdate.driver = staffObj.name;
+          busUpdate.phone = staffObj.phone;
+        } else {
+          busUpdate.secondaryDriver = staffObj;
+        }
+        const existingEmails = Array.isArray(busData.driverEmails) ? [...busData.driverEmails] : [];
+        if (staffObj.email && !existingEmails.includes(staffObj.email)) {
+          existingEmails.push(staffObj.email);
+        }
+        busUpdate.driverEmails = existingEmails;
+      } else if (role === 'conductor') {
+        if (tier === 'primary') {
+          busUpdate.primaryConductor = staffObj;
+          busUpdate.conductor = staffObj.name;
+          busUpdate.conductorPhone = staffObj.phone;
+        } else {
+          busUpdate.secondaryConductor = staffObj;
+        }
+        const existingEmails = Array.isArray(busData.conductorEmails) ? [...busData.conductorEmails] : [];
+        if (staffObj.email && !existingEmails.includes(staffObj.email)) {
+          existingEmails.push(staffObj.email);
+        }
+        busUpdate.conductorEmails = existingEmails;
+      }
+
+      if (Object.keys(busUpdate).length > 0) {
+        await updateDoc(busRef, { ...busUpdate, updatedAt: serverTimestamp() });
+      }
+    }
+  } catch (err) {
+    console.warn("Could not sync staff to bus document:", err);
+  }
+}
+
 export async function createStaffMember(data) {
   const email = data.email.toLowerCase().trim();
 
@@ -48,26 +148,63 @@ export async function createStaffMember(data) {
     }
   }
 
+  const role = data.role || 'driver';
+  const roleTier = (role === 'driver' || role === 'conductor') ? (data.roleTier || 'primary') : null;
+  const staffRoleLabel = getStaffRoleLabel(role, roleTier);
+
   const docRef = doc(db, 'users', email);
   await setDoc(docRef, {
     name: data.name,
     email,
-    role: data.role || 'driver',
+    role,
+    roleTier,
+    staffRoleLabel,
     phone: data.phone || '',
     assignedBus: data.assignedBus || '',
+    assignedBusId: data.assignedBusId || '',
     licenseNumber: data.licenseNumber || '',
     status: data.status || 'Active',
     createdAt: serverTimestamp()
   });
+
+  if (data.assignedBus) {
+    await syncStaffToBus(data.assignedBus, {
+      name: data.name,
+      email,
+      role,
+      roleTier,
+      phone: data.phone
+    });
+  }
+
   return email;
 }
 
 export async function updateStaffMember(email, data) {
-  const docRef = doc(db, 'users', email.toLowerCase().trim());
+  const cleanEmail = email.toLowerCase().trim();
+  const docRef = doc(db, 'users', cleanEmail);
+
+  const role = data.role || 'driver';
+  const roleTier = (role === 'driver' || role === 'conductor') ? (data.roleTier || 'primary') : null;
+  const staffRoleLabel = getStaffRoleLabel(role, roleTier);
+
   await updateDoc(docRef, {
     ...data,
+    role,
+    roleTier,
+    staffRoleLabel,
     updatedAt: serverTimestamp()
   });
+
+  if (data.assignedBus) {
+    await syncStaffToBus(data.assignedBus, {
+      name: data.name,
+      email: cleanEmail,
+      role,
+      roleTier,
+      phone: data.phone
+    });
+  }
 }
 
 export async function deleteStaffMember(email) {

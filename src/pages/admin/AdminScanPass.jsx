@@ -41,7 +41,11 @@ export function AdminScanPass() {
 
   // Camera & Scanner State
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [cameraFacing, setCameraFacing] = useState('environment');
+  const [torchActive, setTorchActive] = useState(false);
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [scanLockActive, setScanLockActive] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
@@ -119,9 +123,10 @@ export function AdminScanPass() {
     return () => unsub();
   }, [selectedBusId]);
 
-  // 3. Camera Scanner Controls
-  const startCamera = async () => {
+  // 3. Camera Scanner Controls with Multi-Camera & Flashlight Support
+  const startCamera = async (facing = cameraFacing) => {
     setCameraError('');
+    setCameraLoading(true);
     try {
       if (html5QrScannerRef.current) {
         try { await html5QrScannerRef.current.stop(); } catch (e) { /* ignore */ }
@@ -130,17 +135,24 @@ export function AdminScanPass() {
       const qrScanner = new Html5Qrcode("admin-qr-viewfinder");
       html5QrScannerRef.current = qrScanner;
 
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length > 1) {
+          setHasMultipleCameras(true);
+        }
+      } catch (e) { /* camera enum fallback */ }
+
       const config = {
         fps: 15,
         qrbox: (w, h) => {
           const edge = Math.min(w, h);
-          const size = Math.max(180, Math.floor(edge * 0.72));
+          const size = Math.max(160, Math.floor(edge * 0.72));
           return { width: size, height: size };
         }
       };
 
       await qrScanner.start(
-        { facingMode: "environment" },
+        { facingMode: facing },
         config,
         (decodedText) => {
           handleScannedData(decodedText);
@@ -153,6 +165,8 @@ export function AdminScanPass() {
       setCameraError(err.message || 'Camera access denied or unavailable.');
       setIsCameraActive(false);
       showError("Could not access camera. Please enter pass ID manually.");
+    } finally {
+      setCameraLoading(false);
     }
   };
 
@@ -166,6 +180,29 @@ export function AdminScanPass() {
       }
     }
     setIsCameraActive(false);
+    setTorchActive(false);
+  };
+
+  const handleFlipCamera = async () => {
+    const nextFacing = cameraFacing === "environment" ? "user" : "environment";
+    setCameraFacing(nextFacing);
+    if (isCameraActive) {
+      await stopCamera();
+      setTimeout(() => startCamera(nextFacing), 150);
+    }
+  };
+
+  const handleToggleTorch = async () => {
+    if (!html5QrScannerRef.current) return;
+    try {
+      const nextTorch = !torchActive;
+      await html5QrScannerRef.current.applyVideoConstraints({
+        advanced: [{ torch: nextTorch }]
+      });
+      setTorchActive(nextTorch);
+    } catch (e) {
+      showWarning("Flashlight not supported on this device/camera.");
+    }
   };
 
   useEffect(() => {
@@ -705,22 +742,29 @@ export function AdminScanPass() {
               </div>
             </div>
 
-            {/* Viewfinder Area - Minimalist & Compact */}
+            {/* Viewfinder Area - Minimalist, Compact & Light Surface (No harsh black or green) */}
             <div 
-              className="p-6 bg-slate-50/40 flex flex-col items-center justify-center border-b border-slate-100"
+              className="p-5 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/30 flex flex-col items-center justify-center border-b border-slate-100"
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
             >
               <ValidateBusPassScanner
                 elementId="admin-qr-viewfinder"
                 isCameraActive={isCameraActive}
-                onStartCamera={startCamera}
+                cameraLoading={cameraLoading}
+                onStartCamera={() => startCamera(cameraFacing)}
                 onStopCamera={stopCamera}
                 cameraError={cameraError}
                 embedded={true}
+                showTorch={true}
+                torchActive={torchActive}
+                onToggleTorch={handleToggleTorch}
+                showFlip={hasMultipleCameras}
+                onFlipCamera={handleFlipCamera}
+                compact={true}
               />
 
-              <div className="mt-3 text-center">
+              <div className="mt-2.5 text-center">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}

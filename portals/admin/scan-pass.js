@@ -563,8 +563,12 @@ document.addEventListener('DOMContentLoaded', () => {
             scannerStatus.style.color = "";
         }
 
-        // Update button UI to scanning state (Blue matching reference)
-        if (btnToggleCamera) btnToggleCamera.style.background = '#2563eb';
+        // Update button UI to scanning state (Subtle rose/white outline, no harsh red)
+        if (btnToggleCamera) {
+            btnToggleCamera.style.background = '#fff1f2';
+            btnToggleCamera.style.color = '#be123c';
+            btnToggleCamera.style.border = '1px solid #fecdd3';
+        }
         if (cameraBtnText) cameraBtnText.textContent = "Stop Scanner Camera";
         const laserLine = document.querySelector('.scan-line');
         if (laserLine) laserLine.style.display = 'block';
@@ -605,8 +609,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function stopCameraScanner() {
         if (qrReaderPlaceholder) qrReaderPlaceholder.style.display = 'flex';
         
-        // Update button UI to idle state (Matching reference)
-        if (btnToggleCamera) btnToggleCamera.style.background = '#2563eb';
+        // Update button UI to idle state (Matching clean blue transit primary)
+        if (btnToggleCamera) {
+            btnToggleCamera.style.background = '#2563eb';
+            btnToggleCamera.style.color = '#ffffff';
+            btnToggleCamera.style.border = 'none';
+        }
         if (cameraBtnText) cameraBtnText.textContent = "Start Scanner Camera";
         const laserLine = document.querySelector('.scan-line');
         if (laserLine) laserLine.style.display = 'none';

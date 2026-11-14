@@ -396,9 +396,21 @@
                             <span class="label" id="gps-area-label">Signal Ready: High Accuracy</span>
                         </div>
 
+                        <!-- Single Active Stream Standby Alert Banner -->
+                        <div id="driver-stream-standby-banner" style="display:none; margin-top:10px; padding:10px 12px; background:#fffbeb; border:1px solid #fef3c7; border-radius:12px; font-size:11px; color:#92400e; font-weight:600; align-items:center; gap:6px;">
+                            <span class="material-symbols-outlined" style="font-size:16px; color:#d97706;">pause_circle</span>
+                            <span id="driver-stream-standby-text">Standby: Higher-priority crew is broadcasting GPS coordinates.</span>
+                        </div>
+
                         <button id="btn-toggle-shift" class="btn-start">
                             <span class="material-symbols-outlined" id="btn-icon">play_arrow</span>
                             <span id="btn-label">Start GPS Tracking</span>
+                        </button>
+
+                        <!-- Testing / Simulation Mode Toggle Button -->
+                        <button id="btn-toggle-sim" type="button" class="btn-sim" style="margin-top:8px; width:100%; padding:9px 12px; border-radius:12px; border:1px dashed #3b82f6; background:#eff6ff; color:#1d4ed8; font-weight:700; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:all 0.2s;">
+                            <span class="material-symbols-outlined" style="font-size:16px;">route</span>
+                            <span id="sim-btn-label">Test GPS Simulation Mode</span>
                         </button>
                     </div>
 
@@ -540,17 +552,17 @@
                                 <span class="cap-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px; font-weight:700; padding:2px 8px; border-radius:9999px;">Top-Fixed Viewfinder</span>
                             </div>
 
-                            <!-- Viewfinder - Minimalist & Compact -->
-                            <div id="qr-reader-container" style="background:#0f172a; border-radius:18px; aspect-ratio:1/1; width:100%; max-width:280px; margin:0 auto; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; border:1px solid #334155; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
-                                <!-- Reticle Overlays (Minimal single frame, clean blue reticle) -->
-                                <div style="position:absolute; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center; z-index:10; padding:18px;">
-                                    <div style="position:relative; width:100%; height:100%; max-width:180px; max-height:180px; display:flex; align-items:center; justify-content:center;">
-                                        <div style="position:absolute; top:0; left:0; width:20px; height:20px; border-top:2px solid #3b82f6; border-left:2px solid #3b82f6; border-top-left-radius:4px;"></div>
-                                        <div style="position:absolute; top:0; right:0; width:20px; height:20px; border-top:2px solid #3b82f6; border-right:2px solid #3b82f6; border-top-right-radius:4px;"></div>
-                                        <div style="position:absolute; bottom:0; left:0; width:20px; height:20px; border-bottom:2px solid #3b82f6; border-left:2px solid #3b82f6; border-bottom-left-radius:4px;"></div>
-                                        <div style="position:absolute; bottom:0; right:0; width:20px; height:20px; border-bottom:2px solid #3b82f6; border-right:2px solid #3b82f6; border-bottom-right-radius:4px;"></div>
+                            <!-- Viewfinder - Minimalist & Compact (Clean light surface, no harsh black) -->
+                            <div id="qr-reader-container" style="background:linear-gradient(to bottom, #f8fafc, #f1f5f9); border-radius:18px; aspect-ratio:1/1; width:100%; max-width:240px; margin:0 auto; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                                <!-- Reticle Overlays (Minimal single frame, clean blue reticle, no green) -->
+                                <div style="position:absolute; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center; z-index:10; padding:16px;">
+                                    <div style="position:relative; width:100%; height:100%; max-width:150px; max-height:150px; display:flex; align-items:center; justify-content:center;">
+                                        <div style="position:absolute; top:0; left:0; width:18px; height:18px; border-top:2px solid #3b82f6; border-left:2px solid #3b82f6; border-top-left-radius:4px;"></div>
+                                        <div style="position:absolute; top:0; right:0; width:18px; height:18px; border-top:2px solid #3b82f6; border-right:2px solid #3b82f6; border-top-right-radius:4px;"></div>
+                                        <div style="position:absolute; bottom:0; left:0; width:18px; height:18px; border-bottom:2px solid #3b82f6; border-left:2px solid #3b82f6; border-bottom-left-radius:4px;"></div>
+                                        <div style="position:absolute; bottom:0; right:0; width:18px; height:18px; border-bottom:2px solid #3b82f6; border-right:2px solid #3b82f6; border-bottom-right-radius:4px;"></div>
 
-                                        <!-- Animated Laser Line -->
+                                        <!-- Animated Cyan/Blue Laser Line (No green) -->
                                         <div id="driver-laser-line" class="scan-line" style="display:none;"></div>
                                     </div>
                                 </div>
@@ -558,31 +570,31 @@
                                 <div id="qr-reader" style="width:100%; height:100%;"></div>
 
                                 <!-- Quick Action HUD Controls Overlay -->
-                                <div id="scanner-hud-controls" style="position:absolute; bottom:10px; left:0; right:0; display:flex; justify-content:center; align-items:center; gap:8px; z-index:30; pointer-events:auto;">
-                                    <button id="btn-toggle-torch" type="button" style="width:34px; height:34px; border-radius:50%; background:rgba(30,41,59,0.85); color:#fff; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Toggle Flashlight">
-                                        <span class="material-symbols-outlined" style="font-size:16px;">flash_on</span>
+                                <div id="scanner-hud-controls" style="position:absolute; bottom:8px; left:0; right:0; display:flex; justify-content:center; align-items:center; gap:6px; z-index:30; pointer-events:auto;">
+                                    <button id="btn-toggle-torch" type="button" style="width:32px; height:32px; border-radius:50%; background:rgba(30,41,59,0.85); color:#fff; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Toggle Flashlight">
+                                        <span class="material-symbols-outlined" style="font-size:15px;">flash_on</span>
                                     </button>
-                                    <button id="btn-flip-camera" type="button" style="width:34px; height:34px; border-radius:50%; background:rgba(30,41,59,0.85); color:#fff; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Switch Camera">
-                                        <span class="material-symbols-outlined" style="font-size:16px;">cameraswitch</span>
+                                    <button id="btn-flip-camera" type="button" style="width:32px; height:32px; border-radius:50%; background:rgba(30,41,59,0.85); color:#fff; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Switch Camera">
+                                        <span class="material-symbols-outlined" style="font-size:15px;">cameraswitch</span>
                                     </button>
-                                    <button id="btn-manual-id" type="button" style="height:34px; padding:0 12px; border-radius:17px; background:rgba(30,41,59,0.85); color:#fff; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; gap:4px; font-size:11px; font-weight:700; cursor:pointer;" title="Manual ID Entry">
+                                    <button id="btn-manual-id" type="button" style="height:32px; padding:0 10px; border-radius:16px; background:rgba(30,41,59,0.85); color:#fff; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; gap:4px; font-size:11px; font-weight:700; cursor:pointer;" title="Manual ID Entry">
                                         <span class="material-symbols-outlined" style="font-size:14px;">keyboard</span>
                                         <span>Manual ID</span>
                                     </button>
                                 </div>
 
-                                <!-- Placeholder -->
-                                <div id="qr-reader-placeholder" style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:rgba(15,23,42,0.92); z-index:20; padding:16px;">
-                                    <div style="width:44px; height:44px; border-radius:9999px; background:rgba(30,41,59,0.9); display:flex; align-items:center; justify-content:center; margin-bottom:8px; border:1px solid rgba(255,255,255,0.1);">
-                                        <span class="material-symbols-outlined" style="font-size:24px; color:#94a3b8;">videocam_off</span>
+                                <!-- Placeholder (Clean light standby, no harsh dark black) -->
+                                <div id="qr-reader-placeholder" style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:linear-gradient(to bottom, rgba(248,250,252,0.96), rgba(241,245,249,0.94)); z-index:20; padding:14px;">
+                                    <div style="width:40px; height:40px; border-radius:16px; background:#ffffff; color:#2563eb; display:flex; align-items:center; justify-content:center; margin-bottom:6px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                                        <span class="material-symbols-outlined" style="font-size:20px; color:#2563eb;">videocam_off</span>
                                     </div>
-                                    <p style="font-size:12px; font-weight:600; color:#e2e8f0; margin:0;">Scanner Standby</p>
-                                    <p style="font-size:11px; color:#94a3b8; margin-top:3px; max-width:200px;">Align pass QR code in reticle</p>
+                                    <p style="font-size:12px; font-weight:700; color:#1e293b; margin:0;">Scanner Standby</p>
+                                    <p style="font-size:11px; color:#64748b; margin-top:2px; max-width:170px; line-height:1.3;">Align pass QR code in reticle</p>
                                 </div>
                             </div>
 
                             <!-- Action Button Matching Minimal Width -->
-                            <div style="max-width:280px; margin:14px auto 0 auto; width:100%;">
+                            <div style="max-width:240px; margin:12px auto 0 auto; width:100%;">
                                 <button id="btn-toggle-camera" class="btn-scan" style="width:100%; background:#2563eb; color:#fff; font-size:13px; font-weight:700; padding:11px 18px; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:8px; border:none; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.05); transition:all 0.2s;">
                                     <span id="camera-btn-text">Start Scanner Camera</span>
                                 </button>

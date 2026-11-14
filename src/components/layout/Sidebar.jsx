@@ -59,6 +59,7 @@ export function Sidebar({ isOpen, onClose }) {
           }
         ];
       case 'driver':
+      case 'conductor':
         return [
           {
             label: 'Operations',

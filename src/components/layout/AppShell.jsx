@@ -36,10 +36,18 @@ export function AppShell({ allowedRole }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRole && role && role !== allowedRole) {
+  const isRoleAllowed = (expected, actual) => {
+    if (!expected) return true;
+    if (Array.isArray(expected)) return expected.includes(actual);
+    if (expected === 'driver') return actual === 'driver' || actual === 'conductor';
+    return actual === expected;
+  };
+
+  if (allowedRole && role && !isRoleAllowed(allowedRole, role)) {
     const homePaths = {
       student: '/student/home',
       driver: '/driver/dashboard',
+      conductor: '/driver/dashboard',
       admin: '/admin/dashboard',
       owner: '/owner/dashboard'
     };

@@ -213,6 +213,113 @@ export async function updateBusLocation(busId, lat, lng, speed = 25) {
   });
 }
 
+/**
+ * updateBusLiveLocation
+ * Single Active Stream Guard coordinate broadcaster for Driver & Conductor portals.
+ * Enforces stream hierarchy: Primary Driver (1) > Secondary Driver (2) > Primary Conductor (3) > Secondary Conductor (4).
+ */
+export async function updateBusLiveLocation({
+  busId,
+  lat,
+  lng,
+  speed = 25,
+  user = null,
+  streamSource = 'gps', // 'gps' | 'simulation'
+  onStandby = null
+}) {
+  if (!busId || lat == null || lng == null) return { success: false, reason: 'Invalid parameters' };
+
+  const busRef = doc(db, 'buses', busId);
+  const userEmail = user?.email?.toLowerCase().trim() || 'anonymous';
+  const role = user?.role || 'driver';
+  const roleTier = user?.roleTier || 'primary';
+
+  // Priority ranking: 1 (highest) to 4 (lowest)
+  let userPriority = 4;
+  if (role === 'driver') {
+    userPriority = roleTier === 'primary' ? 1 : 2;
+  } else if (role === 'conductor') {
+    userPriority = roleTier === 'primary' ? 3 : 4;
+  }
+
+  const now = Date.now();
+  const busSnap = await getDoc(busRef);
+  if (!busSnap.exists()) return { success: false, reason: 'Bus record not found' };
+
+  const busData = busSnap.data();
+  const currentBroadcaster = busData.activeBroadcaster;
+
+  // Single Active Stream Guard:
+  // If someone else is actively broadcasting and their heartbeat is fresh (< 25s)
+  if (currentBroadcaster && currentBroadcaster.email && currentBroadcaster.email !== userEmail) {
+    const isFresh = currentBroadcaster.lastHeartbeat && (now - currentBroadcaster.lastHeartbeat) < 25000;
+    if (isFresh) {
+      // If current user has lower priority, enforce Standby mode
+      if (userPriority > currentBroadcaster.priority) {
+        if (onStandby) {
+          onStandby({
+            isStandby: true,
+            activeBroadcaster: currentBroadcaster
+          });
+        }
+        return { 
+          success: false, 
+          isStandby: true, 
+          activeBroadcaster: currentBroadcaster,
+          reason: `${currentBroadcaster.role === 'driver' ? 'Driver' : 'Conductor'} (${currentBroadcaster.name || currentBroadcaster.email}) has active stream priority.` 
+        };
+      }
+      // If current user has higher or equal priority, they preempt and take over the active stream
+    }
+  }
+
+  const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const updatePayload = {
+    'location.lat': Number(lat),
+    'location.lng': Number(lng),
+    speed: Number(speed) || 0,
+    locationSource: streamSource === 'simulation' ? 'simulation' : (role === 'conductor' ? 'conductor_phone' : 'driver_phone'),
+    lastUpdate: nowTime,
+    activeBroadcaster: {
+      email: userEmail,
+      name: user?.name || (role === 'conductor' ? 'Conductor' : 'Driver'),
+      role,
+      roleTier,
+      priority: userPriority,
+      lastHeartbeat: now,
+      streamSource
+    },
+    updatedAt: serverTimestamp()
+  };
+
+  await updateDoc(busRef, updatePayload);
+  return { success: true, isStandby: false };
+}
+
+/**
+ * releaseBusLiveStream
+ * Cleans up activeBroadcaster so standby crew can take over immediately.
+ */
+export async function releaseBusLiveStream(busId, userEmail) {
+  if (!busId) return;
+  try {
+    const busRef = doc(db, 'buses', busId);
+    const busSnap = await getDoc(busRef);
+    if (busSnap.exists()) {
+      const data = busSnap.data();
+      const cleanEmail = userEmail ? String(userEmail).toLowerCase().trim() : '';
+      if (!cleanEmail || data.activeBroadcaster?.email === cleanEmail) {
+        await updateDoc(busRef, {
+          activeBroadcaster: null,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to release bus live stream:", err);
+  }
+}
+
 export async function deleteBus(busId) {
   const busRef = doc(db, 'buses', busId);
   await deleteDoc(busRef);
