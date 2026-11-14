@@ -1,3 +1,13 @@
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
 
     const notificationsList = document.getElementById('notifications-list');
@@ -190,9 +200,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     </span>
                                     ${isUnread ? '<span class="w-2 h-2 bg-red-500 rounded-full pulse-ring"></span>' : ''}
                                 </div>
-                                <span class="text-[10px] sm:text-xs text-gray-500 font-medium">${time}</span>
+                                <span class="text-[10px] sm:text-xs text-gray-500 font-medium">${escapeHtml(time)}</span>
                             </div>
-                            <p class="text-gray-800 font-medium leading-relaxed text-xs sm:text-sm break-words-safe">${n.message}</p>
+                            <p class="text-gray-800 font-medium leading-relaxed text-xs sm:text-sm break-words-safe">${escapeHtml(n.message)}</p>
                             
                             ${n.actionable ? `
                                 <div class="mt-4 flex flex-wrap gap-2">

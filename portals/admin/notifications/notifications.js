@@ -1,4 +1,14 @@
 // notifications.js - Notification Broadcast Logic for Cambus Connect
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
@@ -103,13 +113,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         card.innerHTML = `
                             <div class="flex items-start justify-between mb-4">
                                 <div class="flex items-center gap-2">
-                                    <span class="px-3 py-1 ${typeColor} rounded-lg text-xs font-bold uppercase">${notif.type}</span>
-                                    <span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">${targetLabel}</span>
+                                    <span class="px-3 py-1 ${typeColor} rounded-lg text-xs font-bold uppercase">${escapeHtml(notif.type)}</span>
+                                    <span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">${escapeHtml(targetLabel)}</span>
                                 </div>
-                                <span class="text-xs text-slate-500">${date}</span>
+                                <span class="text-xs text-slate-500">${escapeHtml(date)}</span>
                             </div>
-                            <p class="text-slate-800 font-semibold mb-4">${notif.message}</p>
-                            <button class="btn-delete-notif px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl text-xs font-bold transition-all" data-id="${doc.id}">
+                            <p class="text-slate-800 font-semibold mb-4">${escapeHtml(notif.message)}</p>
+                            <button class="btn-delete-notif px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl text-xs font-bold transition-all" data-id="${escapeHtml(doc.id)}">
                                 Delete
                             </button>
                         `;

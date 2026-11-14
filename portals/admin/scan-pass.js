@@ -733,6 +733,21 @@ document.addEventListener('DOMContentLoaded', () => {
             scannerStatus.style.color = "#2563eb";
         }
 
+        // Static unverified pass check
+        if (rawText.startsWith('CAMBUS:')) {
+            const isOverrideActive = toggleLateOverride && toggleLateOverride.checked;
+            if (!isOverrideActive) {
+                playBeep(220, 300);
+                const reason = "Unverified static pass rejected. Dynamic cryptographic pass required.";
+                if (scannerStatus) {
+                    scannerStatus.textContent = reason;
+                    scannerStatus.style.color = "#ef4444";
+                }
+                showToast(false, "Verification Denied", reason);
+                return;
+            }
+        }
+
         // 0. Base64 JSON format check
         let payloadObject = null;
         if (rawText.length > 20 && !rawText.includes(' ')) {
@@ -750,6 +765,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const studentName = payloadObject.name || payloadObject.studentName || 'Unknown';
             const routeName = payloadObject.routeName || payloadObject.busRoute || 'Not Assigned';
             const instituteId = payloadObject.instituteId || '';
+
+            // Verify signature format if signed token
+            if (rawText.includes('.') && verificationSystem) {
+                const parts = rawText.split('.');
+                if (parts.length < 2 || !parts[1]) {
+                    playBeep(220, 300);
+                    const reason = "Cryptographic signature missing from pass token.";
+                    if (scannerStatus) {
+                        scannerStatus.textContent = reason;
+                        scannerStatus.style.color = "#ef4444";
+                    }
+                    showToast(false, "Verification Denied", reason);
+                    return;
+                }
+            }
 
             // Enforce Multi-Tenant Domain isolation
             let passDomain = instituteId.toLowerCase().trim();
@@ -769,8 +799,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Check 4-Hour Anti-Loop Lock for JSON Passes
-            /* 
+            // Enforce 4-Hour Anti-Loop Lock for JSON Passes
             const now = Date.now();
             const lastScanTime = dbReferenceLogs[studentId];
             if (lastScanTime !== undefined) {
@@ -787,8 +816,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast(false, "Verification Denied", reason);
                     return;
                 }
-            } 
-            */
+            }
+            dbReferenceLogs[studentId] = now;
 
             const matchedStudent = {
                 id: studentId,
@@ -908,8 +937,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // Check 4-Hour Anti-Loop Lock for Database Search check-ins
-                /*
+                // Enforce 4-Hour Anti-Loop Lock for Database Search check-ins
                 const sId = matchedStudent.id || matchedStudent.collegeId || 'Unknown';
                 const now = Date.now();
                 const lastScanTime = dbReferenceLogs[sId];
@@ -932,7 +960,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                 }
-                */
+                dbReferenceLogs[sId] = now;
 
                 // Success
                 // const sharedLock = await ensureSharedLockClear(matchedStudent, 'admin');

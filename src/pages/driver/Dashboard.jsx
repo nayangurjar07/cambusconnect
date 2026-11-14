@@ -60,6 +60,14 @@ export function DriverDashboard() {
     return () => { if (interval) clearInterval(interval); };
   }, [isShiftActive]);
 
+  useEffect(() => {
+    return () => {
+      if (watchId && 'geolocation' in navigator) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [watchId]);
+
   const formatTime = (secs) => {
     const hrs = Math.floor(secs / 3600);
     const mins = Math.floor((secs % 3600) / 60);

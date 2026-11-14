@@ -73,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let html5QrScanner = null;
     const dbReferenceLogs = {}; // Anti-loop scan cache
     const SHARED_LOCK_DURATION_MS = 4 * 60 * 60 * 1000;
+    const verificationSystem = typeof CambusPassVerificationSystem !== 'undefined' ? new CambusPassVerificationSystem() : null;
 
     function getFirestoreDb() {
         return window.db || firebase.firestore();
@@ -800,10 +801,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (watchId) {
             const useTracker = !!(assignedBus && assignedBus.tracking && assignedBus.tracking.trackerId);
             if (useTracker) clearInterval(watchId);
-            else navigator.geolocation.clearWatch(watchId);
+            else if (navigator.geolocation) navigator.geolocation.clearWatch(watchId);
             watchId = null;
         }
     }
+    window.addEventListener('beforeunload', stopGPSStream);
+    window.addEventListener('pagehide', stopGPSStream);
 
     // ─── Duration Timer ────────────────────────────────────────────────────────
     function updateDuration() {
@@ -1302,6 +1305,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 1. Dedicated transit QR format: CAMBUS:${collegeId}:${assignedBus}:${todayIso}
         if (rawText.startsWith('CAMBUS:')) {
+            const isEmergencyOverride = document.getElementById('toggle-late-override')?.checked;
+            if (!isEmergencyOverride) {
+                playBeep(220, 300);
+                showVerificationSheet('denied', {
+                    name: 'Unverified Static Pass',
+                    enrollment: 'N/A',
+                    route: 'N/A',
+                    note: 'Static pass format rejected for anti-fraud security. Passenger must present the dynamic rotating pass.'
+                });
+                if (scannerStatus) {
+                    scannerStatus.textContent = 'Static Pass Rejected — Dynamic Pass Required';
+                    scannerStatus.style.color = '#e53935';
+                }
+                return;
+            }
+
             const parts = rawText.split(':');
             const scannedCollegeId = parts[1] || 'UNKNOWN';
             const scannedBusId = parts[2] || '';
@@ -1449,8 +1468,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 const studentName = payloadObject.name || payloadObject.studentName || 'Unknown';
                 const routeName = payloadObject.routeName || payloadObject.busRoute || 'Not Assigned';
 
-                // Check 4-Hour Anti-Loop Lock for JSON Passes
-                /*
+                // Verify signature format if signed token
+                if (rawText.includes('.') && verificationSystem) {
+                    const parts = rawText.split('.');
+                    if (parts.length < 2 || !parts[1]) {
+                        playBeep(220, 300);
+                        showVerificationSheet('denied', {
+                            name: studentName,
+                            enrollment: studentId,
+                            route: routeName,
+                            note: 'Cryptographic signature missing from pass token. Boarding denied.'
+                        });
+                        if (scannerStatus) {
+                            scannerStatus.textContent = "Signature Missing — Pass Rejected";
+                            scannerStatus.style.color = "#e53935";
+                        }
+                        return;
+                    }
+                }
+
+                // Enforce 4-Hour Anti-Loop Lock for JSON Passes
                 const now = Date.now();
                 const lastScanTime = dbReferenceLogs[studentId];
                 if (lastScanTime !== undefined) {
@@ -1468,7 +1505,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                 }
-                */
+                dbReferenceLogs[studentId] = now;
 
                 const matchedStudent = {
                     id: studentId,

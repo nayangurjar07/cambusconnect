@@ -1,6 +1,17 @@
 // Home page logic - Student dashboard with real-time updates
 // Enhanced with modern admin panel features
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+const escapeHTML = escapeHtml;
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // ========================================
@@ -402,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
                               </svg>
                           </div>
                           <div class="flex-1 min-w-0">
-                              <p class="text-sm text-gray-800 font-medium leading-relaxed break-words-safe">${n.message}</p>
+                              <p class="text-sm text-gray-800 font-medium leading-relaxed break-words-safe">${escapeHtml(n.message)}</p>
                               <p class="text-xs text-gray-500 mt-1.5 flex items-center shrink-0">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                   ${time}
@@ -419,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 notificationsContainer.innerHTML = `
                   <div class="p-4 bg-red-50 rounded-xl border border-red-200">
                       <p class="text-sm text-red-600 font-medium">Failed to load notifications</p>
-                      <p class="text-xs text-red-400 mt-1">${err.message}</p>
+                      <p class="text-xs text-red-400 mt-1">${escapeHtml(err.message)}</p>
                   </div>
               `;
             });

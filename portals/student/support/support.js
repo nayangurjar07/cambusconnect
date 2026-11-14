@@ -1,5 +1,15 @@
 // Support page logic - Enhanced ticket system with new features
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     
     // ========================================
@@ -339,17 +349,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="flex items-center flex-wrap gap-2 mb-3">
                         <span class="px-4 py-1.5 rounded-full text-xs font-bold border-2 ${status.class} flex items-center space-x-1 shrink-0">
                             <span>${status.icon}</span>
-                            <span>${query.status}</span>
+                            <span>${escapeHtml(query.status)}</span>
                         </span>
                         <span class="px-4 py-1.5 rounded-full text-xs font-bold border-2 ${priority.class} flex items-center space-x-1 shrink-0">
                             <span>${priority.emoji}</span>
-                            <span>${query.priority}</span>
+                            <span>${escapeHtml(query.priority)}</span>
                         </span>
                         <span class="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 shrink-0">
-                            ${query.category}
+                            ${escapeHtml(query.category)}
                         </span>
                     </div>
-                    <h4 class="font-bold text-gray-800 text-lg sm:text-xl mb-2 break-words-safe">${query.subject}</h4>
+                    <h4 class="font-bold text-gray-800 text-lg sm:text-xl mb-2 break-words-safe">${escapeHtml(query.subject)}</h4>
                 </div>
                 ${isUrgent ? `
                     <div class="ml-2 px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold border border-red-200 shrink-0">
@@ -359,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             
             <div class="bg-white rounded-xl p-4 sm:p-5 mb-4 border-2 border-gray-100 min-w-0">
-                <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words-safe">${query.description}</p>
+                <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words-safe">${escapeHtml(query.description)}</p>
             </div>
             
             ${query.response ? `
@@ -371,9 +381,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             </svg>
                         </div>
                         <span class="text-sm font-bold text-green-700">Admin Response</span>
-                        ${query.respondedBy ? `<span class="text-xs text-green-600">by ${query.respondedBy}</span>` : ''}
+                        ${query.respondedBy ? `<span class="text-xs text-green-600">by ${escapeHtml(query.respondedBy)}</span>` : ''}
                     </div>
-                    <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap break-words-safe">${query.response}</p>
+                    <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap break-words-safe">${escapeHtml(query.response)}</p>
                     ${query.respondedAt ? `
                         <div class="flex items-center space-x-2 mt-3 pt-3 border-t border-green-200">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600 shrink-0">

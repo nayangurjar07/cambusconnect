@@ -68,12 +68,19 @@ service cloud.firestore {
         isAuthenticated() && (
           isOwnerOf(email) || 
           request.auth.token.email.lower() == email.lower()
-        )
+        ) &&
+        (!('role' in request.resource.data) || request.resource.data.role == 'student') &&
+        (!('status' in request.resource.data) || request.resource.data.status in ['Pending', 'Active'])
       );
       allow update: if isAdmin() || (
         isAuthenticated() && 
         (isOwnerOf(email) || request.auth.token.email.lower() == email.lower()) && 
-        request.resource.data.role == resource.data.role
+        request.resource.data.role == resource.data.role &&
+        (!('passValidity' in request.resource.data) || request.resource.data.passValidity == resource.data.passValidity) &&
+        (!('status' in request.resource.data) || request.resource.data.status == resource.data.status) &&
+        (!('assignedBusId' in request.resource.data) || request.resource.data.assignedBusId == resource.data.assignedBusId) &&
+        (!('assignedRoute' in request.resource.data) || request.resource.data.assignedRoute == resource.data.assignedRoute) &&
+        (!('busRoute' in request.resource.data) || request.resource.data.busRoute == resource.data.busRoute)
       );
       allow delete: if isAdmin();
     }
@@ -85,7 +92,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         isOwnerOf(studentId) || 
         request.auth.token.email.lower() == studentId.lower() || 
-        isAdmin()
+        isAdmin() ||
+        isDriverOrConductor()
       );
       allow write: if isAdmin();
     }

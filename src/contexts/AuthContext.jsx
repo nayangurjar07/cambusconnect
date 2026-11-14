@@ -135,6 +135,9 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    if (typeof window !== 'undefined' && window.CambusCache && typeof window.CambusCache.clearAll === 'function') {
+      window.CambusCache.clearAll();
+    }
     await logoutUser();
     setCurrentUser(null);
     setProfile(null);

@@ -87,13 +87,15 @@ const server = http.createServer((req, res) => {
 
     // API endpoint router
     if (parsedUrl.pathname.startsWith('/api/')) {
-        const apiName = parsedUrl.pathname.replace(/^\/api\//, '').replace(/\.js$/, '');
-        const apiFilePath = path.join(__dirname, 'api', `${apiName}.js`);
+        const apiDir = path.resolve(__dirname, 'api');
+        const rawApiName = parsedUrl.pathname.replace(/^\/api\//, '').replace(/\.js$/, '');
+        const safeApiName = path.basename(rawApiName);
+        const apiFilePath = path.join(apiDir, `${safeApiName}.js`);
         
-        if (!fs.existsSync(apiFilePath)) {
+        if (!apiFilePath.startsWith(apiDir) || !fs.existsSync(apiFilePath)) {
             res.statusCode = 404;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: `API route /api/${apiName} not found` }));
+            res.end(JSON.stringify({ error: `API route not found` }));
             return;
         }
 
@@ -146,6 +148,25 @@ const server = http.createServer((req, res) => {
     // Avoid directory traversal attacks
     if (safePath.startsWith('..') || safePath.includes('..')) {
         res.statusCode = 403;
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('Access Denied');
+        return;
+    }
+    
+    // Block dotfiles (.env, .git, etc.) and sensitive project files
+    const basename = path.basename(safePath).toLowerCase();
+    const isDotFile = basename.startsWith('.') || safePath.includes('/.') || safePath.includes('\\.');
+    const isSensitiveExt = /\.(env.*|bat|ps1|log|md|pptx|lock|rules)$/i.test(safePath);
+    const SENSITIVE_FILES = [
+        'package.json', 'package-lock.json', 'firebase.json', 
+        'firestore.indexes.json', 'database.rules.json', 'tsconfig.json',
+        'server.js', 'test-e2e.mjs', 'scratch.js'
+    ];
+    const isSensitiveFile = SENSITIVE_FILES.includes(basename);
+
+    if (isDotFile || isSensitiveExt || isSensitiveFile) {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'text/plain');
         res.end('Access Denied');
         return;
     }

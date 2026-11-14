@@ -48,12 +48,28 @@ async function verifyAdminRole(idToken, email, projectId) {
   return role === 'admin' || role === 'superadmin' || role === 'owner';
 }
 
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'https://cambusconnect.web.app',
+  'https://cambus-connect-iist.firebaseapp.com'
+];
+
 export default async function handler(req, res) {
-  // Enforce secure CORS policy: restrict to requesting origin or local environment
-  const origin = req.headers.origin || req.headers.host || '';
+  // Enforce secure CORS policy: strictly restrict to approved origins
+  const origin = req.headers.origin;
   res.setHeader('Vary', 'Origin');
+
   if (origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ error: 'Forbidden: Origin not authorized' }));
+    }
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');

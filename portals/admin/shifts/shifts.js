@@ -1,4 +1,15 @@
 // shifts.js - Shift Management & Live Fleet Monitoring for Cambus Connect
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
@@ -118,22 +129,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="flex items-start justify-between mb-4 pr-12">
                             <div class="flex items-center gap-3">
                                 <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/20">
-                                    ${busNumber}
+                                    ${escapeHtml(busNumber)}
                                 </div>
                                 <div>
-                                    <h3 class="font-extrabold text-slate-800 text-base">Bus ${busNumber}</h3>
-                                    <p class="text-[10px] text-slate-400 font-bold mt-0.5">Started at ${startTimeStr}</p>
+                                    <h3 class="font-extrabold text-slate-800 text-base">Bus ${escapeHtml(busNumber)}</h3>
+                                    <p class="text-[10px] text-slate-400 font-bold mt-0.5">Started at ${escapeHtml(startTimeStr)}</p>
                                 </div>
                             </div>
                             <div class="text-right">
                                 <span class="text-[9px] font-bold text-slate-400 block uppercase tracking-widest">Riders</span>
-                                <span class="text-2xl font-black text-indigo-600 block mt-0.5">${headcount}</span>
+                                <span class="text-2xl font-black text-indigo-600 block mt-0.5">${escapeHtml(headcount)}</span>
                             </div>
                         </div>
                         
                         <div class="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl mb-4">
                             <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">Active Route</span>
-                            <span class="text-sm font-bold text-slate-700 block line-clamp-1" title="${route}">${route}</span>
+                            <span class="text-sm font-bold text-slate-700 block line-clamp-1" title="${escapeHtml(route)}">${escapeHtml(route)}</span>
                         </div>
                         
                         <div class="space-y-2.5 border-t border-slate-100 pt-3.5">
@@ -142,21 +153,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <span class="material-symbols-outlined text-[18px]">badge</span>
                                     <span>Driver:</span>
                                 </div>
-                                <span class="font-bold text-slate-800">${driverName} (${driverPhone})</span>
+                                <span class="font-bold text-slate-800">${escapeHtml(driverName)} (${escapeHtml(driverPhone)})</span>
                             </div>
                             <div class="flex items-center justify-between text-xs">
                                 <div class="flex items-center gap-2 text-slate-500 font-semibold">
                                     <span class="material-symbols-outlined text-[18px]">assignment_ind</span>
                                     <span>Conductor:</span>
                                 </div>
-                                <span class="font-bold text-slate-800">${conductorName} (${conductorPhone})</span>
+                                <span class="font-bold text-slate-800">${escapeHtml(conductorName)} (${escapeHtml(conductorPhone)})</span>
                             </div>
                             <div class="flex items-center justify-between text-[10px] border-t border-slate-100/60 pt-2.5 mt-2.5 text-slate-400 font-bold">
                                 <div class="flex items-center gap-1">
                                     <span class="material-symbols-outlined text-[14px]">person</span>
                                     <span>Logged by:</span>
                                 </div>
-                                <span class="font-extrabold text-slate-600">${session.driverEmail || 'N/A'}</span>
+                                <span class="font-extrabold text-slate-600">${escapeHtml(session.driverEmail || 'N/A')}</span>
                             </div>
                         </div>
                     `;
@@ -272,11 +283,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td class="p-5 font-bold text-slate-800">
                         <div class="flex items-center gap-2">
                             <span class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-700 font-extrabold text-xs">
-                                ${session.busNumber || '--'}
+                                ${escapeHtml(session.busNumber || '--')}
                             </span>
                             <div>
-                                <p class="text-sm font-extrabold text-slate-800">Bus ${session.busNumber || '--'}</p>
-                                <p class="text-xs text-slate-400 font-semibold truncate max-w-[240px]" title="${session.route || ''}">${session.route || '--'}</p>
+                                <p class="text-sm font-extrabold text-slate-800">Bus ${escapeHtml(session.busNumber || '--')}</p>
+                                <p class="text-xs text-slate-400 font-semibold truncate max-w-[240px]" title="${escapeHtml(session.route || '')}">${escapeHtml(session.route || '--')}</p>
                             </div>
                         </div>
                     </td>
@@ -285,18 +296,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="flex items-center gap-1.5 text-slate-600 font-medium">
                                 <span class="material-symbols-outlined text-[16px] text-slate-400">badge</span>
                                 <span>Driver:</span>
-                                <span class="font-bold text-slate-800">${driver} (${driverPhone})</span>
+                                <span class="font-bold text-slate-800">${escapeHtml(driver)} (${escapeHtml(driverPhone)})</span>
                             </div>
                             <div class="flex items-center gap-1.5 text-slate-600 font-medium">
                                 <span class="material-symbols-outlined text-[16px] text-slate-400">assignment_ind</span>
                                 <span>Conductor:</span>
-                                <span class="font-bold text-slate-800">${conductor} (${conductorPhone})</span>
+                                <span class="font-bold text-slate-800">${escapeHtml(conductor)} (${escapeHtml(conductorPhone)})</span>
                             </div>
                         </div>
                     </td>
                     <td class="p-5">
-                        <p class="text-xs font-bold text-slate-800">${startStr} - ${endStr}</p>
-                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">Duration: ${durationStr}</p>
+                        <p class="text-xs font-bold text-slate-800">${escapeHtml(startStr)} - ${escapeHtml(endStr)}</p>
+                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">Duration: ${escapeHtml(durationStr)}</p>
                     </td>
                     <td class="p-5 text-center">
                         <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-extrabold shadow-sm border border-indigo-100/50">
@@ -305,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </span>
                     </td>
                     <td class="p-5">
-                        <span class="text-xs text-slate-500 font-bold block">${session.driverEmail}</span>
+                        <span class="text-xs text-slate-500 font-bold block">${escapeHtml(session.driverEmail || 'N/A')}</span>
                     </td>
                 `;
                 historyTableBody.appendChild(row);
@@ -473,21 +484,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 row.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100';
                 row.innerHTML = `
                     <td class="p-5 font-bold text-slate-800">
-                        <p class="text-sm font-extrabold text-slate-800">${rec.studentName || 'Unknown'}</p>
-                        <p class="text-xs text-slate-400 font-semibold">ID: ${rec.studentId || 'N/A'}</p>
+                        <p class="text-sm font-extrabold text-slate-800">${escapeHtml(rec.studentName || 'Unknown')}</p>
+                        <p class="text-xs text-slate-400 font-semibold">ID: ${escapeHtml(rec.studentId || 'N/A')}</p>
                     </td>
                     <td class="p-5">
-                        <p class="text-sm font-extrabold text-slate-800">Bus ${rec.busNumber || 'N/A'}</p>
-                        <p class="text-xs text-slate-400 font-semibold truncate max-w-[200px]">${rec.routeName || 'N/A'}</p>
+                        <p class="text-sm font-extrabold text-slate-800">Bus ${escapeHtml(rec.busNumber || 'N/A')}</p>
+                        <p class="text-xs text-slate-400 font-semibold truncate max-w-[200px]">${escapeHtml(rec.routeName || 'N/A')}</p>
                     </td>
                     <td class="p-5 text-slate-700 font-medium text-xs">
-                        ${scannedStr}
+                        ${escapeHtml(scannedStr)}
                     </td>
                     <td class="p-5 text-slate-700 font-medium text-xs">
-                        ${subStr}
+                        ${escapeHtml(subStr)}
                     </td>
                     <td class="p-5 text-slate-500 text-xs font-semibold">
-                        ${rec.driverEmail || 'N/A'}
+                        ${escapeHtml(rec.driverEmail || 'N/A')}
                     </td>
                 `;
                 submittedTableBody.appendChild(row);

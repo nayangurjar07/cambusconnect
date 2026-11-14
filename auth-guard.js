@@ -62,6 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // RULE 1: If NOT logged in (or missing tenant ID) and trying to access protected page -> Redirect to login
     if ((isLoggedIn !== 'true' || !instituteId) && !isPublicPage) {
         console.log('Not authenticated or missing tenant ID. Redirecting to login...');
+        if (typeof window !== 'undefined' && window.CambusCache && typeof window.CambusCache.clearAll === 'function') {
+            window.CambusCache.clearAll();
+        }
         localStorage.clear();
         window.location.href = loginPath;
         return;
@@ -136,6 +139,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 window.auth.signOut();
                             } else if (typeof firebase !== 'undefined' && firebase.auth) {
                                 firebase.auth().signOut().catch(() => {});
+                            }
+                            if (typeof window !== 'undefined' && window.CambusCache && typeof window.CambusCache.clearAll === 'function') {
+                                window.CambusCache.clearAll();
                             }
                             localStorage.clear();
                             window.location.href = loginPath;

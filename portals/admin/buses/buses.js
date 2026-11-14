@@ -1,4 +1,15 @@
 // buses.js - Bus Fleet Management Logic for Cambus Connect
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
@@ -115,23 +126,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="flex items-start justify-between mb-6 gap-2">
                         <div class="flex items-center gap-3 min-w-0 flex-1">
                             <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/30 shrink-0">
-                                ${bus.number}
+                                ${escapeHtml(bus.number)}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <h3 class="font-black text-slate-800 text-lg truncate">Bus ${bus.number}</h3>
-                                <p class="text-sm text-slate-500 font-semibold break-words-safe truncate" title="${staffLabelText}">${staffLabelText}</p>
+                                <h3 class="font-black text-slate-800 text-lg truncate">Bus ${escapeHtml(bus.number)}</h3>
+                                <p class="text-sm text-slate-500 font-semibold break-words-safe truncate" title="${escapeHtml(staffLabelText)}">${escapeHtml(staffLabelText)}</p>
                             </div>
                         </div>
                         <span class="status-badge px-3 py-1 ${currentStatus} rounded-full text-xs font-bold shadow-md shrink-0">
-                            ${bus.status}
+                            ${escapeHtml(bus.status)}
                         </span>
                     </div>
                     
                     <div class="mb-6 p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200/60 flex items-center justify-between gap-3">
                         <div class="min-w-0 flex-1">
                             <p class="text-xs font-bold text-slate-500 mb-1">ROUTE</p>
-                            <p class="text-sm font-bold text-slate-800 break-words-safe">${bus.route}</p>
-                            <p class="text-xs text-slate-500 mt-2">Source: ${sourceLabel}</p>
+                            <p class="text-sm font-bold text-slate-800 break-words-safe">${escapeHtml(bus.route)}</p>
+                            <p class="text-xs text-slate-500 mt-2">Source: ${escapeHtml(sourceLabel)}</p>
                         </div>
                         <div class="text-center bg-white border border-slate-100 shadow-sm p-2.5 rounded-xl flex flex-col items-center justify-center min-w-14 shrink-0">
                             <span class="material-symbols-outlined text-primary text-base">groups</span>
