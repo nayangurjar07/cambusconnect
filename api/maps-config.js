@@ -63,7 +63,7 @@ export default async function handler(req, res) {
   res.setHeader('Vary', 'Origin');
 
   if (origin) {
-    if (ALLOWED_ORIGINS.includes(origin)) {
+    if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app') || origin.includes('cambusconnect')) {
       res.setHeader('Access-Control-Allow-Origin', origin);
     } else {
       res.statusCode = 403;
