@@ -1,7 +1,7 @@
 // src/components/layout/MobileNav.jsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Map, QrCode, Bell, User, Bus } from 'lucide-react';
+import { LayoutDashboard, Map, QrCode, Bell, User, Bus, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export function MobileNav() {
@@ -18,9 +18,11 @@ export function MobileNav() {
           { label: 'Profile', path: '/student/profile', icon: User },
         ];
       case 'driver':
+      case 'conductor':
         return [
           { label: 'Duty', path: '/driver/dashboard', icon: LayoutDashboard },
           { label: 'Scan', path: '/driver/scan-pass', icon: QrCode },
+          { label: 'Schedule', path: '/driver/schedule', icon: Clock },
           { label: 'Alerts', path: '/driver/alerts', icon: Bell },
         ];
       case 'admin':

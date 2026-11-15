@@ -1,112 +1,186 @@
 // src/pages/admin/Dashboard.jsx
-import React, { useState, useEffect } from 'react';
-import { Bus, Users, QrCode, AlertTriangle, Clock, Map, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { subscribeToBuses } from '../../services/transit';
-import { subscribeToNotifications } from '../../services/communications';
-import { PageHeader } from '../../components/layout/PageHeader';
-import { MetricCard } from '../../components/ui/MetricCard';
-import { Card } from '../../components/ui/Card';
-import { StatusIndicator } from '../../components/ui/StatusIndicator';
-import { Badge } from '../../components/ui/Badge';
-import { NotificationItem } from '../../components/domain/NotificationItem';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { subscribeToBuses, getBusesTrackingSummary } from '../../services/transit';
+import { subscribeToStaff } from '../../services/workforce';
+import FleetMap from '../../components/domain/FleetMap';
 
 export function AdminDashboard() {
+  const navigate = useNavigate();
   const [buses, setBuses] = useState([]);
-  const [notifications, setNotifications] = useState([]);
+  const [staff, setStaff] = useState([]);
 
   useEffect(() => {
-    const unsub1 = subscribeToBuses(setBuses);
-    const unsub2 = subscribeToNotifications((list) => setNotifications(list.slice(0, 5)));
-    return () => { unsub1(); unsub2(); };
+    const unsubBuses = subscribeToBuses(setBuses);
+    const unsubStaff = subscribeToStaff(setStaff);
+    return () => {
+      unsubBuses();
+      unsubStaff();
+    };
   }, []);
 
-  const onTimeBuses = buses.filter(b => b.status === 'On Time').length;
-  const delayedBuses = buses.filter(b => b.status === 'Delayed').length;
-  const breakdownBuses = buses.filter(b => b.status === 'Breakdown').length;
-  const totalRiders = buses.reduce((sum, b) => sum + (b.headcount || 0), 0);
+  const trackingSummary = useMemo(() => getBusesTrackingSummary(buses, 110), [buses]);
+
+  const activeCrewCount = useMemo(
+    () => staff.filter((s) => s.status !== 'Terminated' && (s.role === 'driver' || s.role === 'conductor')).length,
+    [staff]
+  );
+
+  const totalBoarded = useMemo(
+    () => buses.reduce((acc, b) => acc + (Number(b.headcount) || 0), 0),
+    [buses]
+  );
 
   return (
-    <div className="space-y-5">
-      <PageHeader title="Dashboard" subtitle="Fleet operations overview" />
-
-      {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="animate-slide-up animate-stagger-1"><MetricCard title="Total Fleet" value={buses.length} subtitle="Registered vehicles" icon={Bus} /></div>
-        <div className="animate-slide-up animate-stagger-2"><MetricCard title="Active Riders" value={totalRiders} subtitle="Currently onboard" icon={Users} /></div>
-        <div className="animate-slide-up animate-stagger-3"><MetricCard title="On Time" value={onTimeBuses} subtitle={`of ${buses.length} buses`} icon={Clock} /></div>
-        <div className="animate-slide-up animate-stagger-4">
-          <MetricCard
-            title="Issues"
-            value={delayedBuses + breakdownBuses}
-            subtitle={`${delayedBuses} delayed, ${breakdownBuses} breakdown`}
-            icon={AlertTriangle}
-          />
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 font-sans text-slate-900">
+      {/* Command Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <span className="text-xs font-mono uppercase tracking-wider text-slate-500">
+            Campus Transit Operations Control
+          </span>
+          <h1 className="text-2xl font-bold tracking-tight mt-0.5">
+            Fleet Dispatch Overview
+          </h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/admin/staff')}
+            className="px-3.5 py-2 text-xs font-mono uppercase border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer"
+          >
+            Assign Crew
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/track')}
+            className="px-4 py-2 text-xs font-mono uppercase bg-slate-900 text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+          >
+            Open Live Console →
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Fleet Status Table */}
-        <div className="lg:col-span-2">
-          <Card>
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Fleet Status</h3>
-              <Link to="/admin/buses" className="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-0.5">
-                View All <ArrowRight className="w-3 h-3" />
-              </Link>
+      {/* Prominent Alert Banner if Any Bus Live Location is Unavailable */}
+      {trackingSummary.hasUnavailableBuses && (
+        <div className="bg-rose-950 text-white rounded-xl p-4 border border-rose-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 text-[10px] font-mono uppercase bg-rose-500 text-white font-bold rounded">
+                Live Location Unavailable
+              </span>
+              <span className="text-xs font-mono text-rose-200">
+                {trackingSummary.unavailableCount} of {trackingSummary.total} buses offline
+              </span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/60">
-                    <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Bus</th>
-                    <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Route</th>
-                    <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Driver</th>
-                    <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Riders</th>
-                    <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {buses.slice(0, 8).map((bus, index) => {
-                    const staggerClass = `animate-stagger-${Math.min(5, (index % 5) + 1)}`;
-                    return (
-                      <tr key={bus.id} className={`hover:bg-white/40 transition-colors animate-slide-up ${staggerClass}`}>
-                        <td className="px-4 py-2.5 text-sm font-semibold text-gray-900">{bus.number}</td>
-                        <td className="px-4 py-2.5 text-sm text-gray-600 truncate max-w-[140px]">{bus.route || '—'}</td>
-                        <td className="px-4 py-2.5 text-sm text-gray-600 truncate max-w-[120px]">{bus.driver || '—'}</td>
-                        <td className="px-4 py-2.5 text-sm font-medium text-gray-700">{bus.headcount || 0}</td>
-                        <td className="px-4 py-2.5"><StatusIndicator status={bus.status} /></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {buses.length === 0 && (
-                <div className="p-6 text-center text-sm text-gray-400">No buses registered</div>
-              )}
-            </div>
-          </Card>
+            <p className="text-sm mt-1">
+              No active GPS stream received for:{' '}
+              <span className="font-mono font-semibold text-amber-300">
+                {trackingSummary.unavailableBuses.map((b) => `Bus #${b.number}`).join(', ')}
+              </span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/track')}
+            className="px-3.5 py-2 bg-white text-slate-950 font-mono text-xs font-bold rounded-lg shrink-0 cursor-pointer"
+          >
+            Inspect Missing Buses →
+          </button>
+        </div>
+      )}
+
+      {/* KPI Strip (Tabular Monospace) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white border border-slate-200 rounded-xl p-4">
+          <span className="text-[11px] font-mono uppercase text-slate-500">Total Fleet</span>
+          <p className="text-2xl font-mono font-bold tabular-nums mt-1">{trackingSummary.total}</p>
+          <span className="text-xs text-slate-400">Registered vehicles</span>
         </div>
 
-        {/* Recent Alerts */}
-        <div>
-          <Card>
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Recent Alerts</h3>
-              <Link to="/admin/notifications" className="text-xs font-medium text-blue-600 hover:text-blue-700">
-                All
-              </Link>
-            </div>
-            <div className="p-3 space-y-2 max-h-[340px] overflow-y-auto">
-              {notifications.length === 0 ? (
-                <div className="py-6 text-center text-xs text-gray-400">No recent alerts</div>
-              ) : (
-                notifications.map(n => <NotificationItem key={n.id} notification={n} />)
-              )}
-            </div>
-          </Card>
+        <div className="bg-white border border-slate-200 rounded-xl p-4">
+          <span className="text-[11px] font-mono uppercase text-emerald-700">Broadcasting Live</span>
+          <p className="text-2xl font-mono font-bold tabular-nums text-emerald-600 mt-1">
+            {trackingSummary.liveCount}
+          </p>
+          <span className="text-xs text-slate-400">Active GPS streams</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4">
+          <span className="text-[11px] font-mono uppercase text-rose-700">Location Unavailable</span>
+          <p className="text-2xl font-mono font-bold tabular-nums text-rose-600 mt-1">
+            {trackingSummary.unavailableCount}
+          </p>
+          <span className="text-xs text-slate-400">Offline / Never started</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4">
+          <span className="text-[11px] font-mono uppercase text-slate-500">Onboard / Crew</span>
+          <p className="text-2xl font-mono font-bold tabular-nums mt-1">
+            {totalBoarded}{' '}
+            <span className="text-sm font-normal text-slate-400">pax · {activeCrewCount} crew</span>
+          </p>
+          <span className="text-xs text-slate-400">Live verified riders</span>
+        </div>
+      </div>
+
+      {/* Live Map Preview + Fleet Status Table */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col min-h-[380px]">
+          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <span className="text-xs font-mono uppercase font-bold text-slate-700">
+              Live Fleet Telemetry Map
+            </span>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/track')}
+              className="text-xs font-mono text-slate-600 hover:text-slate-900 cursor-pointer"
+            >
+              Full Screen →
+            </button>
+          </div>
+          <div className="flex-1 min-h-[340px]">
+            <FleetMap buses={buses} />
+          </div>
+        </div>
+
+        <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col">
+          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <span className="text-xs font-mono uppercase font-bold text-slate-700">
+              Bus Signal & Broadcaster Status
+            </span>
+          </div>
+          <div className="divide-y divide-slate-100 overflow-y-auto max-h-[340px]">
+            {[...trackingSummary.unavailableBuses, ...trackingSummary.liveBuses].map((bus) => {
+              const health = bus.trackingHealth;
+              return (
+                <div key={bus.id} className="p-3.5 flex items-center justify-between gap-2 text-xs">
+                  <div>
+                    <span className="font-mono font-bold text-sm text-slate-900">
+                      Bus #{bus.number}
+                    </span>
+                    <span className="text-slate-500 ml-2">{bus.route || 'No Route'}</span>
+                    <div className="text-[11px] font-mono text-slate-400 mt-0.5">
+                      {health.broadcasterLabel} · {health.lastSeenText}
+                    </div>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 font-mono text-[10px] uppercase rounded border shrink-0 ${
+                      health.isLive
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                    }`}
+                  >
+                    {health.isLive ? 'LIVE' : 'UNAVAILABLE'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+export default AdminDashboard;
