@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* ============================================================
@@ -14,6 +15,9 @@
 
 @layer base {
   :root {
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
     /* === Primary Accent === */
     --color-primary: #2563eb;
     --color-primary-hover: #1d4ed8;
@@ -79,12 +83,17 @@
   }
 
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: var(--bg-page);
-    color: var(--text-primary);
+    font-family: var(--font-sans);
+    background-color: #f8fafc;
+    color: #0f172a;
     font-size: 14px;
     line-height: 1.5;
     overflow-x: hidden;
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -260,4 +269,14 @@
 #admin-qr-viewfinder__dashboard_section {
   display: none !important;
 }
+
+/* Field-ready corner brackets for QR Scanner */
+.scanner-frame-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-color: #fbbf24;
+  pointer-events: none;
+}
+
 

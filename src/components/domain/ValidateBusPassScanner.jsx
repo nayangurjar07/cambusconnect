@@ -1,394 +1,480 @@
 // src/components/domain/ValidateBusPassScanner.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Loader2, AlertCircle, Zap, ZapOff, SwitchCamera, CheckCircle2, XCircle, Upload } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
-import { useToast } from '../../contexts/ToastContext';
+import { Camera, Loader2, AlertCircle, Zap, ZapOff, SwitchCamera } from 'lucide-react';
+import jsQR from 'jsqr';
+import { db, collection, query, where, getDocs, doc, getDoc } from '../../config/firebase';
 import { incrementBusHeadcount, logBoarding } from '../../services/transit';
-import { decodeQrFromImageFile } from '../../services/qrDecoder';
 
 /**
  * ValidateBusPassScanner
- * Minimalist, compact transit QR camera scanner supporting both standalone mode
- * (auto camera lifecycle, pass decoding, headcount increment) and controlled mode.
+ * Field-ready pass verification terminal supporting both standalone mode
+ * (used by Driver/Conductor portal with hardware-style reticle, flash card & manual fallback)
+ * and controlled mode (used by AdminScanPass).
  */
 export function ValidateBusPassScanner({
-  elementId: propElementId,
+  assignedBus = null,
+  verifierRole = 'driver',
+  verifierEmail = '',
+  // Admin controlled props
+  elementId,
   isCameraActive: propIsActive,
   onStartCamera: propStartCamera,
   onStopCamera: propStopCamera,
-  cameraLoading: propLoading = false,
-  cameraError: propError = '',
+  cameraLoading = false,
+  cameraError: propCameraError = '',
   title = "Validate Student Bus Pass",
   embedded = false,
   className = "",
-  onToggleTorch: propToggleTorch,
-  torchActive: propTorchActive = false,
-  showTorch: propShowTorch = false,
-  onFlipCamera: propFlipCamera,
-  showFlip: propShowFlip = false,
-  compact = false,
-  assignedBus = null,
-  verifierRole = 'driver',
-  verifierEmail = ''
+  onToggleTorch,
+  torchActive = false,
+  showTorch = false,
+  onFlipCamera,
+  showFlip = false,
+  compact = false
 }) {
-  const { showSuccess, showError, showWarning } = useToast();
-
-  // Internal state for standalone mode
-  const [internalActive, setInternalActive] = useState(false);
-  const [internalLoading, setInternalLoading] = useState(false);
-  const [internalError, setInternalError] = useState('');
-  const [internalTorch, setInternalTorch] = useState(false);
-  const [internalFacing, setInternalFacing] = useState('environment');
-  const [hasMultipleCams, setHasMultipleCams] = useState(false);
-  const [scanResult, setScanResult] = useState(null);
-  const [scanCooldown, setScanCooldown] = useState(false);
-
-  const scannerRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const cooldownRef = useRef({});
-
   const isControlled = typeof propStartCamera === 'function';
-  const effectiveElementId = propElementId || 'validate-qr-viewport-canvas';
-  const isCameraActive = isControlled ? propIsActive : internalActive;
-  const cameraLoading = isControlled ? propLoading : internalLoading;
-  const cameraError = isControlled ? propError : internalError;
-  const torchActive = isControlled ? propTorchActive : internalTorch;
-  const showTorch = isControlled ? propShowTorch : true;
-  const showFlip = isControlled ? propShowFlip : hasMultipleCams;
+  const effectiveElementId = elementId || 'admin-qr-viewfinder';
 
-  // Standalone camera start
-  const startInternalCamera = async (facing = internalFacing) => {
-    setInternalError('');
-    setInternalLoading(true);
-    try {
-      if (scannerRef.current) {
-        try { await scannerRef.current.stop(); } catch (_) {}
-      }
+  // Standalone state
+  const [cameraActive, setCameraActive] = useState(false);
+  const [manualInput, setManualInput] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [scanResult, setScanResult] = useState(null); // { valid: boolean, status: string, student: object, message: string }
+  const [cameraError, setCameraError] = useState('');
 
-      const qrScanner = new Html5Qrcode(effectiveElementId);
-      scannerRef.current = qrScanner;
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const scanLoopRef = useRef(null);
 
-      try {
-        const cameras = await Html5Qrcode.getCameras();
-        if (cameras && cameras.length > 1) {
-          setHasMultipleCams(true);
-        }
-      } catch (_) {}
-
-      await qrScanner.start(
-        { facingMode: facing },
-        {
-          fps: 15,
-          qrbox: (w, h) => {
-            const edge = Math.min(w, h);
-            const size = Math.max(160, Math.floor(edge * 0.72));
-            return { width: size, height: size };
-          }
-        },
-        (decodedText) => handleDecodedPass(decodedText),
-        () => {}
-      );
-
-      setInternalActive(true);
-    } catch (err) {
-      setInternalError(err.message || 'Camera access denied');
-      showError('Could not start camera scanner. Check camera permissions.');
-    } finally {
-      setInternalLoading(false);
+  const stopCamera = () => {
+    if (scanLoopRef.current) {
+      cancelAnimationFrame(scanLoopRef.current);
+      scanLoopRef.current = null;
     }
-  };
-
-  const stopInternalCamera = async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-      } catch (_) {}
-      scannerRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
-    setInternalActive(false);
-    setInternalTorch(false);
-  };
-
-  const toggleInternalTorch = async () => {
-    if (!scannerRef.current) return;
-    try {
-      const next = !internalTorch;
-      await scannerRef.current.applyVideoConstraints({
-        advanced: [{ torch: next }]
-      });
-      setInternalTorch(next);
-    } catch (_) {
-      showWarning('Flashlight not supported on this camera.');
-    }
-  };
-
-  const flipInternalCamera = async () => {
-    const nextFacing = internalFacing === 'environment' ? 'user' : 'environment';
-    setInternalFacing(nextFacing);
-    if (internalActive) {
-      await stopInternalCamera();
-      setTimeout(() => startInternalCamera(nextFacing), 150);
-    }
-  };
-
-  // Decode QR Pass in standalone mode
-  const handleDecodedPass = async (rawInput) => {
-    if (scanCooldown) return;
-    setScanCooldown(true);
-    setTimeout(() => setScanCooldown(false), 2200);
-
-    const token = String(rawInput || '').trim();
-    if (!token) return;
-
-    // Check anti-passback cooldown (same student scanned within 3 minutes)
-    const now = Date.now();
-    const lastScan = cooldownRef.current[token];
-    if (lastScan && now - lastScan < 180 * 1000) {
-      const diffSec = Math.round((180 * 1000 - (now - lastScan)) / 1000);
-      showWarning(`Pass already checked in! Anti-passback cooldown: ${diffSec}s remaining.`);
-      setScanResult({
-        status: 'denied',
-        reason: `Pass already scanned recently (${diffSec}s cooldown).`
-      });
-      return;
-    }
-    cooldownRef.current[token] = now;
-
-    // Increment headcount if bus is assigned
-    if (assignedBus?.id) {
-      try {
-        await incrementBusHeadcount(assignedBus.id, 1, assignedBus.capacity || 45);
-        await logBoarding({
-          studentId: token.slice(0, 32),
-          studentName: 'Verified Passenger',
-          busId: assignedBus.id,
-          busNumber: assignedBus.number,
-          routeName: assignedBus.route || 'Campus Route'
-        });
-      } catch (_) {}
-    }
-
-    setScanResult({
-      status: 'approved',
-      studentId: token.length > 24 ? `${token.slice(0, 20)}...` : token,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    });
-    showSuccess(`Pass Approved (+1 Boarded) · Bus #${assignedBus?.number || '—'}`);
-  };
-
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const decodedText = await decodeQrFromImageFile(file);
-      await handleDecodedPass(decodedText);
-    } catch (err) {
-      showError('Could not decode QR code from the uploaded image.');
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+    setCameraActive(false);
   };
 
   useEffect(() => {
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-      }
+      if (scanLoopRef.current) cancelAnimationFrame(scanLoopRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
-  const onStartCamera = isControlled ? propStartCamera : () => startInternalCamera(internalFacing);
-  const onStopCamera = isControlled ? propStopCamera : stopInternalCamera;
-  const onToggleTorch = isControlled ? propToggleTorch : toggleInternalTorch;
-  const onFlipCamera = isControlled ? propFlipCamera : flipInternalCamera;
+  const startCamera = async () => {
+    setCameraError('');
+    setScanResult(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraActive(true);
 
-  const content = (
-    <div className={`w-full ${compact ? 'max-w-[210px]' : 'max-w-[230px] sm:max-w-[250px]'} mx-auto ${className}`}>
-      {!embedded && title && (
-        <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider text-center mb-2.5">
-          {title}
-        </h2>
-      )}
+      // Fast QR Detection: native BarcodeDetector if available, jsQR canvas fallback otherwise
+      if ('BarcodeDetector' in window) {
+        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        const detectTick = async () => {
+          if (!videoRef.current || !streamRef.current) return;
+          try {
+            const barcodes = await detector.detect(videoRef.current);
+            if (barcodes.length > 0 && barcodes[0].rawValue) {
+              stopCamera();
+              await verifyPassPayload(barcodes[0].rawValue);
+              return;
+            }
+          } catch (_) {}
+          scanLoopRef.current = requestAnimationFrame(detectTick);
+        };
+        scanLoopRef.current = requestAnimationFrame(detectTick);
+      } else {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const detectTick = async () => {
+          if (!videoRef.current || !streamRef.current) return;
+          const video = videoRef.current;
+          if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: 'dontInvert'
+            });
+            if (code && code.data) {
+              stopCamera();
+              await verifyPassPayload(code.data);
+              return;
+            }
+          }
+          scanLoopRef.current = requestAnimationFrame(detectTick);
+        };
+        scanLoopRef.current = requestAnimationFrame(detectTick);
+      }
+    } catch (err) {
+      setCameraError('Camera access denied or unavailable. Use manual Pass ID / Email verification below.');
+      setCameraActive(false);
+    }
+  };
 
-      {/* ─── Compact Minimalist Camera Viewfinder (Clean Light Surface, No Harsh Black) ── */}
-      <div className={`relative rounded-2xl overflow-hidden aspect-square w-full shadow-xs flex items-center justify-center group transition-colors ${
-        isCameraActive 
-          ? 'bg-slate-900 border border-slate-700/80 shadow-md' 
-          : 'bg-gradient-to-b from-slate-50 via-slate-50 to-slate-100/70 border border-slate-200/90'
-      }`}>
-        {/* Mount element for Html5Qrcode video stream */}
-        <div
-          id={effectiveElementId}
-          className="w-full h-full absolute inset-0 overflow-hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover"
-        />
+  const verifyPassPayload = async (rawInput) => {
+    const clean = String(rawInput || '').trim();
+    if (!clean) return;
 
-        {/* Minimalist Single Reticle Frame (Clean transit blue brackets, no green) */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 p-4">
-          <div className="relative w-full h-full max-w-[150px] max-h-[150px] flex items-center justify-center">
-            {/* 4 Clean Corner Alignment Brackets */}
-            <div className={`absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 rounded-tl-md transition-colors ${
-              isCameraActive ? 'border-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.5)]' : 'border-slate-300'
-            }`} />
-            <div className={`absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 rounded-tr-md transition-colors ${
-              isCameraActive ? 'border-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.5)]' : 'border-slate-300'
-            }`} />
-            <div className={`absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 rounded-bl-md transition-colors ${
-              isCameraActive ? 'border-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.5)]' : 'border-slate-300'
-            }`} />
-            <div className={`absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 rounded-br-md transition-colors ${
-              isCameraActive ? 'border-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.5)]' : 'border-slate-300'
-            }`} />
+    setVerifying(true);
+    setScanResult(null);
 
-            {/* Subtle Cyan/Blue Laser Scan Beam (Clean light beam, no neon green) */}
-            {isCameraActive && (
-              <div className="absolute left-1 right-1 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_10px_rgba(34,211,238,0.85)] rounded-full animate-scanner-laser pointer-events-none" />
-            )}
+    try {
+      let lookupKey = clean;
+      try {
+        const parsed = JSON.parse(clean);
+        lookupKey = parsed.email || parsed.studentId || parsed.id || parsed.rollNumber || clean;
+      } catch (_) {}
+
+      let studentData = null;
+      const usersCol = collection(db, 'users');
+
+      // 1. Direct lookup by email/doc ID in users or students
+      const directDoc = await getDoc(doc(db, 'users', lookupKey.toLowerCase()));
+      if (directDoc.exists()) {
+        studentData = { id: directDoc.id, ...directDoc.data() };
+      } else {
+        const studentDoc = await getDoc(doc(db, 'students', lookupKey.toLowerCase()));
+        if (studentDoc.exists()) {
+          studentData = { id: studentDoc.id, ...studentDoc.data() };
+        } else {
+          // 2. Fallback query by rollNumber or passId
+          const qRoll = query(usersCol, where('rollNumber', '==', lookupKey));
+          const rollSnap = await getDocs(qRoll);
+          if (!rollSnap.empty) {
+            studentData = { id: rollSnap.docs[0].id, ...rollSnap.docs[0].data() };
+          } else {
+            const qPass = query(usersCol, where('passId', '==', lookupKey));
+            const passSnap = await getDocs(qPass);
+            if (!passSnap.empty) {
+              studentData = { id: passSnap.docs[0].id, ...passSnap.docs[0].data() };
+            }
+          }
+        }
+      }
+
+      if (!studentData) {
+        setScanResult({
+          valid: false,
+          status: 'NOT FOUND',
+          student: null,
+          message: `No registered student pass matches "${lookupKey}".`
+        });
+        return;
+      }
+
+      // Check pass status / expiry
+      const isExpired =
+        studentData.passStatus === 'Expired' ||
+        studentData.status === 'Suspended' ||
+        (studentData.validUntil && new Date(studentData.validUntil) < new Date());
+
+      if (isExpired) {
+        setScanResult({
+          valid: false,
+          status: 'EXPIRED PASS',
+          student: studentData,
+          message: `Pass expired or suspended for ${studentData.name || studentData.email}.`
+        });
+        return;
+      }
+
+      // Check bus assignment match if driver has an assigned bus
+      const studentBusNum = String(studentData.busNumber || studentData.assignedBus || '').trim();
+      const currentBusNum = String(assignedBus?.number || '').trim();
+      const wrongBus =
+        studentBusNum &&
+        currentBusNum &&
+        studentBusNum.toLowerCase() !== currentBusNum.toLowerCase();
+
+      if (wrongBus) {
+        setScanResult({
+          valid: false,
+          status: 'WRONG BUS',
+          student: studentData,
+          message: `Assigned to Bus #${studentBusNum}, but scanning on Bus #${currentBusNum}.`
+        });
+        return;
+      }
+
+      // Valid Pass -> Increment headcount & log boarding
+      if (assignedBus?.id) {
+        await incrementBusHeadcount(assignedBus.id, 1, assignedBus.capacity || 45);
+        await logBoarding({
+          studentId: studentData.id || studentData.email,
+          studentName: studentData.name || studentData.email,
+          busId: assignedBus.id,
+          busNumber: assignedBus.number,
+          routeName: assignedBus.route || ''
+        });
+      }
+
+      setScanResult({
+        valid: true,
+        status: 'VALID PASS · BOARDED',
+        student: studentData,
+        message: `Verified for Bus #${currentBusNum || studentBusNum || 'Campus'} (+1 Headcount logged).`
+      });
+      setManualInput('');
+    } catch (err) {
+      setScanResult({
+        valid: false,
+        status: 'VERIFICATION ERROR',
+        student: null,
+        message: err.message || 'Could not verify pass.'
+      });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // ── Controlled Mode (for AdminScanPass) ──
+  if (isControlled) {
+    return (
+      <div className={`w-full ${compact ? 'max-w-[240px]' : 'max-w-[280px]'} mx-auto ${className}`}>
+        {!embedded && title && (
+          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider text-center mb-2.5">
+            {title}
+          </h2>
+        )}
+
+        <div className={`relative rounded-2xl overflow-hidden aspect-square w-full shadow-xs flex items-center justify-center group transition-colors ${
+          propIsActive 
+            ? 'bg-slate-900 border border-slate-700/80 shadow-md' 
+            : 'bg-gradient-to-b from-slate-50 via-slate-50 to-slate-100/70 border border-slate-200/90'
+        }`}>
+          {/* Mount element for Html5Qrcode video stream */}
+          <div
+            id={effectiveElementId}
+            className="w-full h-full absolute inset-0 overflow-hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover"
+          />
+
+          {/* Minimalist Corner Brackets Reticle */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 p-4">
+            <div className="relative w-full h-full max-w-[150px] max-h-[150px] flex items-center justify-center">
+              <div className={`absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 rounded-tl-md transition-colors ${
+                propIsActive ? 'border-amber-400' : 'border-slate-300'
+              }`} />
+              <div className={`absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 rounded-tr-md transition-colors ${
+                propIsActive ? 'border-amber-400' : 'border-slate-300'
+              }`} />
+              <div className={`absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 rounded-bl-md transition-colors ${
+                propIsActive ? 'border-amber-400' : 'border-slate-300'
+              }`} />
+              <div className={`absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 rounded-br-md transition-colors ${
+                propIsActive ? 'border-amber-400' : 'border-slate-300'
+              }`} />
+            </div>
           </div>
+
+          {/* Controls: Torch & Camera Flip */}
+          {propIsActive && (showTorch || showFlip) && (
+            <div className="absolute top-2 right-2 z-25 flex items-center gap-1.5 pointer-events-auto">
+              {showTorch && onToggleTorch && (
+                <button
+                  type="button"
+                  onClick={onToggleTorch}
+                  className={`p-1.5 rounded-lg backdrop-blur-md border transition-all cursor-pointer shadow-xs ${
+                    torchActive
+                      ? 'bg-amber-500 text-white border-amber-400'
+                      : 'bg-slate-900/75 hover:bg-slate-900 text-slate-200 border-white/20'
+                  }`}
+                  title={torchActive ? "Turn Off Torch" : "Turn On Torch"}
+                >
+                  {torchActive ? <Zap className="w-3 h-3" /> : <ZapOff className="w-3 h-3" />}
+                </button>
+              )}
+
+              {showFlip && onFlipCamera && (
+                <button
+                  type="button"
+                  onClick={onFlipCamera}
+                  className="p-1.5 rounded-lg backdrop-blur-md bg-slate-900/75 hover:bg-slate-900 text-slate-200 border border-white/20 transition-all cursor-pointer shadow-xs"
+                  title="Switch Camera (Front / Rear)"
+                >
+                  <SwitchCamera className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {!propIsActive && !cameraLoading && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-3.5 bg-gradient-to-b from-slate-50/95 via-slate-50/90 to-slate-100/90 text-center space-y-1.5 backdrop-blur-xs">
+              <div className="w-10 h-10 rounded-2xl bg-white text-slate-700 flex items-center justify-center border border-slate-200/90 shadow-2xs">
+                <Camera className="w-5 h-5 text-slate-700" />
+              </div>
+              <p className="text-xs font-bold text-slate-800 tracking-tight">Scanner Standby</p>
+              <p className="text-[11px] text-slate-500 max-w-[160px] leading-snug">
+                Position student QR bus pass within framing reticle
+              </p>
+            </div>
+          )}
+
+          {cameraLoading && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-3.5 bg-slate-900/95 text-center space-y-2">
+              <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+              <p className="text-[11px] text-slate-200 font-medium">Initializing camera sensor...</p>
+            </div>
+          )}
+
+          {propCameraError && (
+            <div className="absolute bottom-2 inset-x-2 z-30 p-1.5 bg-rose-50 border border-rose-200 text-rose-700 text-[10px] rounded-lg text-center font-semibold flex items-center justify-center gap-1 shadow-xs">
+              <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+              <span className="truncate">{propCameraError}</span>
+            </div>
+          )}
         </div>
 
-        {/* Floating In-HUD Quick Action Controls (Torch & Camera Flip) */}
-        {isCameraActive && (showTorch || showFlip) && (
-          <div className="absolute top-2 right-2 z-25 flex items-center gap-1.5 pointer-events-auto">
-            {showTorch && onToggleTorch && (
-              <button
-                type="button"
-                onClick={onToggleTorch}
-                className={`p-1.5 rounded-lg backdrop-blur-md border transition-all cursor-pointer shadow-xs ${
-                  torchActive
-                    ? 'bg-amber-500 text-white border-amber-400'
-                    : 'bg-slate-900/75 hover:bg-slate-900 text-slate-200 border-white/20'
-                }`}
-                title={torchActive ? "Turn Off Torch" : "Turn On Torch"}
-              >
-                {torchActive ? <Zap className="w-3 h-3" /> : <ZapOff className="w-3 h-3" />}
-              </button>
-            )}
+        <button
+          type="button"
+          onClick={propIsActive ? propStopCamera : propStartCamera}
+          disabled={cameraLoading}
+          className={`mt-2.5 w-full py-2.5 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] ${
+            propIsActive
+              ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/90'
+              : 'bg-slate-900 hover:bg-slate-800 text-white shadow-sm'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          {cameraLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : propIsActive ? (
+            <>
+              <Camera className="w-4 h-4 text-rose-600" />
+              <span>Stop Scanner</span>
+            </>
+          ) : (
+            <>
+              <Camera className="w-4 h-4 text-white" />
+              <span>Start Camera Scanner</span>
+            </>
+          )}
+        </button>
+      </div>
+    );
+  }
 
-            {showFlip && onFlipCamera && (
-              <button
-                type="button"
-                onClick={onFlipCamera}
-                className="p-1.5 rounded-lg backdrop-blur-md bg-slate-900/75 hover:bg-slate-900 text-slate-200 border border-white/20 transition-all cursor-pointer shadow-xs"
-                title="Switch Camera (Front / Rear)"
-              >
-                <SwitchCamera className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Standby State Overlay when camera is idle (Light, Clean, Minimalist) */}
-        {!isCameraActive && !cameraLoading && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-3.5 bg-gradient-to-b from-slate-50/95 via-slate-50/90 to-slate-100/90 text-center space-y-1.5 backdrop-blur-xs">
-            <div className="w-10 h-10 rounded-2xl bg-white text-blue-600 flex items-center justify-center border border-slate-200/90 shadow-2xs">
-              <Camera className="w-5 h-5 text-blue-600" />
+  // ── Standalone Mode (Field-Ready Pass Verification Terminal) ──
+  return (
+    <div className="space-y-4 font-sans">
+      {/* Camera Viewfinder */}
+      <div className="relative bg-slate-950 rounded-xl overflow-hidden aspect-video flex items-center justify-center border border-slate-800">
+        {cameraActive ? (
+          <>
+            <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
+            {/* Corner Bracket Reticle */}
+            <div className="absolute inset-8 pointer-events-none">
+              <div className="scanner-frame-corner top-0 left-0 border-t-2 border-l-2" />
+              <div className="scanner-frame-corner top-0 right-0 border-t-2 border-r-2" />
+              <div className="scanner-frame-corner bottom-0 left-0 border-b-2 border-l-2" />
+              <div className="scanner-frame-corner bottom-0 right-0 border-b-2 border-r-2" />
             </div>
-            <p className="text-xs font-bold text-slate-800 tracking-tight">Scanner Standby</p>
-            <p className="text-[11px] text-slate-500 max-w-[160px] leading-snug">
-              Position student QR bus pass within framing reticle
+            <button
+              type="button"
+              onClick={stopCamera}
+              className="absolute bottom-3 right-3 px-3 py-1.5 bg-slate-900/90 text-white font-mono text-xs rounded-lg border border-slate-700 cursor-pointer"
+            >
+              Stop Camera
+            </button>
+          </>
+        ) : (
+          <div className="text-center p-6 space-y-3">
+            <p className="text-xs font-mono uppercase tracking-wider text-slate-400">
+              Optical QR Pass Reader
             </p>
-          </div>
-        )}
-
-        {/* Loading Overlay */}
-        {cameraLoading && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-3.5 bg-slate-900/95 text-center space-y-2">
-            <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-            <p className="text-[11px] text-slate-200 font-medium">Initializing camera sensor...</p>
-          </div>
-        )}
-
-        {/* Camera Error Message */}
-        {cameraError && (
-          <div className="absolute bottom-2 inset-x-2 z-30 p-1.5 bg-rose-50 border border-rose-200 text-rose-700 text-[10px] rounded-lg text-center font-semibold flex items-center justify-center gap-1 shadow-xs">
-            <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
-            <span className="truncate">{cameraError}</span>
+            <button
+              type="button"
+              onClick={startCamera}
+              className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold text-sm rounded-lg transition cursor-pointer"
+            >
+              Activate Camera Scanner
+            </button>
           </div>
         )}
       </div>
 
-      {/* ─── Compact Minimal Action Button ── */}
-      <button
-        type="button"
-        onClick={isCameraActive ? onStopCamera : onStartCamera}
-        disabled={cameraLoading}
-        className={`mt-2.5 w-full py-2.5 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] ${
-          isCameraActive
-            ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/90'
-            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20 shadow-sm'
-        } disabled:opacity-50 disabled:cursor-not-allowed`}
-      >
-        {cameraLoading ? (
-          <>
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span>Connecting Sensor...</span>
-          </>
-        ) : isCameraActive ? (
-          <>
-            <Camera className="w-3.5 h-3.5 text-rose-600" />
-            <span>Stop Camera Scanner</span>
-          </>
-        ) : (
-          <>
-            <Camera className="w-3.5 h-3.5 text-blue-100" />
-            <span>Start Camera Scanner</span>
-          </>
-        )}
-      </button>
-
-      {/* Optional Standalone File Upload */}
-      {!isControlled && (
-        <div className="mt-2 text-center">
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept="image/*"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="text-[11px] text-slate-500 hover:text-blue-600 inline-flex items-center gap-1 cursor-pointer"
-          >
-            <Upload className="w-3 h-3" />
-            <span>Upload Pass Image</span>
-          </button>
+      {cameraError && (
+        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+          {cameraError}
         </div>
       )}
 
-      {/* Standalone Scan Feedback Banner */}
-      {!isControlled && scanResult && (
-        <div className={`mt-2.5 p-2 rounded-lg text-xs flex items-center gap-2 border ${
-          scanResult.status === 'approved'
-            ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-            : 'bg-rose-50 text-rose-900 border-rose-200'
-        }`}>
-          {scanResult.status === 'approved' ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          ) : (
-            <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-          )}
-          <div className="truncate">
-            <span className="font-bold">
-              {scanResult.status === 'approved' ? 'Pass Verified' : 'Pass Denied'}
+      {/* Instant Full-Contrast Verification Result Flash Card */}
+      {scanResult && (
+        <div
+          className={`p-4 rounded-xl border-2 ${
+            scanResult.valid
+              ? 'bg-emerald-950 text-white border-emerald-500'
+              : 'bg-rose-950 text-white border-rose-500'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span
+              className={`px-2.5 py-0.5 text-xs font-mono font-bold uppercase rounded ${
+                scanResult.valid ? 'bg-emerald-500 text-slate-950' : 'bg-rose-500 text-white'
+              }`}
+            >
+              {scanResult.status}
             </span>
-            <span className="text-[10px] text-slate-500 ml-1">
-              {scanResult.studentId || scanResult.reason}
+            <span className="text-xs font-mono opacity-75">
+              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           </div>
+
+          {scanResult.student && (
+            <div className="mt-3 pt-3 border-t border-white/15 grid grid-cols-2 gap-2 text-xs font-mono">
+              <div>
+                <span className="opacity-60 block">STUDENT</span>
+                <span className="font-sans font-bold text-sm">{scanResult.student.name || 'Student'}</span>
+              </div>
+              <div>
+                <span className="opacity-60 block">ASSIGNED BUS</span>
+                <span className="font-bold text-sm">
+                  Bus #{scanResult.student.busNumber || scanResult.student.assignedBus || '—'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <p className="text-xs mt-2 opacity-90">{scanResult.message}</p>
         </div>
       )}
-    </div>
-  );
 
-  if (embedded) {
-    return content;
-  }
-
-  return (
-    <div className={`bg-white rounded-3xl border border-slate-200/80 p-5 shadow-sm max-w-sm w-full mx-auto ${className}`}>
-      {content}
+      {/* Manual Pass ID / Email / Roll Number Fallback */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          verifyPassPayload(manualInput);
+        }}
+        className="pt-2 border-t border-slate-100 flex gap-2"
+      >
+        <input
+          type="text"
+          value={manualInput}
+          onChange={(e) => setManualInput(e.target.value)}
+          placeholder="Enter Student Email, Roll No, or Pass ID..."
+          className="flex-1 px-3.5 py-2.5 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
+        />
+        <button
+          type="submit"
+          disabled={verifying || !manualInput.trim()}
+          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
+        >
+          {verifying ? 'Checking...' : 'Verify'}
+        </button>
+      </form>
     </div>
   );
 }
