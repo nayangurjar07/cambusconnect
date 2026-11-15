@@ -11,3 +11,5 @@ dist-ssr/
 tempCodeRunnerFile.*
 .DS_Store
 .agents/
+
+.vercel

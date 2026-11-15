@@ -2,14 +2,13 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "vite build",
   "outputDirectory": "dist",
-  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "source": "/api/:match*",
+      "destination": "/api/:match*"
     },
     {
-      "source": "/((?!assets/|robots.txt|sitemap.xml|favicon.*).*)/?",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
