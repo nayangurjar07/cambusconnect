@@ -53,6 +53,20 @@ export function AdminScanPass() {
 
   const html5QrScannerRef = useRef(null);
   const localScanLogs = useRef({});
+  const autoResetTimerRef = useRef(null);
+
+  // Auto-refresh: Automatically reset verification result after 2.8s for rapid continuous scanning
+  useEffect(() => {
+    if (verificationResult) {
+      if (autoResetTimerRef.current) clearTimeout(autoResetTimerRef.current);
+      autoResetTimerRef.current = setTimeout(() => {
+        setVerificationResult(null);
+      }, 2800);
+    }
+    return () => {
+      if (autoResetTimerRef.current) clearTimeout(autoResetTimerRef.current);
+    };
+  }, [verificationResult]);
 
   // Clean, subtle audio feedback
   const playTone = (type) => {
@@ -783,16 +797,21 @@ export function AdminScanPass() {
                   ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
                   : 'bg-rose-50/80 border-rose-200 text-rose-900'
               }`}>
-                <div className="flex items-center gap-2 mb-2">
-                  {verificationResult.status === 'approved' ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                  )}
-                  <span className="font-semibold text-sm">
-                    {verificationResult.status === 'approved'
-                      ? (scanMode === 'checkin' ? 'Pass Approved — Boarding Recorded (+1)' : 'Pass Verified Active')
-                      : 'Pass Denied'}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    {verificationResult.status === 'approved' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    )}
+                    <span className="font-semibold text-sm">
+                      {verificationResult.status === 'approved'
+                        ? (scanMode === 'checkin' ? 'Pass Approved — Boarding Recorded (+1)' : 'Pass Verified Active')
+                        : 'Pass Denied'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-500 bg-white/80 px-2 py-0.5 rounded-full border border-slate-200 shrink-0">
+                    Auto-reset in 3s
                   </span>
                 </div>
 
@@ -1005,7 +1024,7 @@ export function AdminScanPass() {
                       <td className="px-4 py-3 font-medium text-gray-900">
                         {log.studentName || 'Student'}
                       </td>
-                      <td className="px-4 py-3 text-gray-500 font-mono text-[11px]">
+                      <td className="px-4 py-3 text-gray-500 tabular-nums text-[11px]">
                         {log.studentId}
                       </td>
                       <td className="px-4 py-3 text-gray-600">

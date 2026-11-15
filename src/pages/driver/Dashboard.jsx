@@ -1,6 +1,21 @@
 // src/pages/driver/Dashboard.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Radio,
+  Navigation,
+  Users,
+  QrCode,
+  ShieldCheck,
+  AlertCircle,
+  Plus,
+  Minus,
+  CheckCircle2,
+  Activity,
+  Eye,
+  Calendar,
+  Bell
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import {
@@ -10,6 +25,10 @@ import {
   incrementBusHeadcount
 } from '../../services/transit';
 import { getStaffRoleLabel } from '../../services/workforce';
+import { PageHeader } from '../../components/layout/PageHeader';
+import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
 
 export function DriverDashboard() {
   const { user } = useAuth();
@@ -116,7 +135,9 @@ export function DriverDashboard() {
         setStandbyOwner(null);
         setActiveWatchers(result.activeWatchers || 0);
         setSyncMode(result.mode || 'ECO_IDLE');
-        setLastSyncedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        setLastSyncedAt(
+          new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        );
         if (result.recommendedIntervalMs && result.recommendedIntervalMs !== recommendedIntervalMs) {
           setRecommendedIntervalMs(result.recommendedIntervalMs);
         }
@@ -134,7 +155,6 @@ export function DriverDashboard() {
     setGpsError('');
 
     if (simulationMode) {
-      // Simulation mode for indoor desk testing
       const baseLat = currentBus?.location?.lat || 22.7196;
       const baseLng = currentBus?.location?.lng || 75.8577;
       latestCoordsRef.current = { lat: baseLat, lng: baseLng, speed: 32, accuracy: 5 };
@@ -142,7 +162,7 @@ export function DriverDashboard() {
       setIsBroadcasting(true);
       await acquireWakeLock();
       await pushTelemetryTick(true);
-      showSuccess(`Simulation broadcast started for Bus ${currentBus?.number || selectedBusId}`);
+      showSuccess(`Simulation broadcast started for Bus #${currentBus?.number || selectedBusId}`);
       return;
     }
 
@@ -175,7 +195,7 @@ export function DriverDashboard() {
           err.code === 1
             ? 'Location permission denied. Please allow GPS access in browser settings.'
             : err.code === 2
-            ? 'GPS signal unavailable. Move outdoors or enable Simulation Mode for testing.'
+            ? 'GPS signal unavailable. Move outdoors or enable Simulation Mode for desk testing.'
             : 'GPS request timed out. Retrying...';
         setGpsError(msg);
       },
@@ -187,7 +207,7 @@ export function DriverDashboard() {
     );
 
     setIsBroadcasting(true);
-    showSuccess(`Live GPS broadcasting active for Bus ${currentBus?.number || selectedBusId}`);
+    showSuccess(`Live GPS broadcasting active for Bus #${currentBus?.number || selectedBusId}`);
   };
 
   // Stop Live Tracking
@@ -211,7 +231,7 @@ export function DriverDashboard() {
     showSuccess('Live location broadcast stopped.');
   };
 
-  // Dynamic Interval Loop (Adjusts between 15s when watched and 60s when idle)
+  // Dynamic Interval Loop
   useEffect(() => {
     if (!isBroadcasting) return;
 
@@ -219,7 +239,6 @@ export function DriverDashboard() {
 
     broadcastTimerRef.current = setInterval(() => {
       if (simulationMode && latestCoordsRef.current.lat != null) {
-        // Slightly jitter coordinates in simulation mode to verify live map movement
         latestCoordsRef.current = {
           ...latestCoordsRef.current,
           lat: Number((latestCoordsRef.current.lat + (Math.random() - 0.45) * 0.0004).toFixed(6)),
@@ -236,7 +255,6 @@ export function DriverDashboard() {
     };
   }, [isBroadcasting, recommendedIntervalMs, simulationMode, pushTelemetryTick]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
@@ -249,222 +267,264 @@ export function DriverDashboard() {
     if (!currentBus) return;
     try {
       await incrementBusHeadcount(currentBus.id, delta, currentBus.capacity || 45);
-    } catch (err) {
+    } catch (_) {
       showError('Failed to update headcount');
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-5 space-y-5 font-sans text-slate-900">
-      {/* Top Crew & Vehicle Bar */}
-      <div className="bg-slate-950 text-white rounded-xl p-4 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+    <div className="max-w-4xl mx-auto px-4 py-5 space-y-5 font-sans text-slate-900">
+      {/* Page Header */}
+      <PageHeader
+        title="Onboard Telemetry Cockpit"
+        subtitle={`Logged in as ${user?.name || user?.email} (${roleLabel})`}
+        badge={
+          <Badge variant="primary" dot>
+            Active Crew
+          </Badge>
+        }
+        actions={
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
-              {roleLabel}
-            </span>
-            <span className="text-xs text-slate-400 font-medium">{user?.email}</span>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bus:</label>
+            <select
+              value={selectedBusId}
+              disabled={isBroadcasting}
+              onChange={(e) => setSelectedBusId(e.target.value)}
+              className="px-3 py-2 text-xs font-bold bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 disabled:opacity-50"
+            >
+              {buses.map((b) => (
+                <option key={b.id} value={b.id}>
+                  Bus #{b.number} — {b.route || 'Unassigned Route'}
+                </option>
+              ))}
+            </select>
           </div>
-          <h1 className="text-lg font-semibold tracking-tight mt-1">
-            Onboard Telemetry Cockpit
-          </h1>
-        </div>
+        }
+      />
 
-        {/* Dynamic Bus Selector */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-400 uppercase font-semibold tracking-wider">Bus:</label>
-          <select
-            value={selectedBusId}
-            disabled={isBroadcasting}
-            onChange={(e) => setSelectedBusId(e.target.value)}
-            className="bg-slate-900 text-white font-medium text-sm px-3 py-2 rounded-lg border border-slate-700 focus:outline-none focus:border-amber-400 disabled:opacity-50"
-          >
-            {buses.map((b) => (
-              <option key={b.id} value={b.id}>
-                Bus #{b.number} — {b.route || 'Unassigned Route'}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Single Active Stream Guard Standby Banner */}
+      {/* Standby Priority Banner */}
       {isStandby && standbyOwner && (
-        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-amber-900 flex items-start justify-between gap-3">
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-amber-950 flex items-start gap-3 shadow-2xs">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs uppercase tracking-wider font-bold text-amber-700">
+            <p className="text-xs uppercase tracking-wider font-bold text-amber-800">
               Standby Mode · Stream Priority Lock
             </p>
-            <p className="text-sm mt-1">
+            <p className="text-sm mt-0.5">
               <strong>{standbyOwner.name || standbyOwner.email}</strong> ({standbyOwner.roleTier || 'primary'}{' '}
-              {standbyOwner.role}) is currently broadcasting GPS for Bus #{currentBus?.number}. Your portal will
-              automatically take over if their stream drops.
+              {standbyOwner.role}) is currently broadcasting GPS for Bus #{currentBus?.number}. Your transmitter will
+              automatically take over if their connection drops.
             </p>
           </div>
         </div>
       )}
 
-      {/* GPS Hardware Error Banner */}
+      {/* Hardware Error Banner */}
       {gpsError && (
-        <div className="bg-rose-50 border border-rose-300 rounded-xl p-4 text-rose-900 text-sm">
-          <p className="font-semibold">GPS Hardware Alert</p>
-          <p className="mt-0.5 text-rose-700">{gpsError}</p>
+        <div className="bg-rose-50 border border-rose-300 rounded-2xl p-4 text-rose-950 text-sm flex items-start gap-3 shadow-2xs">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-rose-900">GPS Hardware Alert</p>
+            <p className="mt-0.5 text-rose-700">{gpsError}</p>
+          </div>
         </div>
       )}
 
       {/* Main Live GPS Transmitter Control */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <div>
-            <span className="text-xs uppercase tracking-wider font-semibold text-slate-500">
-              Live Location Transmitter
-            </span>
-            <div className="flex items-center gap-2.5 mt-1">
-              <span
-                className={`h-3 w-3 rounded-full ${
-                  isBroadcasting
-                    ? 'bg-emerald-500 animate-pulse'
-                    : 'bg-slate-300'
-                }`}
-              />
-              <h2 className="text-xl font-bold tracking-tight">
-                {isBroadcasting
-                  ? syncMode === 'HIGH_FREQ_WATCHED'
-                    ? 'Broadcasting Live (High-Freq · Watched)'
-                    : 'Broadcasting Live (Eco Standby · 0 Watchers)'
-                  : 'Transmitter Offline'}
-              </h2>
+      <Card>
+        <CardBody className="p-5 sm:p-6 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+            <div>
+              <span className="text-xs uppercase font-bold tracking-wider text-slate-400 block">
+                Live Location Transmitter
+              </span>
+              <div className="flex items-center gap-2.5 mt-1">
+                <span
+                  className={`h-3 w-3 rounded-full ${
+                    isBroadcasting ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
+                  }`}
+                />
+                <h2 className="text-xl font-bold tracking-tight text-slate-900">
+                  {isBroadcasting
+                    ? syncMode === 'HIGH_FREQ_WATCHED'
+                      ? 'Broadcasting Live (High-Freq · Watched)'
+                      : 'Broadcasting Live (Eco Standby · 0 Watchers)'
+                    : 'Transmitter Offline'}
+                </h2>
+              </div>
+            </div>
+
+            {!isBroadcasting && (
+              <label className="flex items-center gap-2 text-xs font-semibold bg-slate-50 hover:bg-slate-100 px-3.5 py-2 rounded-xl cursor-pointer select-none border border-slate-200 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={simulationMode}
+                  onChange={(e) => setSimulationMode(e.target.checked)}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>Simulate GPS (Desk Test)</span>
+              </label>
+            )}
+          </div>
+
+          {/* Telemetry Readout Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                Coordinates
+              </span>
+              <span className="text-sm font-bold text-slate-900 tabular-nums mt-1 block">
+                {coords.lat ? `${coords.lat}, ${coords.lng}` : '— / —'}
+              </span>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                Speed / Accuracy
+              </span>
+              <span className="text-sm font-bold text-slate-900 tabular-nums mt-1 block">
+                {coords.speed || 0} km/h{' '}
+                <span className="text-xs text-slate-500 font-normal">
+                  ({coords.accuracy ? `±${coords.accuracy}m` : '—'})
+                </span>
+              </span>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                Active Watchers
+              </span>
+              <span className="text-sm font-bold text-blue-600 tabular-nums mt-1 block">
+                {activeWatchers} {activeWatchers === 1 ? 'viewer' : 'viewers'}
+              </span>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                Sync Cadence
+              </span>
+              <span className="text-sm font-bold text-slate-900 tabular-nums mt-1 block">
+                {isBroadcasting ? `${Math.round(recommendedIntervalMs / 1000)}s` : 'Paused'}
+                {lastSyncedAt && (
+                  <span className="block text-[10px] text-slate-400 font-normal">Last: {lastSyncedAt}</span>
+                )}
+              </span>
             </div>
           </div>
 
-          {/* Indoor Desk Testing Toggle */}
-          {!isBroadcasting && (
-            <label className="flex items-center gap-2 text-xs font-medium bg-slate-100 px-3 py-1.5 rounded-lg cursor-pointer select-none border border-slate-200">
-              <input
-                type="checkbox"
-                checked={simulationMode}
-                onChange={(e) => setSimulationMode(e.target.checked)}
-                className="rounded border-slate-300"
-              />
-              Simulate GPS (Desk Test)
-            </label>
-          )}
-        </div>
-
-        {/* Telemetry Readout Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Coordinates</span>
-            <span className="text-sm font-semibold tabular-nums mt-1 block">
-              {coords.lat ? `${coords.lat}, ${coords.lng}` : '— / —'}
-            </span>
+          {/* Transmitter Control Action */}
+          <div>
+            {!isBroadcasting ? (
+              <Button
+                variant="success"
+                size="lg"
+                fullWidth
+                icon={Radio}
+                onClick={startLiveTracking}
+              >
+                <span>Start Live Location Broadcast — Bus #{currentBus?.number || '—'}</span>
+              </Button>
+            ) : (
+              <Button
+                variant="danger"
+                size="lg"
+                fullWidth
+                onClick={stopLiveTracking}
+              >
+                <span>End Trip & Stop Broadcasting</span>
+              </Button>
+            )}
           </div>
+        </CardBody>
+      </Card>
 
-          <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Speed / Accuracy</span>
-            <span className="text-sm font-semibold tabular-nums mt-1 block">
-              {coords.speed || 0} km/h{' '}
-              <span className="text-xs text-slate-500 font-normal">
-                ({coords.accuracy ? `±${coords.accuracy}m` : '—'})
+      {/* Quick Launch Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Pass Scanner Launch */}
+        <Card>
+          <CardBody className="p-5 flex flex-col justify-between h-full">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                Boarding Verification
               </span>
-            </span>
-          </div>
+              <h3 className="text-base font-bold text-slate-900 mt-1">
+                Student Pass Scanner
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Continuous optical QR validation, cryptographic pass checks, and automatic headcount sync.
+              </p>
+            </div>
+            <div className="mt-4">
+              <Button
+                variant="primary"
+                fullWidth
+                icon={QrCode}
+                onClick={() => navigate('/driver/scan-pass')}
+              >
+                Open Pass Scanner →
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
 
-          <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Active Watchers</span>
-            <span className="text-sm font-semibold tabular-nums mt-1 block">
-              {activeWatchers} {activeWatchers === 1 ? 'viewer' : 'viewers'}
-            </span>
-          </div>
+        {/* Manual Headcount Control */}
+        <Card>
+          <CardBody className="p-5 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Onboard Occupancy
+                </span>
+                <h3 className="text-base font-bold text-slate-900 mt-1">
+                  Bus #{currentBus?.number || '—'} Headcount
+                </h3>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-bold text-slate-900 tabular-nums">
+                  {currentBus?.headcount || 0}
+                </span>
+                <span className="text-xs text-slate-400 tabular-nums"> / {currentBus?.capacity || 45}</span>
+              </div>
+            </div>
 
-          <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Sync Cadence</span>
-            <span className="text-sm font-semibold tabular-nums mt-1 block">
-              {isBroadcasting ? `${Math.round(recommendedIntervalMs / 1000)}s` : 'Paused'}
-              {lastSyncedAt && (
-                <span className="block text-[10px] text-slate-400 font-normal">Last: {lastSyncedAt}</span>
-              )}
-            </span>
-          </div>
-        </div>
-
-        {/* Start / Stop Hero Button */}
-        <div className="pt-1">
-          {!isBroadcasting ? (
-            <button
-              type="button"
-              onClick={startLiveTracking}
-              className="w-full py-4 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-base tracking-tight transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>Start Live Location Broadcast</span>
-              <span className="text-xs font-semibold bg-emerald-800/60 px-2 py-0.5 rounded">
-                Bus #{currentBus?.number || '—'}
-              </span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={stopLiveTracking}
-              className="w-full py-4 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-semibold text-base tracking-tight transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>End Trip & Stop Broadcasting</span>
-            </button>
-          )}
-        </div>
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <Button
+                variant="secondary"
+                icon={Minus}
+                onClick={() => handleHeadcountDelta(-1)}
+                disabled={(currentBus?.headcount || 0) <= 0}
+              >
+                Alighted (-1)
+              </Button>
+              <Button
+                variant="primary"
+                icon={Plus}
+                onClick={() => handleHeadcountDelta(1)}
+                disabled={(currentBus?.headcount || 0) >= (currentBus?.capacity || 45)}
+              >
+                Boarded (+1)
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
       </div>
 
-      {/* Quick Operations Row: Pass Scanner & Live Occupancy Counter */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Pass Scanner Quick Launch */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Boarding Verification</span>
-            <h3 className="text-base font-semibold mt-0.5">QR / Digital Pass Scanner</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Verify student bus passes and automatically increment live occupancy.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/driver/scan-pass')}
-            className="mt-4 w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition cursor-pointer"
-          >
-            Open Pass Scanner →
-          </button>
-        </div>
-
-        {/* Manual Occupancy Counter */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Onboard Headcount</span>
-              <h3 className="text-base font-semibold mt-0.5">
-                Bus #{currentBus?.number || '—'} Occupancy
-              </h3>
-            </div>
-            <div className="text-right tabular-nums">
-              <span className="text-2xl font-bold">{currentBus?.headcount || 0}</span>
-              <span className="text-sm text-slate-400"> / {currentBus?.capacity || 45}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            <button
-              type="button"
-              onClick={() => handleHeadcountDelta(-1)}
-              className="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-mono font-semibold rounded-lg text-sm cursor-pointer"
-            >
-              −1 Alighted
-            </button>
-            <button
-              type="button"
-              onClick={() => handleHeadcountDelta(1)}
-              className="py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-mono font-semibold rounded-lg text-sm cursor-pointer"
-            >
-              +1 Boarded
-            </button>
-          </div>
-        </div>
+      {/* Bottom Nav Helper Strip */}
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          variant="outline"
+          icon={Calendar}
+          onClick={() => navigate('/driver/schedule')}
+        >
+          View Route Schedule & Stops
+        </Button>
+        <Button
+          variant="outline"
+          icon={Bell}
+          onClick={() => navigate('/driver/alerts')}
+        >
+          Dispatch Delay / Incident Alert
+        </Button>
       </div>
     </div>
   );

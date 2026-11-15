@@ -1,11 +1,20 @@
 // src/pages/driver/Schedule.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, Clock, MapPin, CheckCircle2, Circle, ArrowRight, Bus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscribeToBuses, subscribeToRoutes } from '../../services/transit';
 import { subscribeToShiftConfig, getStaffRoleLabel } from '../../services/workforce';
+import { PageHeader } from '../../components/layout/PageHeader';
+import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { TransitTimelineCard } from '../../components/domain/TransitTimelineCard';
 
 export function DriverSchedule() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [shifts, setShifts] = useState([]);
@@ -27,6 +36,7 @@ export function DriverSchedule() {
     buses.find(
       (b) =>
         String(b.number) === String(user?.assignedBus) ||
+        b.id === user?.assignedBusId ||
         b.primaryDriver?.email === userEmail ||
         b.secondaryDriver?.email === userEmail ||
         b.primaryConductor?.email === userEmail ||
@@ -37,111 +47,203 @@ export function DriverSchedule() {
     routes.find(
       (r) =>
         r.id === assignedBus?.routeId ||
-        r.name?.toLowerCase() === assignedBus?.route?.toLowerCase()
-    ) || routes[0];
+        (assignedBus?.route && r.name?.toLowerCase() === assignedBus.route.toLowerCase())
+    ) || null;
 
-  const stops = Array.isArray(assignedRoute?.stops) && assignedRoute.stops.length > 0
-    ? assignedRoute.stops
-    : [
-        { name: 'Starting Point / Depot', time: '07:45 AM' },
-        { name: 'Main Square Pickup', time: '08:00 AM' },
-        { name: 'City Center Junction', time: '08:15 AM' },
-        { name: 'Campus Main Gate', time: '08:35 AM' }
-      ];
+  const stops = Array.isArray(assignedRoute?.stops) ? assignedRoute.stops : [];
+  const hasStops = stops.length > 0;
 
   const toggleStop = (idx) => {
     setCompletedStops((prev) => ({ ...prev, [idx]: !prev[idx] }));
   };
 
+  const roleLabel = getStaffRoleLabel(user?.role || 'driver', user?.roleTier || 'primary');
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-5 space-y-5 font-sans text-slate-900">
-      {/* Header */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <span className="text-xs font-mono uppercase text-slate-500">
-            {getStaffRoleLabel(user?.role || 'driver', user?.roleTier || 'primary')}
-          </span>
-          <h1 className="text-xl font-bold tracking-tight mt-0.5">
-            Shift Roster & Route Timeline
-          </h1>
-        </div>
-        <div className="bg-slate-900 text-white px-3.5 py-2 rounded-lg font-mono text-xs">
-          Assigned: Bus #{assignedBus?.number || '—'} · {assignedRoute?.code || 'Route'}
-        </div>
-      </div>
-
-      {/* Active Shifts Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {shifts.map((shift) => (
-          <div
-            key={shift.id}
-            className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between"
+    <div className="max-w-4xl mx-auto px-4 py-5 space-y-5 font-sans text-slate-900">
+      {/* Page Header */}
+      <PageHeader
+        title="Shift Roster & Route Schedule"
+        subtitle="Dedicated stop sequence, shift windows, and operational progress for your vehicle"
+        badge={
+          <Badge variant="primary" dot>
+            {roleLabel}
+          </Badge>
+        }
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/driver/dashboard')}
           >
-            <div>
-              <span className="text-xs font-mono uppercase text-slate-400">Shift Window</span>
-              <p className="font-semibold text-sm mt-0.5">{shift.name}</p>
-            </div>
-            <span className="font-mono text-sm font-semibold tabular-nums bg-slate-100 px-3 py-1 rounded border border-slate-200">
-              {shift.startTime} – {shift.endTime}
-            </span>
-          </div>
-        ))}
-      </div>
+            ← Cockpit
+          </Button>
+        }
+      />
 
-      {/* Vertical Stop-by-Stop Checklist */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-          <div>
-            <h2 className="text-base font-bold">
-              {assignedRoute?.name || assignedBus?.route || 'Scheduled Campus Route'}
-            </h2>
-            <p className="text-xs text-slate-500">Tap a stop as you reach it to log route progress</p>
-          </div>
-          <span className="text-xs font-mono text-slate-500 tabular-nums">
-            {Object.values(completedStops).filter(Boolean).length} / {stops.length} Reached
-          </span>
-        </div>
-
-        <div className="space-y-3">
-          {stops.map((stop, idx) => {
-            const stopName = typeof stop === 'string' ? stop : stop.name || `Stop #${idx + 1}`;
-            const stopTime = typeof stop === 'object' && stop.time ? stop.time : `Stop ${idx + 1}`;
-            const isDone = Boolean(completedStops[idx]);
-
-            return (
-              <div
-                key={idx}
-                onClick={() => toggleStop(idx)}
-                className={`p-3.5 rounded-lg border transition cursor-pointer flex items-center justify-between ${
-                  isDone
-                    ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
-                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`w-6 h-6 rounded-full font-mono text-xs flex items-center justify-center font-bold ${
-                      isDone
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-white border border-slate-300 text-slate-600'
-                    }`}
-                  >
-                    {isDone ? '✓' : idx + 1}
-                  </span>
-                  <div>
-                    <p className={`text-sm font-semibold ${isDone ? 'line-through opacity-75' : ''}`}>
-                      {stopName}
-                    </p>
-                  </div>
+      {/* Vehicle & Dedicated Route Overview */}
+      <Card>
+        <CardBody className="p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shrink-0">
+                <Bus className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Bus #{assignedBus?.number || '—'}
+                  </h2>
+                  <Badge variant={assignedRoute ? 'primary' : 'warning'}>
+                    {assignedRoute ? assignedRoute.name : assignedBus?.route || 'No Route Assigned'}
+                  </Badge>
                 </div>
-                <span className="text-xs font-mono tabular-nums text-slate-500">
-                  {stopTime}
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Vehicle Capacity: <strong className="text-slate-800">{assignedBus?.capacity || 45}</strong> · Headcount: <strong className="text-slate-800">{assignedBus?.headcount || 0}</strong>
+                </p>
+              </div>
+            </div>
+
+            {hasStops && (
+              <div className="text-right">
+                <span className="text-xs text-slate-400 block font-medium">Progress</span>
+                <span className="text-sm font-bold text-blue-600 tabular-nums">
+                  {Object.values(completedStops).filter(Boolean).length} / {stops.length} Stops Logged
                 </span>
               </div>
-            );
-          })}
+            )}
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Shift Windows Section */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 text-blue-600" />
+          <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+            Assigned Shift Windows
+          </h2>
         </div>
+
+        {shifts.length === 0 ? (
+          <Card>
+            <CardBody className="py-6 text-center text-xs text-slate-400">
+              No institutional shift schedules configured yet.
+            </CardBody>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {shifts.map((shift) => (
+              <Card key={shift.id} className="hover:border-blue-200 transition-colors">
+                <CardBody className="p-4 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                      Shift Window
+                    </span>
+                    <p className="font-bold text-sm text-slate-900 mt-0.5">{shift.name}</p>
+                  </div>
+                  <Badge variant="primary" className="tabular-nums font-semibold">
+                    {shift.startTime} – {shift.endTime}
+                  </Badge>
+                </CardBody>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Real Route Stop Timeline or Empty State */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-blue-600" />
+            <CardTitle>
+              {assignedRoute?.name || assignedBus?.route || 'Dedicated Route Schedule'}
+            </CardTitle>
+          </div>
+          {hasStops && (
+            <Badge variant="neutral">
+              {stops.length} scheduled stops
+            </Badge>
+          )}
+        </CardHeader>
+        <CardBody className="p-4 sm:p-5">
+          {!hasStops ? (
+            <EmptyState
+              icon={MapPin}
+              title="No Dedicated Route Assigned"
+              description={`No dedicated route or stop schedule has been assigned to Bus #${assignedBus?.number || '—'} yet. Contact dispatch to link a route in the administrative registry.`}
+              action={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/driver/dashboard')}
+                >
+                  Return to Cockpit
+                </Button>
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500 mb-2">
+                Tap each stop as you arrive to log route progress in real time.
+              </p>
+
+              {stops.map((stop, idx) => {
+                const stopName = typeof stop === 'string' ? stop : stop.name || `Stop #${idx + 1}`;
+                const stopTime = typeof stop === 'object' && stop.time ? stop.time : null;
+                const isDone = Boolean(completedStops[idx]);
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => toggleStop(idx)}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                      isDone
+                        ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-2xs'
+                        : 'bg-white hover:bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`w-7 h-7 rounded-xl text-xs flex items-center justify-center font-bold transition-colors ${
+                          isDone
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-blue-50 text-blue-700 border border-blue-200'
+                        }`}
+                      >
+                        {isDone ? '✓' : idx + 1}
+                      </span>
+                      <div>
+                        <p className={`text-sm font-bold ${isDone ? 'line-through text-slate-500' : 'text-slate-900'}`}>
+                          {stopName}
+                        </p>
+                        {typeof stop === 'object' && (stop.lat || stop.landmark) && (
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {stop.landmark || `${stop.lat}, ${stop.lng}`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      {stopTime ? (
+                        <span className="text-xs font-semibold text-slate-600 tabular-nums">
+                          {stopTime}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-400">
+                          Stop {idx + 1} of {stops.length}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 // src/pages/admin/Buses.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bus, Plus, Edit2, Trash2, Route, Users, Radio, X } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import {
   subscribeToBuses,
@@ -9,6 +11,10 @@ import {
   deleteBus,
   getBusTrackingHealth
 } from '../../services/transit';
+import { PageHeader } from '../../components/layout/PageHeader';
+import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
 
 const INITIAL_BUS_FORM = {
   number: '',
@@ -21,6 +27,7 @@ const INITIAL_BUS_FORM = {
 
 export function AdminBuses() {
   const { showSuccess, showError } = useToast();
+  const navigate = useNavigate();
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -93,39 +100,52 @@ export function AdminBuses() {
     try {
       await deleteBus(bus.id);
       showSuccess(`Removed Bus #${bus.number}`);
-    } catch (err) {
+    } catch (_) {
       showError('Could not delete bus');
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 text-slate-900">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Vehicle Inventory & Crew Slots
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight mt-0.5">
-            Campus Bus Fleet Registry
-          </h1>
-        </div>
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg transition cursor-pointer"
-        >
-          + Register New Bus
-        </button>
-      </div>
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 text-slate-900 font-sans">
+      {/* Header */}
+      <PageHeader
+        title="Fleet Registry & Crew Slots"
+        subtitle="Manage campus buses, registration details, dedicated assigned routes, and operational crew"
+        badge={
+          <Badge variant="primary" dot>
+            {buses.length} Vehicles
+          </Badge>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={Route}
+              onClick={() => navigate('/admin/routes')}
+            >
+              Route Network
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              onClick={openCreateModal}
+            >
+              Register New Bus
+            </Button>
+          </div>
+        }
+      />
 
-      {/* Dense Fleet Operations Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+      {/* Fleet Table */}
+      <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 <th className="py-3 px-4">Bus # / Reg</th>
-                <th className="py-3 px-4">Assigned Route</th>
+                <th className="py-3 px-4">Dedicated Route</th>
                 <th className="py-3 px-4">Drivers (Primary / Sub)</th>
                 <th className="py-3 px-4">Conductors (Primary / Sub)</th>
                 <th className="py-3 px-4">Telemetry Status</th>
@@ -136,8 +156,8 @@ export function AdminBuses() {
             <tbody className="divide-y divide-slate-100 text-sm">
               {buses.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">
-                    No buses registered yet. Click "+ Register New Bus" to add vehicles.
+                  <td colSpan={7} className="py-10 text-center text-xs text-slate-400">
+                    No buses registered yet. Click "+ Register New Bus" to add fleet vehicles.
                   </td>
                 </tr>
               ) : (
@@ -149,76 +169,75 @@ export function AdminBuses() {
                   const sCond = bus.secondaryConductor?.name || '—';
 
                   return (
-                    <tr key={bus.id} className="hover:bg-slate-50/80">
+                    <tr key={bus.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4">
-                        <span className="font-bold text-slate-900">Bus #{bus.number}</span>
+                        <span className="font-bold text-slate-900 block">Bus #{bus.number}</span>
                         {bus.registrationNumber && (
-                          <span className="block text-xs text-slate-500">{bus.registrationNumber}</span>
+                          <span className="text-xs text-slate-400 block">{bus.registrationNumber}</span>
                         )}
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="font-medium text-slate-800">{bus.route || 'Unassigned'}</span>
+                        {bus.route ? (
+                          <Badge variant="primary">{bus.route}</Badge>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(bus)}
+                            className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer"
+                          >
+                            + Assign Route
+                          </button>
+                        )}
                       </td>
                       <td className="py-3.5 px-4 text-xs">
-                        <div className="flex items-center">
-                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-slate-900 text-white rounded mr-1.5">
-                            P
-                          </span>
-                          <span className="font-medium text-slate-800">{pDriver}</span>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="primary" className="text-[10px] px-1.5 py-0">P</Badge>
+                          <span className="font-semibold text-slate-800">{pDriver}</span>
                         </div>
-                        <div className="mt-1 flex items-center text-slate-500">
-                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded mr-1.5">
-                            S
-                          </span>
+                        <div className="mt-1 flex items-center gap-1.5 text-slate-500">
+                          <Badge variant="neutral" className="text-[10px] px-1.5 py-0">S</Badge>
                           <span>{sDriver}</span>
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-xs">
-                        <div className="flex items-center">
-                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-slate-900 text-white rounded mr-1.5">
-                            P
-                          </span>
-                          <span className="font-medium text-slate-800">{pCond}</span>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="primary" className="text-[10px] px-1.5 py-0">P</Badge>
+                          <span className="font-semibold text-slate-800">{pCond}</span>
                         </div>
-                        <div className="mt-1 flex items-center text-slate-500">
-                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded mr-1.5">
-                            S
-                          </span>
+                        <div className="mt-1 flex items-center gap-1.5 text-slate-500">
+                          <Badge variant="neutral" className="text-[10px] px-1.5 py-0">S</Badge>
                           <span>{sCond}</span>
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-xs">
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider ${
-                            health.isLive
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : 'bg-rose-50 text-rose-800 border-rose-200'
-                          }`}
-                        >
-                          {health.isLive ? '● LIVE' : '▲ UNAVAILABLE'}
-                        </span>
+                        <Badge variant={health.isLive ? 'success' : 'danger'} dot>
+                          {health.isLive ? 'LIVE' : 'UNAVAILABLE'}
+                        </Badge>
                         <span className="block text-[11px] text-slate-400 mt-0.5">
                           {health.lastSeenText}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-xs font-semibold tabular-nums text-slate-700">
+                      <td className="py-3.5 px-4 text-xs font-bold tabular-nums text-slate-800">
                         {bus.headcount || 0} / {bus.capacity || 45}
                       </td>
                       <td className="py-3.5 px-4 text-right space-x-2">
-                        <button
-                          type="button"
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          icon={Edit2}
                           onClick={() => openEditModal(bus)}
-                          className="px-2.5 py-1 text-xs font-semibold border border-slate-200 rounded hover:bg-slate-100 cursor-pointer"
                         >
                           Edit
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          icon={Trash2}
+                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
                           onClick={() => handleDelete(bus)}
-                          className="px-2.5 py-1 text-xs font-semibold text-rose-600 border border-rose-200 rounded hover:bg-rose-50 cursor-pointer"
                         >
                           Delete
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -227,29 +246,29 @@ export function AdminBuses() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
 
       {/* Add / Edit Bus Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full p-6 space-y-4 shadow-xl">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 shadow-2xl animate-scale-up">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-bold text-slate-900">
+              <h2 className="text-base font-bold text-slate-900">
                 {editingBusId ? `Edit Bus #${formData.number}` : 'Register New Bus'}
               </h2>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer transition-colors"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Bus Number *
                   </label>
                   <input
@@ -257,12 +276,59 @@ export function AdminBuses() {
                     required
                     value={formData.number}
                     onChange={(e) => setFormData({ ...formData, number: e.target.value })}
-                    placeholder="e.g. 12"
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900"
+                    placeholder="e.g. 14"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Registration No
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.registrationNumber}
+                    onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900"
+                    placeholder="MP-09-FA-1234"
+                  />
+                </div>
+              </div>
+
+              {/* Dedicated Route Selection */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Dedicated Assigned Route
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      navigate('/admin/routes');
+                    }}
+                    className="text-[11px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                  >
+                    Manage Routes →
+                  </button>
+                </div>
+                <select
+                  value={formData.routeId || ''}
+                  onChange={(e) => handleRouteSelect(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
+                >
+                  <option value="">— Select Institutional Route —</option>
+                  {routes.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.stops?.length || 0} stops)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Seating Capacity
                   </label>
                   <input
@@ -271,67 +337,43 @@ export function AdminBuses() {
                     max="100"
                     value={formData.capacity}
                     onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Operational Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
+                  >
+                    <option value="On Time">On Time</option>
+                    <option value="Delayed">Delayed</option>
+                    <option value="Breakdown">Breakdown</option>
+                    <option value="Maintenance">Maintenance</option>
+                  </select>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                  Vehicle Registration Plate
-                </label>
-                <input
-                  type="text"
-                  value={formData.registrationNumber}
-                  onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
-                  placeholder="MP-09-FA-1012"
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                  Assigned Route
-                </label>
-                {routes.length > 0 ? (
-                  <select
-                    value={formData.routeId}
-                    onChange={(e) => handleRouteSelect(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-slate-900"
-                  >
-                    <option value="">— Select Route —</option>
-                    {routes.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.code ? `[${r.code}] ` : ''}{r.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={formData.route}
-                    onChange={(e) => setFormData({ ...formData, route: e.target.value })}
-                    placeholder="e.g. Vijay Nagar - Campus"
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
-                  />
-                )}
-              </div>
-
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
                   type="submit"
-                  disabled={saving}
-                  className="px-5 py-2 text-sm font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 cursor-pointer disabled:opacity-50"
+                  isLoading={saving}
                 >
-                  {saving ? 'Saving...' : 'Save Bus'}
-                </button>
+                  {editingBusId ? 'Update Bus' : 'Register Bus'}
+                </Button>
               </div>
             </form>
           </div>

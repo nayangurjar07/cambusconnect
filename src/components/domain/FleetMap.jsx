@@ -377,16 +377,16 @@ export function FleetMap({
 
       {/* Overlay when selected bus has never broadcasted coordinates yet */}
       {focusedBus && focusedMissingCoords && (
-        <div className="absolute inset-x-4 bottom-4 z-30 bg-slate-950/90 text-white p-3.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3 shadow-lg">
+        <div className="absolute inset-x-4 bottom-4 z-30 bg-white/95 backdrop-blur-md text-slate-800 p-3.5 rounded-xl border border-rose-200/80 flex items-center justify-between gap-3 shadow-lg">
           <div>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-rose-400 block">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-rose-600 block">
               No GPS Coordinates Broadcasted
             </span>
-            <p className="text-xs sm:text-sm font-medium mt-0.5">
+            <p className="text-xs sm:text-sm font-medium text-slate-700 mt-0.5">
               Bus #{focusedBus.number} ({focusedBus.route || 'No Route'}) does not have an active GPS fix yet ({focusedHealth?.lastSeenText}).
             </p>
           </div>
-          <span className="px-2.5 py-1 bg-rose-500/20 border border-rose-500/40 text-rose-300 font-semibold text-xs rounded shrink-0">
+          <span className="px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-700 font-semibold text-xs rounded-lg shrink-0">
             OFFLINE
           </span>
         </div>

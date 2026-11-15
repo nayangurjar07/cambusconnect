@@ -42,6 +42,21 @@ export function ValidateBusPassScanner({
   const [scanResult, setScanResult] = useState(null); // { valid: boolean, status: string, student: object, message: string }
   const [cameraError, setCameraError] = useState('');
 
+  const autoResetTimerRef = useRef(null);
+
+  // Auto-reset scan result after 2.8s for continuous scanning
+  useEffect(() => {
+    if (scanResult) {
+      if (autoResetTimerRef.current) clearTimeout(autoResetTimerRef.current);
+      autoResetTimerRef.current = setTimeout(() => {
+        setScanResult(null);
+      }, 2800);
+    }
+    return () => {
+      if (autoResetTimerRef.current) clearTimeout(autoResetTimerRef.current);
+    };
+  }, [scanResult]);
+
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const scanLoopRef = useRef(null);
@@ -266,16 +281,16 @@ export function ValidateBusPassScanner({
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 p-4">
             <div className="relative w-full h-full max-w-[150px] max-h-[150px] flex items-center justify-center">
               <div className={`absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 rounded-tl-md transition-colors ${
-                propIsActive ? 'border-amber-400' : 'border-slate-300'
+                propIsActive ? 'border-blue-500' : 'border-slate-300'
               }`} />
               <div className={`absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 rounded-tr-md transition-colors ${
-                propIsActive ? 'border-amber-400' : 'border-slate-300'
+                propIsActive ? 'border-blue-500' : 'border-slate-300'
               }`} />
               <div className={`absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 rounded-bl-md transition-colors ${
-                propIsActive ? 'border-amber-400' : 'border-slate-300'
+                propIsActive ? 'border-blue-500' : 'border-slate-300'
               }`} />
               <div className={`absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 rounded-br-md transition-colors ${
-                propIsActive ? 'border-amber-400' : 'border-slate-300'
+                propIsActive ? 'border-blue-500' : 'border-slate-300'
               }`} />
             </div>
           </div>
@@ -289,7 +304,7 @@ export function ValidateBusPassScanner({
                   onClick={onToggleTorch}
                   className={`p-1.5 rounded-lg backdrop-blur-md border transition-all cursor-pointer shadow-xs ${
                     torchActive
-                      ? 'bg-amber-500 text-white border-amber-400'
+                      ? 'bg-blue-600 text-white border-blue-500'
                       : 'bg-slate-900/75 hover:bg-slate-900 text-slate-200 border-white/20'
                   }`}
                   title={torchActive ? "Turn Off Torch" : "Turn On Torch"}
@@ -313,8 +328,8 @@ export function ValidateBusPassScanner({
 
           {!propIsActive && !cameraLoading && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-3.5 bg-gradient-to-b from-slate-50/95 via-slate-50/90 to-slate-100/90 text-center space-y-1.5 backdrop-blur-xs">
-              <div className="w-10 h-10 rounded-2xl bg-white text-slate-700 flex items-center justify-center border border-slate-200/90 shadow-2xs">
-                <Camera className="w-5 h-5 text-slate-700" />
+              <div className="w-10 h-10 rounded-2xl bg-white text-blue-600 flex items-center justify-center border border-slate-200/90 shadow-2xs">
+                <Camera className="w-5 h-5 text-blue-600" />
               </div>
               <p className="text-xs font-bold text-slate-800 tracking-tight">Scanner Standby</p>
               <p className="text-[11px] text-slate-500 max-w-[160px] leading-snug">
@@ -325,7 +340,7 @@ export function ValidateBusPassScanner({
 
           {cameraLoading && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-3.5 bg-slate-900/95 text-center space-y-2">
-              <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+              <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
               <p className="text-[11px] text-slate-200 font-medium">Initializing camera sensor...</p>
             </div>
           )}
@@ -345,7 +360,7 @@ export function ValidateBusPassScanner({
           className={`mt-2.5 w-full py-2.5 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] ${
             propIsActive
               ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/90'
-              : 'bg-slate-900 hover:bg-slate-800 text-white shadow-sm'
+              : 'bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md shadow-blue-500/25'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {cameraLoading ? (
@@ -370,34 +385,40 @@ export function ValidateBusPassScanner({
   return (
     <div className="space-y-4 font-sans">
       {/* Camera Viewfinder */}
-      <div className="relative bg-slate-950 rounded-xl overflow-hidden aspect-video flex items-center justify-center border border-slate-800">
+      <div className="relative bg-slate-900 rounded-2xl overflow-hidden aspect-video flex items-center justify-center border border-slate-200 shadow-xs">
         {cameraActive ? (
           <>
             <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
             {/* Corner Bracket Reticle */}
             <div className="absolute inset-8 pointer-events-none">
-              <div className="scanner-frame-corner top-0 left-0 border-t-2 border-l-2" />
-              <div className="scanner-frame-corner top-0 right-0 border-t-2 border-r-2" />
-              <div className="scanner-frame-corner bottom-0 left-0 border-b-2 border-l-2" />
-              <div className="scanner-frame-corner bottom-0 right-0 border-b-2 border-r-2" />
+              <div className="scanner-frame-corner top-0 left-0 border-t-2 border-l-2 border-blue-500" />
+              <div className="scanner-frame-corner top-0 right-0 border-t-2 border-r-2 border-blue-500" />
+              <div className="scanner-frame-corner bottom-0 left-0 border-b-2 border-l-2 border-blue-500" />
+              <div className="scanner-frame-corner bottom-0 right-0 border-b-2 border-r-2 border-blue-500" />
             </div>
             <button
               type="button"
               onClick={stopCamera}
-              className="absolute bottom-3 right-3 px-3 py-1.5 bg-slate-900/90 hover:bg-slate-900 text-white font-semibold text-xs rounded-lg border border-slate-700 cursor-pointer transition-colors"
+              className="absolute bottom-3 right-3 px-3 py-1.5 bg-white/90 hover:bg-white text-slate-800 font-semibold text-xs rounded-lg border border-slate-200 cursor-pointer transition-colors shadow-xs"
             >
               Stop Camera
             </button>
           </>
         ) : (
           <div className="text-center p-6 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Optical QR Pass Reader
-            </p>
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 mx-auto flex items-center justify-center border border-blue-100">
+              <Camera className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Optical QR Pass Reader
+              </p>
+              <p className="text-xs text-slate-300 mt-0.5">Continuous auto-refresh pass validation</p>
+            </div>
             <button
               type="button"
               onClick={startCamera}
-              className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm rounded-lg transition cursor-pointer"
+              className="px-5 py-2.5 bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold text-sm rounded-xl transition cursor-pointer shadow-md shadow-blue-500/25"
             >
               Activate Camera Scanner
             </button>
@@ -406,49 +427,49 @@ export function ValidateBusPassScanner({
       </div>
 
       {cameraError && (
-        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
           {cameraError}
         </div>
       )}
 
-      {/* Instant Full-Contrast Verification Result Flash Card */}
+      {/* Instant Full-Contrast Verification Result Flash Card with Auto-Reset */}
       {scanResult && (
         <div
-          className={`p-4 rounded-xl border-2 ${
+          className={`p-4 rounded-2xl border-2 transition-all ${
             scanResult.valid
-              ? 'bg-emerald-950 text-white border-emerald-500'
-              : 'bg-rose-950 text-white border-rose-500'
+              ? 'bg-emerald-50 text-emerald-950 border-emerald-400 shadow-sm'
+              : 'bg-rose-50 text-rose-950 border-rose-400 shadow-sm'
           }`}
         >
           <div className="flex items-center justify-between">
             <span
-              className={`px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider rounded ${
-                scanResult.valid ? 'bg-emerald-500 text-slate-950' : 'bg-rose-500 text-white'
+              className={`px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider rounded-lg ${
+                scanResult.valid ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
               }`}
             >
               {scanResult.status}
             </span>
-            <span className="text-xs opacity-75 tabular-nums">
-              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            <span className="text-[11px] font-medium text-slate-500 bg-white/80 px-2 py-0.5 rounded-full border border-slate-200 tabular-nums">
+              Auto-resetting...
             </span>
           </div>
 
           {scanResult.student && (
-            <div className="mt-3 pt-3 border-t border-white/15 grid grid-cols-2 gap-2 text-xs">
+            <div className="mt-3 pt-3 border-t border-slate-200/80 grid grid-cols-2 gap-2 text-xs">
               <div>
-                <span className="opacity-60 block uppercase font-semibold text-[10px] tracking-wider">STUDENT</span>
-                <span className="font-bold text-sm">{scanResult.student.name || 'Student'}</span>
+                <span className="text-slate-500 block uppercase font-semibold text-[10px] tracking-wider">STUDENT</span>
+                <span className="font-bold text-slate-900 text-sm">{scanResult.student.name || 'Student'}</span>
               </div>
               <div>
-                <span className="opacity-60 block uppercase font-semibold text-[10px] tracking-wider">ASSIGNED BUS</span>
-                <span className="font-bold text-sm">
+                <span className="text-slate-500 block uppercase font-semibold text-[10px] tracking-wider">ASSIGNED BUS</span>
+                <span className="font-bold text-slate-900 text-sm">
                   Bus #{scanResult.student.busNumber || scanResult.student.assignedBus || '—'}
                 </span>
               </div>
             </div>
           )}
 
-          <p className="text-xs mt-2 opacity-90">{scanResult.message}</p>
+          <p className="text-xs mt-2 text-slate-700">{scanResult.message}</p>
         </div>
       )}
 
@@ -465,12 +486,12 @@ export function ValidateBusPassScanner({
           value={manualInput}
           onChange={(e) => setManualInput(e.target.value)}
           placeholder="Enter Student Email, Roll No, or Pass ID..."
-          className="flex-1 px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
+          className="flex-1 px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900"
         />
         <button
           type="submit"
           disabled={verifying || !manualInput.trim()}
-          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
+          className="px-5 py-2.5 bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-500/20 disabled:opacity-40 cursor-pointer"
         >
           {verifying ? 'Checking...' : 'Verify'}
         </button>

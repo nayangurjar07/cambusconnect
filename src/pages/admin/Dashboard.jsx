@@ -1,9 +1,14 @@
 // src/pages/admin/Dashboard.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Radio, Users, Bus, AlertTriangle, ArrowRight, ShieldCheck, MapPin } from 'lucide-react';
 import { subscribeToBuses, getBusesTrackingSummary } from '../../services/transit';
 import { subscribeToStaff } from '../../services/workforce';
 import FleetMap from '../../components/domain/FleetMap';
+import { PageHeader } from '../../components/layout/PageHeader';
+import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -32,129 +37,146 @@ export function AdminDashboard() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 text-slate-900">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 text-slate-900 font-sans">
       {/* Command Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Campus Transit Operations Control
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight mt-0.5">
-            Fleet Dispatch Overview
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate('/admin/staff')}
-            className="px-3.5 py-2 text-xs font-semibold uppercase tracking-wider border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer"
-          >
-            Assign Crew
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/admin/track')}
-            className="px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-slate-900 text-white rounded-lg hover:bg-slate-800 cursor-pointer"
-          >
-            Open Live Console →
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Fleet Dispatch Overview"
+        subtitle="Central transit operations command, real-time telemetry health, and occupancy monitoring"
+        badge={
+          <Badge variant="primary" dot>
+            System Operational
+          </Badge>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={Users}
+              onClick={() => navigate('/admin/staff')}
+            >
+              Assign Crew
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Radio}
+              onClick={() => navigate('/admin/track')}
+            >
+              Open Live Console →
+            </Button>
+          </div>
+        }
+      />
 
       {/* Prominent Alert Banner if Any Bus Live Location is Unavailable */}
       {trackingSummary.hasUnavailableBuses && (
-        <div className="bg-rose-950 text-white rounded-xl p-4 border border-rose-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-rose-500 text-white rounded">
-                Live Location Unavailable
-              </span>
-              <span className="text-xs font-medium text-rose-200">
-                {trackingSummary.unavailableCount} of {trackingSummary.total} buses offline
-              </span>
+        <div className="bg-rose-50 border border-rose-300 rounded-2xl p-4.5 text-rose-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-rose-600" />
             </div>
-            <p className="text-sm mt-1">
-              No active GPS stream received for:{' '}
-              <span className="font-semibold text-amber-300">
-                {trackingSummary.unavailableBuses.map((b) => `Bus #${b.number}`).join(', ')}
-              </span>
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge variant="danger" dot>
+                  Live Location Unavailable
+                </Badge>
+                <span className="text-xs font-semibold text-rose-700">
+                  {trackingSummary.unavailableCount} of {trackingSummary.total} buses offline
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm mt-1 text-slate-800">
+                No active GPS signal received for:{' '}
+                <strong className="text-rose-950 font-bold">
+                  {trackingSummary.unavailableBuses.map((b) => `Bus #${b.number}`).join(', ')}
+                </strong>
+              </p>
+            </div>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="danger"
+            size="sm"
             onClick={() => navigate('/admin/track')}
-            className="px-3.5 py-2 bg-white text-slate-950 text-xs font-bold uppercase tracking-wider rounded-lg shrink-0 cursor-pointer"
           >
             Inspect Missing Buses →
-          </button>
+          </Button>
         </div>
       )}
 
       {/* KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total Fleet</span>
-          <p className="text-2xl font-bold tabular-nums mt-1">{trackingSummary.total}</p>
-          <span className="text-xs text-slate-400">Registered vehicles</span>
-        </div>
+        <Card>
+          <CardBody className="p-4">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Fleet</span>
+            <p className="text-2xl font-bold tabular-nums text-slate-900 mt-1">{trackingSummary.total}</p>
+            <span className="text-xs text-slate-400">Registered vehicles</span>
+          </CardBody>
+        </Card>
 
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Broadcasting Live</span>
-          <p className="text-2xl font-bold tabular-nums text-emerald-600 mt-1">
-            {trackingSummary.liveCount}
-          </p>
-          <span className="text-xs text-slate-400">Active GPS streams</span>
-        </div>
+        <Card>
+          <CardBody className="p-4">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Broadcasting Live</span>
+            <p className="text-2xl font-bold tabular-nums text-emerald-600 mt-1">
+              {trackingSummary.liveCount}
+            </p>
+            <span className="text-xs text-slate-400">Active GPS telemetry fixes</span>
+          </CardBody>
+        </Card>
 
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Location Unavailable</span>
-          <p className="text-2xl font-bold tabular-nums text-rose-600 mt-1">
-            {trackingSummary.unavailableCount}
-          </p>
-          <span className="text-xs text-slate-400">Offline / Never started</span>
-        </div>
+        <Card>
+          <CardBody className="p-4">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Location Unavailable</span>
+            <p className="text-2xl font-bold tabular-nums text-rose-600 mt-1">
+              {trackingSummary.unavailableCount}
+            </p>
+            <span className="text-xs text-slate-400">Offline / Never started</span>
+          </CardBody>
+        </Card>
 
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Onboard / Crew</span>
-          <p className="text-2xl font-bold tabular-nums mt-1">
-            {totalBoarded}{' '}
-            <span className="text-sm font-normal text-slate-400">pax · {activeCrewCount} crew</span>
-          </p>
-          <span className="text-xs text-slate-400">Live verified riders</span>
-        </div>
+        <Card>
+          <CardBody className="p-4">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Onboard Riders / Crew</span>
+            <p className="text-2xl font-bold tabular-nums text-slate-900 mt-1">
+              {totalBoarded}{' '}
+              <span className="text-sm font-normal text-slate-400">pax · {activeCrewCount} crew</span>
+            </p>
+            <span className="text-xs text-slate-400">Live verified passengers</span>
+          </CardBody>
+        </Card>
       </div>
 
       {/* Live Map Preview + Fleet Status Table */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col min-h-[380px]">
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col min-h-[400px] shadow-xs">
+          <div className="px-4 py-3 bg-slate-50/70 border-b border-slate-200 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
               Live Fleet Telemetry Map
             </span>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={() => navigate('/admin/track')}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
             >
               Full Screen →
-            </button>
+            </Button>
           </div>
-          <div className="flex-1 min-h-[340px]">
+          <div className="flex-1 min-h-[350px]">
             <FleetMap buses={buses} />
           </div>
         </div>
 
-        <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col">
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col shadow-xs">
+          <div className="px-4 py-3 bg-slate-50/70 border-b border-slate-200 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
               Bus Signal & Broadcaster Status
             </span>
+            <Badge variant="neutral">{buses.length} tracked</Badge>
           </div>
-          <div className="divide-y divide-slate-100 overflow-y-auto max-h-[340px]">
+          <div className="divide-y divide-slate-100 overflow-y-auto max-h-[350px]">
             {[...trackingSummary.unavailableBuses, ...trackingSummary.liveBuses].map((bus) => {
               const health = bus.trackingHealth;
               return (
-                <div key={bus.id} className="p-3.5 flex items-center justify-between gap-2 text-xs">
+                <div key={bus.id} className="p-3.5 flex items-center justify-between gap-2 text-xs hover:bg-slate-50/80 transition-colors">
                   <div>
                     <span className="font-bold text-sm text-slate-900">
                       Bus #{bus.number}
@@ -164,15 +186,9 @@ export function AdminDashboard() {
                       {health.broadcasterLabel} · {health.lastSeenText}
                     </div>
                   </div>
-                  <span
-                    className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded border shrink-0 ${
-                      health.isLive
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                        : 'bg-rose-50 text-rose-800 border-rose-200'
-                    }`}
-                  >
+                  <Badge variant={health.isLive ? 'success' : 'danger'} dot className="text-[10px]">
                     {health.isLive ? 'LIVE' : 'UNAVAILABLE'}
-                  </span>
+                  </Badge>
                 </div>
               );
             })}
