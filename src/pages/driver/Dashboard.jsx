@@ -151,6 +151,7 @@ export function DriverDashboard() {
 
             const res = await updateBusLiveLocation({
               busId: assignedBus.id,
+              busNumber: assignedBus.number,
               lat: latitude,
               lng: longitude,
               speed: speed ? Math.round(speed * 3.6) : 25,
@@ -223,6 +224,7 @@ export function DriverDashboard() {
 
       await updateBusLiveLocation({
         busId: assignedBus.id,
+        busNumber: assignedBus.number,
         lat: waypoint.lat,
         lng: waypoint.lng,
         speed: 32 + (index % 4) * 3, // Realistic simulated speeds (32 - 41 km/h)

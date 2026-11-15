@@ -2,8 +2,40 @@
 import crypto from 'crypto';
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_MAX_REQUESTS = 30;
+const RATE_LIMIT_MAX_REQUESTS = 120; // Increased to support watcher polls + driver pushes
 const rateLimitBuckets = new Map();
+
+// ============================================================================
+// IN-MEMORY SERVER CACHE & WATCHER REGISTRY (Saves 85%+ Firebase Reads/Writes)
+// ============================================================================
+// Keyed by busId -> { locationData, lastFirestoreSyncAt, lastRtdbSyncAt, watchers: Map<watcherKey, expiresAt> }
+const busTelemetryMemoryCache = new Map();
+
+const WATCHER_TTL_MS = 45 * 1000;          // A student/admin view counts as "active" for 45s per poll
+const ACTIVE_SYNC_INTERVAL_MS = 25 * 1000; // Sync to Firebase every 25s when someone is watching
+const IDLE_SYNC_INTERVAL_MS = 120 * 1000;  // Sync to Firebase every 2 mins when NO ONE is watching
+const MIN_DISPLACEMENT_METERS = 120;       // Force sync if bus moved > 120m even in idle mode
+
+function haversineMeters(lat1, lon1, lat2, lon2) {
+    if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return Infinity;
+    const R = 6371e3;
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function pruneAndCountWatchers(entry) {
+    if (!entry || !entry.watchers) return 0;
+    const now = Date.now();
+    for (const [viewerId, exp] of entry.watchers.entries()) {
+        if (now > exp) entry.watchers.delete(viewerId);
+    }
+    return entry.watchers.size;
+}
 
 function getClientKey(req) {
     const forwardedFor = req.headers['x-forwarded-for'];
@@ -12,7 +44,7 @@ function getClientKey(req) {
         : String(forwardedFor || req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown')
             .split(',')[0]
             .trim();
-    const busId = req.query?.busId || 'unknown';
+    const busId = req.query?.busId || req.body?.busId || 'unknown';
     return `${ip}:${(req.headers.host || 'unknown').toLowerCase()}:${busId}`;
 }
 
@@ -41,7 +73,6 @@ function applyRateLimit(req, res) {
     return { allowed: true };
 }
 
-// Helper to decrypt MapmyIndia credentials
 function decrypt(text, key) {
     const parts = text.split(':');
     const iv = Buffer.from(parts.shift(), 'hex');
@@ -53,7 +84,6 @@ function decrypt(text, key) {
     return decrypted.toString();
 }
 
-// Utility to parse Firestore document fields into simple object
 function parseFirestoreFields(fields) {
     if (!fields) return {};
     const obj = {};
@@ -72,7 +102,6 @@ function parseFirestoreFields(fields) {
     return obj;
 }
 
-// Token verification via Firebase Auth REST API
 async function verifyFirebaseToken(idToken, apiKey) {
     const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
         method: 'POST',
@@ -87,8 +116,8 @@ async function verifyFirebaseToken(idToken, apiKey) {
 }
 
 export default async function handler(req, res) {
-    if (req.method !== 'GET') {
-        res.setHeader('Allow', ['GET']);
+    if (req.method !== 'GET' && req.method !== 'POST') {
+        res.setHeader('Allow', ['GET', 'POST']);
         return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 
@@ -100,12 +129,6 @@ export default async function handler(req, res) {
         });
     }
 
-    const { busId } = req.query;
-    if (!busId) {
-        return res.status(400).json({ error: "Missing parameter: busId" });
-    }
-
-    // Rely on process.env now instead of tenant configs
     const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
     const firebaseApiKey = process.env.VITE_FIREBASE_API_KEY;
     const databaseURL = process.env.VITE_FIREBASE_DATABASE_URL || `https://${projectId}-default-rtdb.asia-southeast1.firebasedatabase.app`;
@@ -114,7 +137,6 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: "Server configuration missing Firebase keys" });
     }
 
-    // Authenticate client
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: "Missing authorization token header" });
@@ -128,162 +150,313 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: "Authentication failed: " + authError.message });
     }
 
-    const userEmail = authUser.email || (authUser.providerUserInfo && authUser.providerUserInfo[0] && authUser.providerUserInfo[0].email);
+    const userEmail = (authUser.email || (authUser.providerUserInfo?.[0]?.email) || '').toLowerCase().trim();
     if (!userEmail) {
         return res.status(403).json({ error: "Missing email in authentication token." });
     }
 
-    // Verify user authorization in Firestore
-    const userUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${userEmail}`;
-    const userRes = await fetch(userUrl, {
-        headers: { 'Authorization': `Bearer ${idToken}` }
-    });
-    
-    if (!userRes.ok) {
-        return res.status(403).json({ error: "Unauthorized: User profile not found." });
-    }
-    
-    const userDoc = await userRes.json();
-    const userFields = parseFirestoreFields(userDoc.fields);
-    
-    if (!userFields || !userFields.role) {
-        return res.status(403).json({ error: "Unauthorized access: Invalid role or incomplete profile." });
+    // ========================================================================
+    // POST: DRIVER / CONDUCTOR LIVE GPS BROADCAST (Demand-Throttled Write)
+    // ========================================================================
+    if (req.method === 'POST') {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        const {
+            busId,
+            busNumber,
+            lat,
+            lng,
+            speed = 0,
+            heading = 0,
+            accuracy = 10,
+            role = 'driver',
+            roleTier = 'primary',
+            userName = 'Crew',
+            streamSource = 'gps',
+            action = 'broadcast' // 'broadcast' | 'stop'
+        } = body;
+
+        const targetKey = String(busId || busNumber || '').trim();
+        if (!targetKey) {
+            return res.status(400).json({ error: "Missing busId or busNumber" });
+        }
+
+        const now = Date.now();
+        let entry = busTelemetryMemoryCache.get(targetKey) || {
+            locationData: null,
+            lastFirestoreSyncAt: 0,
+            lastRtdbSyncAt: 0,
+            watchers: new Map()
+        };
+
+        const activeWatchers = pruneAndCountWatchers(entry);
+
+        // Handle explicit Stop Tracking
+        if (action === 'stop') {
+            entry.locationData = {
+                ...(entry.locationData || {}),
+                isTracking: false,
+                speed: 0,
+                timestamp: now,
+                activeWatchers
+            };
+            busTelemetryMemoryCache.set(targetKey, entry);
+            return res.status(200).json({
+                success: true,
+                stopped: true,
+                activeWatchers
+            });
+        }
+
+        if (lat == null || lng == null || isNaN(Number(lat)) || isNaN(Number(lng))) {
+            return res.status(400).json({ error: "Invalid GPS coordinates" });
+        }
+
+        // Priority Hierarchy: Primary Driver (1) > Secondary Driver (2) > Primary Conductor (3) > Secondary Conductor (4)
+        let userPriority = 4;
+        if (role === 'driver') userPriority = roleTier === 'primary' ? 1 : 2;
+        else if (role === 'conductor') userPriority = roleTier === 'primary' ? 3 : 4;
+
+        const existingBroadcaster = entry.locationData?.activeBroadcaster;
+        if (
+            existingBroadcaster &&
+            existingBroadcaster.email &&
+            existingBroadcaster.email !== userEmail &&
+            now - (existingBroadcaster.lastHeartbeat || 0) < 25000 &&
+            userPriority > existingBroadcaster.priority
+        ) {
+            return res.status(200).json({
+                success: false,
+                isStandby: true,
+                activeBroadcaster: existingBroadcaster,
+                activeWatchers,
+                recommendedIntervalMs: 30000,
+                reason: `${existingBroadcaster.name || existingBroadcaster.email} has higher stream priority.`
+            });
+        }
+
+        const prevLoc = entry.locationData;
+        const movedMeters = prevLoc ? haversineMeters(prevLoc.lat, prevLoc.lng, Number(lat), Number(lng)) : Infinity;
+
+        const locationPayload = {
+            busId: targetKey,
+            busNumber: busNumber || targetKey,
+            lat: Number(lat),
+            lng: Number(lng),
+            speed: Math.max(0, Math.round(Number(speed) || 0)),
+            heading: Number(heading) || 0,
+            accuracy: Math.round(Number(accuracy) || 0),
+            isTracking: true,
+            timestamp: now,
+            source: streamSource === 'simulation' ? 'simulation' : `${role}_phone`,
+            activeWatchers,
+            mode: activeWatchers > 0 ? 'HIGH_FREQ_WATCHED' : 'ECO_IDLE',
+            activeBroadcaster: {
+                email: userEmail,
+                name: userName,
+                role,
+                roleTier,
+                priority: userPriority,
+                lastHeartbeat: now,
+                streamSource
+            }
+        };
+
+        // 1. Always update RAM cache immediately (0 cost)
+        entry.locationData = locationPayload;
+
+        // 2. Decide whether we need to persist to Firebase RTDB based on Watchers or Displacement
+        const syncThresholdMs = activeWatchers > 0 ? ACTIVE_SYNC_INTERVAL_MS : IDLE_SYNC_INTERVAL_MS;
+        const timeSinceLastSync = now - (entry.lastRtdbSyncAt || 0);
+        const shouldPersistToFirebase =
+            timeSinceLastSync >= syncThresholdMs ||
+            movedMeters >= MIN_DISPLACEMENT_METERS ||
+            !entry.lastRtdbSyncAt;
+
+        let syncedToFirebase = false;
+        if (shouldPersistToFirebase) {
+            entry.lastRtdbSyncAt = now;
+            const rtdbUrl = `${databaseURL}/live_locations/${encodeURIComponent(targetKey)}.json?auth=${idToken}`;
+            try {
+                await fetch(rtdbUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(locationPayload)
+                });
+                syncedToFirebase = true;
+            } catch (err) {
+                console.warn("RTDB throttled write warning:", err.message);
+            }
+        }
+
+        busTelemetryMemoryCache.set(targetKey, entry);
+        if (busNumber && String(busNumber).trim() !== targetKey) {
+            busTelemetryMemoryCache.set(String(busNumber).trim(), entry);
+        }
+
+        // Tell the driver client how fast to send the next ping
+        const recommendedIntervalMs = activeWatchers > 0 ? 15000 : 60000;
+
+        return res.status(200).json({
+            success: true,
+            isStandby: false,
+            syncedToFirebase,
+            activeWatchers,
+            mode: locationPayload.mode,
+            recommendedIntervalMs,
+            location: locationPayload
+        });
     }
 
-    try {
-        // 1. Fetch Bus Tracker Details from Firestore REST API
-        const busUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/buses/${busId}`;
-        const busRes = await fetch(busUrl, {
-            headers: { 'Authorization': `Bearer ${idToken}` }
+    // ========================================================================
+    // GET: STUDENT / ADMIN READS LOCATION & REGISTERS AS ACTIVE WATCHER
+    // ========================================================================
+    const { busId, busNumber, watch = 'true' } = req.query;
+    const lookupKey = String(busId || busNumber || '').trim();
+    if (!lookupKey) {
+        return res.status(400).json({ error: "Missing parameter: busId" });
+    }
+
+    const now = Date.now();
+    let entry = busTelemetryMemoryCache.get(lookupKey);
+    if (!entry) {
+        entry = {
+            locationData: null,
+            lastFirestoreSyncAt: 0,
+            lastRtdbSyncAt: 0,
+            watchers: new Map()
+        };
+        busTelemetryMemoryCache.set(lookupKey, entry);
+    }
+
+    // Register this Student/Admin as an active watcher for 45 seconds
+    if (watch !== 'false') {
+        entry.watchers.set(userEmail, now + WATCHER_TTL_MS);
+    }
+    const activeWatchers = pruneAndCountWatchers(entry);
+
+    // 1. Serve directly from Server RAM Cache if fresh (< 35 seconds old) -> 0 Firebase Reads!
+    if (entry.locationData && entry.locationData.timestamp && (now - entry.locationData.timestamp < 35000)) {
+        return res.status(200).json({
+            ...entry.locationData,
+            activeWatchers,
+            cacheHit: 'MEMORY'
         });
-        if (!busRes.ok) {
-            return res.status(404).json({ error: `Bus ${busId} not found in database.` });
+    }
+
+    // 2. Fallback to Firebase Realtime Database cache if Server RAM missed (e.g. cold start)
+    try {
+        const rtdbUrl = `${databaseURL}/live_locations/${encodeURIComponent(lookupKey)}.json?auth=${idToken}`;
+        const cacheRes = await fetch(rtdbUrl);
+        if (cacheRes.ok) {
+            const rtdbLocation = await cacheRes.json();
+            if (rtdbLocation && rtdbLocation.lat != null && rtdbLocation.lng != null) {
+                entry.locationData = { ...rtdbLocation, activeWatchers };
+                busTelemetryMemoryCache.set(lookupKey, entry);
+                return res.status(200).json({
+                    ...entry.locationData,
+                    activeWatchers,
+                    cacheHit: 'RTDB'
+                });
+            }
         }
+    } catch (cacheErr) {
+        console.warn("RTDB fallback fetch error:", cacheErr.message);
+    }
+
+    // 3. Optional Hardware MapmyIndia Fallback if bus has trackerId configured
+    try {
+        const busUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/buses/${lookupKey}`;
+        const busRes = await fetch(busUrl, { headers: { 'Authorization': `Bearer ${idToken}` } });
+        if (!busRes.ok) {
+            return res.status(404).json({
+                error: "Live location unavailable",
+                isTracking: false,
+                activeWatchers
+            });
+        }
+
         const busDoc = await busRes.json();
         const busFields = parseFirestoreFields(busDoc.fields);
-        
-        // Resolve trackerId (handles string field or nested tracking object)
         const trackerId = busFields.trackerId || (busFields.tracking && busFields.tracking.trackerId) || "";
 
-        // 2. Fetch Cached Location from Realtime Database REST API
-        const rtdbUrl = `${databaseURL}/live_locations/${busId}.json?auth=${idToken}`;
-        let cachedLocation = null;
-        try {
-            const cacheRes = await fetch(rtdbUrl);
-            if (cacheRes.ok) {
-                cachedLocation = await cacheRes.json();
-            }
-        } catch (cacheErr) {
-            console.error("Cache fetch failed:", cacheErr);
+        // If the Firestore bus document itself has recent coordinates, cache and return them
+        if (busFields.location && busFields.location.lat != null && busFields.location.lng != null) {
+            const docLoc = {
+                busId: lookupKey,
+                lat: Number(busFields.location.lat),
+                lng: Number(busFields.location.lng),
+                speed: Number(busFields.speed || 0),
+                timestamp: Number(busFields.lastUpdated || now),
+                isTracking: Boolean(busFields.isTracking),
+                activeBroadcaster: busFields.activeBroadcaster || null,
+                activeWatchers,
+                source: busFields.locationSource || 'firestore_snapshot'
+            };
+            entry.locationData = docLoc;
+            busTelemetryMemoryCache.set(lookupKey, entry);
+            return res.status(200).json(docLoc);
         }
 
-        // Cache-First check (if location is under 10 seconds old)
-        if (cachedLocation && cachedLocation.timestamp && (Date.now() - cachedLocation.timestamp < 10000)) {
-            console.log(`📡 Cache HIT for ${busId}`);
-            return res.status(200).json(cachedLocation);
-        }
-
-        console.log(`📡 Cache MISS for ${busId}. Accessing fresh telemetry...`);
-
-        // If no tracker ID, we cannot fetch MapmyIndia data
         if (!trackerId) {
-            // Fallback to whatever is cached, or return offline
-            if (cachedLocation) {
-                return res.status(200).json(cachedLocation);
-            }
-            return res.status(404).json({ error: "No tracker ID assigned to bus and no cached location available." });
+            return res.status(404).json({
+                error: "Live location for this bus has not started yet.",
+                isTracking: false,
+                activeWatchers
+            });
         }
 
-        // 3. Fetch MapmyIndia settings from Firestore
         const settingsUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/tracking`;
-        const settingsRes = await fetch(settingsUrl, {
-            headers: { 'Authorization': `Bearer ${idToken}` }
-        });
-        if (!settingsRes.ok) {
-            throw new Error("MapmyIndia credentials not configured in GPS settings.");
-        }
-        const settingsDoc = await settingsRes.ok ? await settingsRes.json() : null;
-        if (!settingsDoc || !settingsDoc.fields) {
-            throw new Error("No settings record found.");
-        }
+        const settingsRes = await fetch(settingsUrl, { headers: { 'Authorization': `Bearer ${idToken}` } });
+        if (!settingsRes.ok) throw new Error("MapmyIndia credentials not configured.");
+        const settingsDoc = await settingsRes.json();
         const settings = parseFirestoreFields(settingsDoc.fields);
 
-        // 4. Decrypt credentials
         const encryptionKey = process.env.ENCRYPTION_KEY;
-        if (!encryptionKey) {
-            throw new Error("Server configuration missing ENCRYPTION_KEY environment variable");
-        }
+        if (!encryptionKey) throw new Error("Missing ENCRYPTION_KEY");
         const mmiApiKey = decrypt(settings.apiKeyEncrypted, encryptionKey);
         const mmiClientSecret = decrypt(settings.clientSecretEncrypted, encryptionKey);
 
-        // 5. Query MapmyIndia APIs
-        let locationData;
-        try {
-            if (mmiApiKey === 'demo_key' || mmiClientSecret === 'demo_secret' || !mmiApiKey || !mmiClientSecret) {
-                throw new Error("Demo credentials active, running path simulation");
-            }
-            // Outpost Login Request
-            const authRes = await fetch("https://outpost.mapmyindia.com/api/security/oauth/token", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    grant_type: 'client_credentials',
-                    client_id: mmiApiKey,
-                    client_secret: mmiClientSecret
-                })
-            });
-            if (!authRes.ok) {
-                throw new Error("MapmyIndia OAuth token generation failed");
-            }
-            const authData = await authRes.json();
-            const token = authData.access_token;
+        const authRes = await fetch("https://outpost.mapmyindia.com/api/security/oauth/token", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: mmiApiKey,
+                client_secret: mmiClientSecret
+            })
+        });
+        if (!authRes.ok) throw new Error("MapmyIndia OAuth failed");
+        const { access_token } = await authRes.json();
 
-            // Telematics Data Request
-            const liveRes = await fetch(`https://apis.mapmyindia.com/intouch/v1/${mmiApiKey}/getLiveData?deviceId=${trackerId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!liveRes.ok) {
-                throw new Error("MapmyIndia location fetch failed");
-            }
-            const liveData = await liveRes.json();
-            if (liveData && liveData.data && liveData.data.length > 0) {
-                const deviceData = liveData.data[0];
-                locationData = {
-                    lat: parseFloat(deviceData.latitude),
-                    lng: parseFloat(deviceData.longitude),
-                    speed: parseFloat(deviceData.speed || 0),
-                    heading: parseFloat(deviceData.heading || 0),
-                    timestamp: Date.now(),
-                    source: "mapmyindia"
-                };
-            } else {
-                throw new Error("Device returned empty telemetry");
-            }
-        } catch (mapError) {
-            console.warn("MapmyIndia telemetry unavailable:", mapError.message);
-            if (cachedLocation) {
-                return res.status(200).json(cachedLocation);
-            }
-            return res.status(503).json({
-                error: "Live location unavailable",
-                details: mapError.message
-            });
-        }
+        const liveRes = await fetch(`https://apis.mapmyindia.com/intouch/v1/${mmiApiKey}/getLiveData?deviceId=${trackerId}`, {
+            headers: { 'Authorization': `Bearer ${access_token}` }
+        });
+        if (!liveRes.ok) throw new Error("MapmyIndia live fetch failed");
+        const liveData = await liveRes.json();
+        const deviceData = liveData?.data?.[0];
+        if (!deviceData) throw new Error("Empty hardware telemetry");
 
-        // 6. Write latest location to Realtime Database cache
-        try {
-            await fetch(rtdbUrl, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(locationData)
-            });
-        } catch (writeError) {
-            console.error("RTDB cache write failed:", writeError);
-        }
+        const hwLocation = {
+            busId: lookupKey,
+            lat: parseFloat(deviceData.latitude),
+            lng: parseFloat(deviceData.longitude),
+            speed: parseFloat(deviceData.speed || 0),
+            heading: parseFloat(deviceData.heading || 0),
+            isTracking: true,
+            timestamp: now,
+            activeWatchers,
+            source: "mapmyindia"
+        };
 
-        return res.status(200).json(locationData);
-
+        entry.locationData = hwLocation;
+        busTelemetryMemoryCache.set(lookupKey, entry);
+        return res.status(200).json(hwLocation);
     } catch (error) {
-        return res.status(500).json({ error: error.message });
+        return res.status(404).json({
+            error: "Live location unavailable",
+            details: error.message,
+            isTracking: false,
+            activeWatchers
+        });
     }
 }

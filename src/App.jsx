@@ -45,6 +45,8 @@ import { StudentProfile } from './pages/student/Profile';
 // Driver pages
 import { DriverDashboard } from './pages/driver/Dashboard';
 import { DriverScanPass } from './pages/driver/ScanPass';
+import { DriverSchedule } from './pages/driver/Schedule';
+import { DriverAlerts } from './pages/driver/Alerts';
 import { DriverSupport } from './pages/driver/Support';
 
 // Admin pages
@@ -93,8 +95,8 @@ export function App() {
                 <Route index element={<Navigate to="/driver/dashboard" replace />} />
                 <Route path="dashboard" element={<DriverDashboard />} />
                 <Route path="scan-pass" element={<DriverScanPass />} />
-                <Route path="alerts" element={<DriverDashboard />} />
-                <Route path="schedule" element={<DriverDashboard />} />
+                <Route path="alerts" element={<DriverAlerts />} />
+                <Route path="schedule" element={<DriverSchedule />} />
                 <Route path="support" element={<DriverSupport />} />
               </Route>
 

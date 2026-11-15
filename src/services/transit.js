@@ -1,5 +1,6 @@
 // src/services/transit.js
 import { 
+  auth,
   db, 
   collection, 
   doc, 
@@ -16,6 +17,23 @@ import {
   runTransaction,
   getCountFromServer
 } from '../config/firebase';
+
+// ==========================================
+// CLIENT-SIDE THROTTLE STATE FOR FIREBASE WRITES
+// ==========================================
+const driverFirestoreSyncState = new Map(); // busId -> { lastSyncAt, lat, lng, activeWatchers, recommendedIntervalMs }
+
+function calculateDisplacementMeters(lat1, lng1, lat2, lng2) {
+  if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return Infinity;
+  const R = 6371e3;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 // ==========================================
 // BUSES
@@ -48,7 +66,7 @@ export function subscribeToBus(busId, onUpdate, onError) {
 }
 
 const busCache = new Map();
-const BUS_CACHE_TTL_MS = 60 * 1000; // 1 minute TTL
+const BUS_CACHE_TTL_MS = 60 * 1000;
 
 export async function getBus(busId) {
   if (!busId) return null;
@@ -76,27 +94,14 @@ async function validateBusConstraints(data, currentBusId = null) {
   const buses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
   for (const bus of buses) {
-    // Skip checking against the bus we are currently updating
     if (currentBusId && bus.id === currentBusId) continue;
 
-    // 1. Bus Number Uniqueness
     if (data.number && bus.number && data.number.trim().toLowerCase() === bus.number.trim().toLowerCase()) {
       throw new Error(`A bus with the number "${data.number}" already exists.`);
     }
 
-    // 2. Registration Number Uniqueness
     if (data.registrationNumber && bus.registrationNumber && data.registrationNumber.trim().toLowerCase() === bus.registrationNumber.trim().toLowerCase()) {
       throw new Error(`A bus with registration "${data.registrationNumber}" already exists.`);
-    }
-
-    // 3. Driver Assignment Uniqueness
-    if (data.driver && bus.driver && data.driver.trim().toLowerCase() === bus.driver.trim().toLowerCase()) {
-      throw new Error(`Driver "${data.driver}" is already assigned to Bus "${bus.number}". Please re-assign them first.`);
-    }
-
-    // 4. Conductor Assignment Uniqueness
-    if (data.conductor && bus.conductor && data.conductor.trim().toLowerCase() === bus.conductor.trim().toLowerCase()) {
-      throw new Error(`Conductor "${data.conductor}" is already assigned to Bus "${bus.number}". Please re-assign them first.`);
     }
   }
 }
@@ -112,8 +117,12 @@ export async function createBus(data) {
     capacity: Number(data.capacity) || 45,
     driver: data.driver || '',
     phone: data.phone || '',
+    primaryDriver: data.primaryDriver || null,
+    secondaryDriver: data.secondaryDriver || null,
     conductor: data.conductor || '',
     conductorPhone: data.conductorPhone || '',
+    primaryConductor: data.primaryConductor || null,
+    secondaryConductor: data.secondaryConductor || null,
     status: data.status || 'On Time',
     headcount: Math.min(Number(data.capacity) || 45, Math.max(0, Number(data.headcount) || 0)),
     tracking: {
@@ -121,7 +130,8 @@ export async function createBus(data) {
       trackerId: data.trackerId || '',
       isOnline: false
     },
-    location: data.location || null, // Never fabricate fake coordinates
+    isTracking: false,
+    location: data.location || null,
     speed: data.speed || 0,
     eta: data.eta || '15 min',
     lastUpdate: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -141,7 +151,7 @@ export async function updateBus(busId, data) {
     updatePayload.headcount = Math.max(0, Number(data.headcount) || 0);
   }
   await updateDoc(busRef, updatePayload);
-  busCache.delete(busId); // Invalidate cache
+  busCache.delete(busId);
 }
 
 export async function updateBusStatus(busId, status) {
@@ -152,11 +162,10 @@ export async function updateBusStatus(busId, status) {
     lastUpdate: nowTime,
     updatedAt: serverTimestamp()
   });
-  busCache.delete(busId); // Invalidate cache
+  busCache.delete(busId);
 }
 
 export async function updateBusHeadcount(busId, newHeadcount, maxCapacity = null) {
-  // Legacy method for absolute set (used sparingly)
   const busRef = doc(db, 'buses', busId);
   let effectiveCapacity = maxCapacity;
 
@@ -214,17 +223,48 @@ export async function updateBusLocation(busId, lat, lng, speed = 25) {
 }
 
 /**
+ * pollCachedBusLocation
+ * Used by Student & Admin portals to fetch live location from the backend RAM cache
+ * AND register the viewer as an `activeWatcher` so the driver's phone switches to 15-25s high-frequency mode.
+ */
+export async function pollCachedBusLocation(busId, watch = true) {
+  if (!busId) return null;
+  try {
+    const currentUser = auth?.currentUser;
+    if (!currentUser) return null;
+    const token = await currentUser.getIdToken();
+    const res = await fetch(`/api/bus-location?busId=${encodeURIComponent(busId)}&watch=${watch ? 'true' : 'false'}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
  * updateBusLiveLocation
- * Single Active Stream Guard coordinate broadcaster for Driver & Conductor portals.
- * Enforces stream hierarchy: Primary Driver (1) > Secondary Driver (2) > Primary Conductor (3) > Secondary Conductor (4).
+ * Demand-aware GPS broadcaster for Driver & Conductor portals.
+ * 1. Pushes live coordinates to `/api/bus-location` (RAM cache) so watching students/admins get <15s updates with 0 Firestore reads.
+ * 2. Throttles direct Firestore `buses/{busId}` writes based on whether anyone is watching:
+ *    - Active Watchers > 0: Syncs Firestore every 25 seconds.
+ *    - Active Watchers == 0 (Eco Mode): Syncs Firestore only every 120 seconds OR if displacement > 120 meters.
  */
 export async function updateBusLiveLocation({
   busId,
+  busNumber = '',
   lat,
   lng,
-  speed = 25,
+  speed = 0,
+  heading = 0,
+  accuracy = 10,
   user = null,
   streamSource = 'gps', // 'gps' | 'simulation'
+  forceFirestoreSync = false,
   onStandby = null
 }) {
   if (!busId || lat == null || lng == null) return { success: false, reason: 'Invalid parameters' };
@@ -234,7 +274,6 @@ export async function updateBusLiveLocation({
   const role = user?.role || 'driver';
   const roleTier = user?.roleTier || 'primary';
 
-  // Priority ranking: 1 (highest) to 4 (lowest)
   let userPriority = 4;
   if (role === 'driver') {
     userPriority = roleTier === 'primary' ? 1 : 2;
@@ -243,33 +282,119 @@ export async function updateBusLiveLocation({
   }
 
   const now = Date.now();
+  const prevState = driverFirestoreSyncState.get(busId) || {
+    lastSyncAt: 0,
+    lat: null,
+    lng: null,
+    activeWatchers: 0,
+    recommendedIntervalMs: 25000
+  };
+
+  let activeWatchers = prevState.activeWatchers || 0;
+  let recommendedIntervalMs = 25000;
+
+  // Step 1: Push to Backend In-Memory Cache API (Zero Firestore Read/Write cost)
+  try {
+    const currentUser = auth?.currentUser;
+    if (currentUser) {
+      const token = await currentUser.getIdToken();
+      const apiRes = await fetch('/api/bus-location', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          busId,
+          busNumber: busNumber || busId,
+          lat: Number(lat),
+          lng: Number(lng),
+          speed: Number(speed) || 0,
+          heading: Number(heading) || 0,
+          accuracy: Number(accuracy) || 10,
+          role,
+          roleTier,
+          userName: user?.name || (role === 'conductor' ? 'Conductor' : 'Driver'),
+          streamSource,
+          action: 'broadcast'
+        })
+      });
+
+      if (apiRes.ok) {
+        const apiData = await apiRes.json();
+        if (apiData.isStandby) {
+          if (onStandby) {
+            onStandby({
+              isStandby: true,
+              activeBroadcaster: apiData.activeBroadcaster
+            });
+          }
+          return {
+            success: false,
+            isStandby: true,
+            activeBroadcaster: apiData.activeBroadcaster,
+            reason: apiData.reason
+          };
+        }
+        activeWatchers = Number(apiData.activeWatchers) || 0;
+        recommendedIntervalMs = Number(apiData.recommendedIntervalMs) || (activeWatchers > 0 ? 15000 : 60000);
+      }
+    }
+  } catch (apiErr) {
+    // Graceful fallback if local dev server doesn't mount /api routes
+  }
+
+  // Step 2: Decide if we need to write to Firestore `buses/{busId}`
+  const movedMeters = calculateDisplacementMeters(prevState.lat, prevState.lng, Number(lat), Number(lng));
+  const timeSinceLastFirestoreWrite = now - (prevState.lastSyncAt || 0);
+
+  // If students/admin are watching -> write every 25s.
+  // If nobody is watching -> write only every 90s (to keep Admin online status green) OR if bus moved > 120m.
+  const firestoreIntervalMs = activeWatchers > 0 ? 25000 : 90000;
+  const shouldWriteFirestore =
+    forceFirestoreSync ||
+    !prevState.lastSyncAt ||
+    timeSinceLastFirestoreWrite >= firestoreIntervalMs ||
+    movedMeters >= 120;
+
+  if (!shouldWriteFirestore) {
+    driverFirestoreSyncState.set(busId, {
+      ...prevState,
+      activeWatchers,
+      recommendedIntervalMs
+    });
+    return {
+      success: true,
+      isStandby: false,
+      cachedOnly: true,
+      activeWatchers,
+      mode: activeWatchers > 0 ? 'HIGH_FREQ_WATCHED' : 'ECO_IDLE',
+      recommendedIntervalMs
+    };
+  }
+
+  // Step 3: Verify Single Active Stream Guard on Firestore only when syncing
   const busSnap = await getDoc(busRef);
   if (!busSnap.exists()) return { success: false, reason: 'Bus record not found' };
 
   const busData = busSnap.data();
   const currentBroadcaster = busData.activeBroadcaster;
 
-  // Single Active Stream Guard:
-  // If someone else is actively broadcasting and their heartbeat is fresh (< 25s)
   if (currentBroadcaster && currentBroadcaster.email && currentBroadcaster.email !== userEmail) {
-    const isFresh = currentBroadcaster.lastHeartbeat && (now - currentBroadcaster.lastHeartbeat) < 25000;
-    if (isFresh) {
-      // If current user has lower priority, enforce Standby mode
-      if (userPriority > currentBroadcaster.priority) {
-        if (onStandby) {
-          onStandby({
-            isStandby: true,
-            activeBroadcaster: currentBroadcaster
-          });
-        }
-        return { 
-          success: false, 
-          isStandby: true, 
-          activeBroadcaster: currentBroadcaster,
-          reason: `${currentBroadcaster.role === 'driver' ? 'Driver' : 'Conductor'} (${currentBroadcaster.name || currentBroadcaster.email}) has active stream priority.` 
-        };
+    const isFresh = currentBroadcaster.lastHeartbeat && (now - currentBroadcaster.lastHeartbeat) < 35000;
+    if (isFresh && userPriority > currentBroadcaster.priority) {
+      if (onStandby) {
+        onStandby({
+          isStandby: true,
+          activeBroadcaster: currentBroadcaster
+        });
       }
-      // If current user has higher or equal priority, they preempt and take over the active stream
+      return { 
+        success: false, 
+        isStandby: true, 
+        activeBroadcaster: currentBroadcaster,
+        reason: `${currentBroadcaster.role === 'driver' ? 'Driver' : 'Conductor'} (${currentBroadcaster.name || currentBroadcaster.email}) has active stream priority.` 
+      };
     }
   }
 
@@ -278,10 +403,14 @@ export async function updateBusLiveLocation({
     isTracking: true,
     'location.lat': Number(lat),
     'location.lng': Number(lng),
-    speed: Number(speed) || 0,
+    speed: Math.max(0, Math.round(Number(speed) || 0)),
+    heading: Number(heading) || 0,
+    accuracy: Math.round(Number(accuracy) || 10),
     locationSource: streamSource === 'simulation' ? 'simulation' : (role === 'conductor' ? 'conductor_phone' : 'driver_phone'),
     lastUpdate: nowTime,
     lastUpdated: now,
+    activeWatchers,
+    trackingMode: activeWatchers > 0 ? 'HIGH_FREQ_WATCHED' : 'ECO_IDLE',
     activeBroadcaster: {
       email: userEmail,
       name: user?.name || (role === 'conductor' ? 'Conductor' : 'Driver'),
@@ -295,16 +424,46 @@ export async function updateBusLiveLocation({
   };
 
   await updateDoc(busRef, updatePayload);
-  return { success: true, isStandby: false };
+
+  driverFirestoreSyncState.set(busId, {
+    lastSyncAt: now,
+    lat: Number(lat),
+    lng: Number(lng),
+    activeWatchers,
+    recommendedIntervalMs
+  });
+
+  return {
+    success: true,
+    isStandby: false,
+    cachedOnly: false,
+    activeWatchers,
+    mode: activeWatchers > 0 ? 'HIGH_FREQ_WATCHED' : 'ECO_IDLE',
+    recommendedIntervalMs
+  };
 }
 
 /**
  * releaseBusLiveStream
- * Cleans up activeBroadcaster so standby crew can take over immediately.
+ * Cleans up activeBroadcaster in both Backend Cache and Firestore.
  */
 export async function releaseBusLiveStream(busId, userEmail) {
   if (!busId) return;
+  driverFirestoreSyncState.delete(busId);
   try {
+    const currentUser = auth?.currentUser;
+    if (currentUser) {
+      const token = await currentUser.getIdToken();
+      fetch('/api/bus-location', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ busId, action: 'stop' })
+      }).catch(() => {});
+    }
+
     const busRef = doc(db, 'buses', busId);
     const busSnap = await getDoc(busRef);
     if (busSnap.exists()) {
@@ -315,6 +474,7 @@ export async function releaseBusLiveStream(busId, userEmail) {
           isTracking: false,
           activeBroadcaster: null,
           speed: 0,
+          trackingMode: 'OFFLINE',
           lastUpdate: 'Shift ended',
           updatedAt: serverTimestamp()
         });
@@ -327,10 +487,9 @@ export async function releaseBusLiveStream(busId, userEmail) {
 
 /**
  * getBusTrackingHealth
- * Evaluates live location health with a strict stale heartbeat threshold (default 60 seconds).
- * Returns: { isLive, status: 'LIVE' | 'STALE' | 'OFFLINE' | 'NO_LOCATION', badgeColor, label, detail, lastSeenText, broadcasterLabel, broadcaster }
+ * Evaluates live location health. Supports Eco Mode (120s heartbeat) without falsely marking active buses offline.
  */
-export function getBusTrackingHealth(bus, staleThresholdSeconds = 60) {
+export function getBusTrackingHealth(bus, staleThresholdSeconds = 110) {
   if (!bus) {
     return {
       isLive: false,
@@ -344,7 +503,6 @@ export function getBusTrackingHealth(bus, staleThresholdSeconds = 60) {
     };
   }
 
-  // 1. Check coordinates existence and validity
   const hasCoords = bus.location && 
     typeof bus.location.lat === 'number' && 
     typeof bus.location.lng === 'number' &&
@@ -366,7 +524,6 @@ export function getBusTrackingHealth(bus, staleThresholdSeconds = 60) {
     };
   }
 
-  // 2. Extract highest precision last updated timestamp
   let lastTimestampMs = 0;
   if (typeof bus.lastUpdated === 'number' && bus.lastUpdated > 0) {
     lastTimestampMs = bus.lastUpdated;
@@ -378,16 +535,11 @@ export function getBusTrackingHealth(bus, staleThresholdSeconds = 60) {
     lastTimestampMs = bus.updatedAt.toDate().getTime();
   } else if (bus.updatedAt) {
     lastTimestampMs = new Date(bus.updatedAt).getTime();
-  } else if (bus.lastGpsUpdate?.toDate) {
-    lastTimestampMs = bus.lastGpsUpdate.toDate().getTime();
-  } else if (bus.lastGpsUpdate) {
-    lastTimestampMs = new Date(bus.lastGpsUpdate).getTime();
   }
 
   const now = Date.now();
   const diffSec = lastTimestampMs > 0 ? Math.max(0, Math.floor((now - lastTimestampMs) / 1000)) : Infinity;
 
-  // Format human-friendly relative time text
   let lastSeenText = 'Never started';
   if (lastTimestampMs > 0 && !isNaN(lastTimestampMs)) {
     if (diffSec < 5) lastSeenText = 'Just now';
@@ -398,7 +550,6 @@ export function getBusTrackingHealth(bus, staleThresholdSeconds = 60) {
     lastSeenText = String(bus.lastUpdate);
   }
 
-  // Broadcaster designation
   const broadcaster = bus.activeBroadcaster;
   const broadcasterLabel = broadcaster 
     ? `${broadcaster.roleTier === 'secondary' ? 'Secondary' : 'Primary'} ${broadcaster.role === 'conductor' ? 'Conductor' : 'Driver'}${broadcaster.name ? ` (${broadcaster.name})` : ''}`
@@ -406,13 +557,13 @@ export function getBusTrackingHealth(bus, staleThresholdSeconds = 60) {
 
   const isExplicitlyTracking = bus.isTracking === true || Boolean(broadcaster);
 
-  // Status Tier 1: LIVE active stream within heartbeat threshold
   if (diffSec <= staleThresholdSeconds && bus.isTracking !== false) {
+    const isEco = bus.trackingMode === 'ECO_IDLE' && (bus.activeWatchers || 0) === 0;
     return {
       isLive: true,
       status: 'LIVE',
       badgeColor: 'emerald',
-      label: 'Live',
+      label: isEco ? 'Live · Eco' : 'Live',
       detail: `Broadcasting (${lastSeenText})`,
       diffSeconds: diffSec,
       lastSeenText,
@@ -421,14 +572,13 @@ export function getBusTrackingHealth(bus, staleThresholdSeconds = 60) {
     };
   }
 
-  // Status Tier 2: STALE (missed recent heartbeat but was recently active)
-  if (diffSec <= staleThresholdSeconds * 3 && isExplicitlyTracking) {
+  if (diffSec <= staleThresholdSeconds * 2.5 && isExplicitlyTracking) {
     return {
       isLive: false,
       status: 'STALE',
       badgeColor: 'amber',
       label: 'Signal Stale',
-      detail: `Heartbeat missed (${lastSeenText})`,
+      detail: `Heartbeat delayed (${lastSeenText})`,
       diffSeconds: diffSec,
       lastSeenText,
       broadcasterLabel,
@@ -436,7 +586,6 @@ export function getBusTrackingHealth(bus, staleThresholdSeconds = 60) {
     };
   }
 
-  // Status Tier 3: OFFLINE / Location Unavailable
   return {
     isLive: false,
     status: 'OFFLINE',
@@ -450,11 +599,7 @@ export function getBusTrackingHealth(bus, staleThresholdSeconds = 60) {
   };
 }
 
-/**
- * getBusesTrackingSummary
- * Aggregates fleet tracking status across all registered buses.
- */
-export function getBusesTrackingSummary(buses = [], staleThresholdSeconds = 60) {
+export function getBusesTrackingSummary(buses = [], staleThresholdSeconds = 110) {
   const liveBuses = [];
   const unavailableBuses = [];
   const staleBuses = [];
@@ -486,10 +631,6 @@ export function getBusesTrackingSummary(buses = [], staleThresholdSeconds = 60) 
   };
 }
 
-/**
- * getBusByNumber
- * Case-insensitive lookup of a bus by busNumber or string id.
- */
 export function getBusByNumber(buses = [], busNumberQuery = '') {
   if (!busNumberQuery) return null;
   const q = String(busNumberQuery).toLowerCase().trim();
@@ -503,7 +644,7 @@ export function getBusByNumber(buses = [], busNumberQuery = '') {
 export async function deleteBus(busId) {
   const busRef = doc(db, 'buses', busId);
   await deleteDoc(busRef);
-  busCache.delete(busId); // Invalidate cache
+  busCache.delete(busId);
 }
 
 // ==========================================
@@ -522,7 +663,6 @@ export function subscribeToRoutes(onUpdate, onError) {
       snapshot.forEach(docSnap => {
         list.push({ id: docSnap.id, ...docSnap.data() });
       });
-      // Sort active first, then code/name
       list.sort((a, b) => (a.code || a.name || '').localeCompare(b.code || b.name || ''));
       onUpdate(list);
     }
@@ -610,7 +750,6 @@ export async function logBoarding({ studentId, studentName, busId, busNumber, ro
     timestamp: serverTimestamp()
   });
 
-  // Also log to daily_boardings for quick aggregation
   try {
     const dailyCol = collection(db, 'daily_boardings');
     await addDoc(dailyCol, {
@@ -631,13 +770,11 @@ export async function logBoarding({ studentId, studentName, busId, busNumber, ro
 export async function getStudentTripsCount(studentId) {
   if (!studentId) return 0;
   const col = collection(db, 'trips');
-  // First day of current month at midnight
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
   try {
-    // High-performance server-side aggregation query (single metadata read)
     const q = query(
       col, 
       where('studentId', '==', studentId),
@@ -646,7 +783,6 @@ export async function getStudentTripsCount(studentId) {
     const snap = await getCountFromServer(q);
     return snap.data().count;
   } catch (indexOrNetworkErr) {
-    // Graceful fallback if composite index is pending deployment
     try {
       const fallbackQuery = query(col, where('studentId', '==', studentId));
       const snap = await getDocs(fallbackQuery);
