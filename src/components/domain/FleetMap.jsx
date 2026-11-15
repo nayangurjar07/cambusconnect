@@ -344,3 +344,5 @@ export function FleetMap({
     </div>
   );
 }
+
+export default FleetMap;

@@ -1,37 +1,40 @@
 // src/pages/admin/Staff.jsx
-import React, { useState, useEffect } from 'react';
-import { Briefcase, Plus, Search, Trash2, Edit2, Phone, Bus, AlertCircle, Shield, UserCheck, ShieldCheck } from 'lucide-react';
-import { subscribeToStaff, createStaffMember, updateStaffMember, deleteStaffMember, validateStaffRoleConflict, getStaffRoleLabel } from '../../services/workforce';
-import { subscribeToBuses } from '../../services/transit';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Modal } from '../../components/ui/Modal';
-import { Badge } from '../../components/ui/Badge';
-import { PageHeader } from '../../components/layout/PageHeader';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '../../contexts/ToastContext';
+import {
+  subscribeToStaff,
+  createStaffMember,
+  updateStaffMember,
+  deleteStaffMember,
+  validateStaffRoleConflict,
+  getStaffRoleLabel
+} from '../../services/workforce';
+import { subscribeToBuses } from '../../services/transit';
+
+const INITIAL_FORM = {
+  name: '',
+  email: '',
+  password: '',
+  phone: '',
+  role: 'driver',
+  roleTier: 'primary',
+  assignedBus: '',
+  assignedBusId: '',
+  licenseNumber: '',
+  status: 'Active'
+};
 
 export function AdminStaff() {
   const { showSuccess, showError } = useToast();
   const [staff, setStaff] = useState([]);
   const [buses, setBuses] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingStaff, setEditingStaff] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [roleFilter, setRoleFilter] = useState('all');
 
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'driver',
-    roleTier: 'primary',
-    phone: '',
-    assignedBus: '',
-    assignedBusId: '',
-    licenseNumber: '',
-  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEmail, setEditingEmail] = useState(null);
+  const [formData, setFormData] = useState(INITIAL_FORM);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const unsubStaff = subscribeToStaff(setStaff);
@@ -42,543 +45,489 @@ export function AdminStaff() {
     };
   }, []);
 
-  const filtered = staff.filter(s => {
-    const q = searchQuery.toLowerCase();
-    return (
-      (s.name && s.name.toLowerCase().includes(q)) ||
-      (s.email && s.email.toLowerCase().includes(q)) ||
-      (s.role && s.role.toLowerCase().includes(q)) ||
-      (s.staffRoleLabel && s.staffRoleLabel.toLowerCase().includes(q)) ||
-      (s.assignedBus && s.assignedBus.toLowerCase().includes(q))
+  // Real-time role & bus slot conflict check
+  const conflictCheck = useMemo(() => {
+    if (!formData.assignedBus || (formData.role !== 'driver' && formData.role !== 'conductor')) {
+      return { hasConflict: false };
+    }
+    return validateStaffRoleConflict(
+      staff,
+      formData.assignedBus,
+      formData.role,
+      formData.roleTier,
+      editingEmail
     );
-  });
+  }, [staff, formData.assignedBus, formData.role, formData.roleTier, editingEmail]);
 
-  // Calculate live role assignment conflict
-  const roleConflict = (formData.role === 'driver' || formData.role === 'conductor') && formData.assignedBus
-    ? validateStaffRoleConflict(staff, formData.assignedBus, formData.role, formData.roleTier, editingStaff?.email)
-    : { hasConflict: false };
+  // Helper to inspect which slots are already occupied on a selected bus
+  const selectedBusOccupancy = useMemo(() => {
+    if (!formData.assignedBus) return { primary: null, secondary: null };
+    const primaryCheck = validateStaffRoleConflict(
+      staff,
+      formData.assignedBus,
+      formData.role,
+      'primary',
+      editingEmail
+    );
+    const secondaryCheck = validateStaffRoleConflict(
+      staff,
+      formData.assignedBus,
+      formData.role,
+      'secondary',
+      editingEmail
+    );
+    return {
+      primary: primaryCheck.conflictingMember || null,
+      secondary: secondaryCheck.conflictingMember || null
+    };
+  }, [staff, formData.assignedBus, formData.role, editingEmail]);
 
-  const handleBusSelect = (busNumber) => {
-    const bus = buses.find(b => String(b.number) === String(busNumber));
-    setFormData(prev => ({
-      ...prev,
-      assignedBus: busNumber,
-      assignedBusId: bus ? bus.id : ''
-    }));
+  const openCreateModal = () => {
+    setEditingEmail(null);
+    setFormData(INITIAL_FORM);
+    setIsModalOpen(true);
   };
 
-  const handleAddSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.name || !formData.email) {
-      showError("Please enter staff name and email.");
-      return;
-    }
-
-    if (roleConflict.hasConflict) {
-      showError(roleConflict.message);
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await createStaffMember(formData);
-      showSuccess(`Staff member ${formData.name} added successfully`);
-      setIsAddModalOpen(false);
-      setFormData({
-        name: '',
-        email: '',
-        password: '',
-        role: 'driver',
-        roleTier: 'primary',
-        phone: '',
-        assignedBus: '',
-        assignedBusId: '',
-        licenseNumber: '',
-      });
-    } catch (err) {
-      showError("Failed to add staff: " + err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleOpenEdit = (member) => {
-    setEditingStaff(member);
-    const matchedBus = buses.find(b => String(b.number) === String(member.assignedBus));
+  const openEditModal = (member) => {
+    setEditingEmail(member.email);
     setFormData({
       name: member.name || '',
       email: member.email || '',
       password: '',
+      phone: member.phone || '',
       role: member.role || 'driver',
       roleTier: member.roleTier || 'primary',
-      phone: member.phone || '',
       assignedBus: member.assignedBus || '',
-      assignedBusId: member.assignedBusId || (matchedBus ? matchedBus.id : ''),
+      assignedBusId: member.assignedBusId || '',
       licenseNumber: member.licenseNumber || '',
+      status: member.status || 'Active'
     });
-    setIsEditModalOpen(true);
+    setIsModalOpen(true);
   };
 
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    if (!editingStaff?.email) return;
+  const handleBusChange = (busNumber) => {
+    const matchedBus = buses.find((b) => String(b.number) === String(busNumber));
+    let nextTier = formData.roleTier;
 
-    if (roleConflict.hasConflict) {
-      showError(roleConflict.message);
-      return;
-    }
+    // Auto-select Secondary if Primary is already taken on that bus
+    if (busNumber && (formData.role === 'driver' || formData.role === 'conductor')) {
+      const primaryTaken = validateStaffRoleConflict(
+        staff,
+        busNumber,
+        formData.role,
+        'primary',
+        editingEmail
+      ).hasConflict;
+      const secondaryTaken = validateStaffRoleConflict(
+        staff,
+        busNumber,
+        formData.role,
+        'secondary',
+        editingEmail
+      ).hasConflict;
 
-    setSubmitting(true);
-    try {
-      await updateStaffMember(editingStaff.email, formData);
-      showSuccess(`Staff record for ${formData.name} updated`);
-      setIsEditModalOpen(false);
-      setEditingStaff(null);
-    } catch (err) {
-      showError("Update failed: " + err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (email, name) => {
-    if (email === 'admin@indoreinstitute.com') {
-      showError("Security: The primary system administrator account cannot be deleted.");
-      return;
-    }
-
-    if (window.confirm(`Remove staff member ${name}?`)) {
-      try {
-        await deleteStaffMember(email);
-        showSuccess(`Staff record removed`);
-      } catch (err) {
-        showError("Delete failed: " + err.message);
+      if (primaryTaken && !secondaryTaken) {
+        nextTier = 'secondary';
+      } else if (!primaryTaken) {
+        nextTier = 'primary';
       }
     }
+
+    setFormData((prev) => ({
+      ...prev,
+      assignedBus: busNumber,
+      assignedBusId: matchedBus?.id || '',
+      roleTier: nextTier
+    }));
   };
 
-  const renderRoleBadge = (member) => {
-    const role = member.role || 'staff';
-    const tier = member.roleTier || 'primary';
-    const label = member.staffRoleLabel || getStaffRoleLabel(role, tier);
-
-    if (role === 'driver') {
-      return (
-        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-          tier === 'primary' 
-            ? 'bg-blue-50 text-blue-700 border-blue-200' 
-            : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-        }`}>
-          <Shield className="w-3 h-3" />
-          <span>{label}</span>
-        </span>
-      );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.name.trim() || !formData.email.trim()) {
+      showError('Name and Email are required.');
+      return;
     }
 
-    if (role === 'conductor') {
-      return (
-        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-          tier === 'primary' 
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-            : 'bg-teal-50 text-teal-700 border-teal-200'
-        }`}>
-          <UserCheck className="w-3 h-3" />
-          <span>{label}</span>
-        </span>
-      );
+    if (conflictCheck.hasConflict) {
+      showError(conflictCheck.message);
+      return;
     }
 
-    if (role === 'admin') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-          <ShieldCheck className="w-3 h-3" />
-          <span>System Admin</span>
-        </span>
-      );
+    setSaving(true);
+    try {
+      if (editingEmail) {
+        await updateStaffMember(editingEmail, formData);
+        showSuccess(`Updated ${formData.name}`);
+      } else {
+        await createStaffMember(formData);
+        showSuccess(`Added ${formData.name} as ${getStaffRoleLabel(formData.role, formData.roleTier)}`);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      showError(err.message || 'Failed to save staff member');
+    } finally {
+      setSaving(false);
     }
+  };
 
+  const handleTerminate = async (member) => {
+    if (!window.confirm(`Revoke access and terminate ${member.name || member.email}?`)) return;
+    try {
+      await deleteStaffMember(member.email);
+      showSuccess(`Access revoked for ${member.email}`);
+    } catch (err) {
+      showError('Failed to revoke staff member');
+    }
+  };
+
+  const filteredStaff = staff.filter((s) => {
+    if (s.status === 'Terminated' || s.role === 'revoked') return false;
+    if (roleFilter !== 'all' && s.role !== roleFilter) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-        {label}
-      </span>
+      s.name?.toLowerCase().includes(q) ||
+      s.email?.toLowerCase().includes(q) ||
+      String(s.assignedBus || '').toLowerCase().includes(q)
     );
-  };
+  });
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        title="Staff & Crew Management"
-        subtitle={`${staff.length} registered team members`}
-        actions={
-          <Button variant="primary" size="sm" icon={Plus} onClick={() => setIsAddModalOpen(true)}>
-            Add Staff Member
-          </Button>
-        }
-      />
-
-      <div className="flex items-center gap-3">
-        <div className="max-w-sm w-full">
-          <Input
-            icon={Search}
-            placeholder="Search by name, role, email, or bus..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 font-sans text-slate-900">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <span className="text-xs font-mono uppercase tracking-wider text-slate-500">
+            Workforce & Crew Roster
+          </span>
+          <h1 className="text-2xl font-bold tracking-tight mt-0.5">
+            Drivers & Conductors Management
+          </h1>
         </div>
+        <button
+          type="button"
+          onClick={openCreateModal}
+          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition cursor-pointer"
+        >
+          + Add Driver / Conductor
+        </button>
       </div>
 
-      <Card>
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200 w-fit">
+          {[
+            { id: 'all', label: 'All Crew' },
+            { id: 'driver', label: 'Drivers' },
+            { id: 'conductor', label: 'Conductors' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setRoleFilter(tab.id)}
+              className={`px-3 py-1.5 rounded-md text-xs font-mono uppercase transition cursor-pointer ${
+                roleFilter === tab.id
+                  ? 'bg-white text-slate-900 font-semibold shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by name, email, or Bus #..."
+          className="px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900 sm:w-72"
+        />
+      </div>
+
+      {/* Dense Operations Roster Table */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/60">
-                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Member</th>
-                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Designation & Role</th>
-                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Assigned Fleet Bus</th>
-                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Phone</th>
-                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">License</th>
-                <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-right">Actions</th>
+              <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-mono uppercase text-slate-500">
+                <th className="py-3 px-4">Staff Member</th>
+                <th className="py-3 px-4">Role & Tier</th>
+                <th className="py-3 px-4">Assigned Bus</th>
+                <th className="py-3 px-4">Contact / License</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((member) => (
-                <tr key={member.id || member.email} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-md bg-gray-100 text-gray-700 text-xs font-medium flex items-center justify-center shrink-0">
-                        {member.name ? member.name.charAt(0).toUpperCase() : 'S'}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                        <div className="text-xs text-gray-400">{member.email}</div>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="px-4 py-2.5">
-                    {renderRoleBadge(member)}
-                  </td>
-
-                  <td className="px-4 py-2.5 text-sm font-semibold text-gray-800">
-                    {member.assignedBus ? (
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-800">
-                        <Bus className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Bus {member.assignedBus}</span>
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 font-normal text-xs">Unassigned</span>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-2.5 text-sm text-gray-600">
-                    {member.phone ? (
-                      <a href={`tel:${member.phone}`} className="hover:underline">
-                        {member.phone}
-                      </a>
-                    ) : '—'}
-                  </td>
-
-                  <td className="px-4 py-2.5 text-xs font-mono text-gray-500">
-                    {member.licenseNumber || '—'}
-                  </td>
-
-                  <td className="px-4 py-2.5 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => handleOpenEdit(member)}
-                        className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-                        title="Edit staff member"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(member.email, member.name)}
-                        disabled={member.email === 'admin@indoreinstitute.com'}
-                        title={member.email === 'admin@indoreinstitute.com' ? "Primary admin cannot be deleted" : "Delete staff"}
-                        className={`p-1.5 rounded-md transition-colors ${
-                          member.email === 'admin@indoreinstitute.com' 
-                            ? 'text-gray-300 cursor-not-allowed opacity-50' 
-                            : 'hover:bg-red-50 text-gray-400 hover:text-red-600'
-                        }`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {filtered.length === 0 && (
+            <tbody className="divide-y divide-slate-100 text-sm">
+              {filteredStaff.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-sm text-gray-400">
-                    No staff members found matching "{searchQuery}".
+                  <td colSpan={5} className="py-8 text-center text-slate-400">
+                    No active crew members found.
                   </td>
                 </tr>
+              ) : (
+                filteredStaff.map((member) => {
+                  const tier = member.roleTier || 'primary';
+                  const badgeStyle =
+                    tier === 'secondary'
+                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                      : 'bg-slate-900 text-white border-slate-900';
+
+                  return (
+                    <tr key={member.id || member.email} className="hover:bg-slate-50/80">
+                      <td className="py-3.5 px-4">
+                        <p className="font-semibold text-slate-900">{member.name || 'Unnamed'}</p>
+                        <p className="text-xs font-mono text-slate-500">{member.email}</p>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-block px-2.5 py-0.5 text-xs font-mono rounded border ${badgeStyle}`}
+                        >
+                          {getStaffRoleLabel(member.role, tier)}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono tabular-nums">
+                        {member.assignedBus ? (
+                          <span className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded font-semibold text-xs">
+                            Bus #{member.assignedBus}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-xs text-slate-600 tabular-nums">
+                        <div>{member.phone || '—'}</div>
+                        {member.licenseNumber && (
+                          <div className="text-[11px] text-slate-400">DL: {member.licenseNumber}</div>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-right space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(member)}
+                          className="px-2.5 py-1 text-xs font-medium border border-slate-200 rounded hover:bg-slate-100 cursor-pointer"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleTerminate(member)}
+                          className="px-2.5 py-1 text-xs font-medium text-rose-600 border border-rose-200 rounded hover:bg-rose-50 cursor-pointer"
+                        >
+                          Revoke
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
-      </Card>
+      </div>
 
-      {/* ─── Add Staff Modal ─── */}
-      <Modal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title="Add Staff Member"
-      >
-        <form onSubmit={handleAddSubmit} className="space-y-3.5">
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Full Name *"
-              placeholder="e.g. Ramesh Verma"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-            <Input
-              label="Email Address *"
-              type="email"
-              placeholder="e.g. ramesh@institute.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Login Password *"
-              placeholder="e.g. cambus123"
-              type="text"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              required
-            />
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-gray-700">Role *</label>
-              <select
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+      {/* Add / Edit Modal with Dynamic Bus Dropdown & Role Tier Validation */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-slate-200 max-w-lg w-full p-6 space-y-5 shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="text-lg font-bold">
+                {editingEmail ? 'Edit Crew Assignment' : 'Assign New Driver / Conductor'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 text-sm font-mono cursor-pointer"
               >
-                <option value="driver">Driver</option>
-                <option value="conductor">Conductor</option>
-                <option value="staff">Route Coordinator</option>
-                <option value="admin">Admin</option>
-              </select>
+                ✕
+              </button>
             </div>
-          </div>
 
-          {/* Role Tier Selection (Driver / Conductor) */}
-          {(formData.role === 'driver' || formData.role === 'conductor') && (
-            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
-              <label className="text-xs font-bold text-slate-700 block">
-                {formData.role === 'driver' ? 'Driver Tier Slot *' : 'Conductor Tier Slot *'}
-              </label>
-              <div className="grid grid-cols-2 gap-2">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                    placeholder="e.g. Rajesh Sharma"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                    Email (Login ID) *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    disabled={Boolean(editingEmail)}
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg disabled:bg-slate-100"
+                    placeholder="driver@cambus.in"
+                  />
+                </div>
+              </div>
+
+              {!editingEmail && (
+                <div>
+                  <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                    Initial Portal Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                    placeholder="Minimum 6 characters"
+                  />
+                </div>
+              )}
+
+              {/* Role & Dynamic Bus Number Dropdown */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                    Crew Role *
+                  </label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white"
+                  >
+                    <option value="driver">Driver</option>
+                    <option value="conductor">Conductor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                    Assign Bus Number (Dropdown)
+                  </label>
+                  <select
+                    value={formData.assignedBus}
+                    onChange={(e) => handleBusChange(e.target.value)}
+                    className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg bg-white"
+                  >
+                    <option value="">— Unassigned —</option>
+                    {buses.map((b) => (
+                      <option key={b.id} value={b.number}>
+                        Bus #{b.number} ({b.route || 'No Route'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Primary vs Secondary Tier Selector */}
+              {(formData.role === 'driver' || formData.role === 'conductor') && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-mono uppercase text-slate-600">
+                    Assignment Slot (Prevents Primary / Sub-Crew Clash)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {['primary', 'secondary'].map((tier) => {
+                      const occupiedBy =
+                        tier === 'primary'
+                          ? selectedBusOccupancy.primary
+                          : selectedBusOccupancy.secondary;
+                      const isSelected = formData.roleTier === tier;
+
+                      return (
+                        <button
+                          key={tier}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, roleTier: tier })}
+                          className={`p-3 rounded-lg border text-left transition cursor-pointer ${
+                            isSelected
+                              ? 'border-slate-900 bg-slate-900 text-white'
+                              : 'border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="text-xs font-mono uppercase font-bold">
+                            {tier === 'primary'
+                              ? `Primary ${formData.role}`
+                              : `Secondary (Sub) ${formData.role}`}
+                          </div>
+                          <div
+                            className={`text-[11px] mt-1 ${
+                              isSelected ? 'text-slate-300' : 'text-slate-500'
+                            }`}
+                          >
+                            {occupiedBy
+                              ? `Occupied: ${occupiedBy.name || occupiedBy.email}`
+                              : 'Slot Available'}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Live Conflict Warning */}
+              {conflictCheck.hasConflict && (
+                <div className="p-3 rounded-lg bg-rose-50 border border-rose-300 text-rose-900 text-xs">
+                  <strong>Slot Conflict:</strong> {conflictCheck.message} Select the Secondary slot or choose another bus.
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg"
+                    placeholder="+91 9876543210"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                    License / Badge ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.licenseNumber}
+                    onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
+                    className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg"
+                    placeholder="MP-09-XXXX"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, roleTier: 'primary' })}
-                  className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    formData.roleTier === 'primary'
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 cursor-pointer"
                 >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>{formData.role === 'driver' ? 'Primary Driver' : 'Primary Conductor'}</span>
+                  Cancel
                 </button>
                 <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, roleTier: 'secondary' })}
-                  className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    formData.roleTier === 'secondary'
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
+                  type="submit"
+                  disabled={saving || conflictCheck.hasConflict}
+                  className="px-5 py-2 text-sm font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-40 cursor-pointer"
                 >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>{formData.role === 'driver' ? 'Secondary (Sub) Driver' : 'Secondary (Sub) Conductor'}</span>
+                  {saving ? 'Saving...' : editingEmail ? 'Update Assignment' : 'Save Crew Member'}
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* Dynamic Bus Number Dropdown */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-700">Assigned Fleet Bus</label>
-            <select
-              value={formData.assignedBus}
-              onChange={(e) => handleBusSelect(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 cursor-pointer"
-            >
-              <option value="">— No Bus Assigned (Standby) —</option>
-              {buses.map(b => (
-                <option key={b.id} value={b.number}>
-                  Bus {b.number} {b.route ? `— ${b.route}` : ''}
-                </option>
-              ))}
-            </select>
+            </form>
           </div>
-
-          {/* Role Conflict Inline Warning */}
-          {roleConflict.hasConflict && (
-            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <strong className="font-extrabold block">Role Assignment Conflict:</strong>
-                <span>{roleConflict.message}</span>
-                <p className="mt-1 text-[11px] text-amber-700">
-                  Switch to <strong>Secondary ({formData.role === 'driver' ? 'Sub-Driver' : 'Sub-Conductor'})</strong> or select another bus to prevent session collisions.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Phone Number"
-              placeholder="+91 9876543210"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            />
-            <Input
-              label="License No."
-              placeholder="e.g. MP-09-2018-0023412"
-              value={formData.licenseNumber}
-              onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-            <Button variant="ghost" size="sm" onClick={() => setIsAddModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" type="submit" isLoading={submitting} disabled={roleConflict.hasConflict}>
-              Add Staff Member
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* ─── Edit Staff Modal ─── */}
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        title={`Edit Staff — ${editingStaff?.name || ''}`}
-      >
-        <form onSubmit={handleEditSubmit} className="space-y-3.5">
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Full Name *"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-gray-700">Role *</label>
-              <select
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              >
-                <option value="driver">Driver</option>
-                <option value="conductor">Conductor</option>
-                <option value="staff">Route Coordinator</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Role Tier Selection (Driver / Conductor) */}
-          {(formData.role === 'driver' || formData.role === 'conductor') && (
-            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
-              <label className="text-xs font-bold text-slate-700 block">
-                {formData.role === 'driver' ? 'Driver Tier Slot *' : 'Conductor Tier Slot *'}
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, roleTier: 'primary' })}
-                  className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    formData.roleTier === 'primary'
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>{formData.role === 'driver' ? 'Primary Driver' : 'Primary Conductor'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, roleTier: 'secondary' })}
-                  className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    formData.roleTier === 'secondary'
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>{formData.role === 'driver' ? 'Secondary (Sub) Driver' : 'Secondary (Sub) Conductor'}</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Dynamic Bus Number Dropdown */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-700">Assigned Fleet Bus</label>
-            <select
-              value={formData.assignedBus}
-              onChange={(e) => handleBusSelect(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 cursor-pointer"
-            >
-              <option value="">— No Bus Assigned (Standby) —</option>
-              {buses.map(b => (
-                <option key={b.id} value={b.number}>
-                  Bus {b.number} {b.route ? `— ${b.route}` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Role Conflict Inline Warning */}
-          {roleConflict.hasConflict && (
-            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <strong className="font-extrabold block">Role Assignment Conflict:</strong>
-                <span>{roleConflict.message}</span>
-                <p className="mt-1 text-[11px] text-amber-700">
-                  Switch to <strong>Secondary ({formData.role === 'driver' ? 'Sub-Driver' : 'Sub-Conductor'})</strong> or select another bus to prevent session collisions.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Phone"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            />
-            <Input
-              label="License No."
-              value={formData.licenseNumber}
-              onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-            <Button variant="ghost" size="sm" onClick={() => setIsEditModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" type="submit" isLoading={submitting} disabled={roleConflict.hasConflict}>
-              Save Changes
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        </div>
+      )}
     </div>
   );
 }
+
+export default AdminStaff;

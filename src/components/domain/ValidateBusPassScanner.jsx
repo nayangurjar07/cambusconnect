@@ -1,28 +1,207 @@
 // src/components/domain/ValidateBusPassScanner.jsx
-import React from 'react';
-import { Camera, Loader2, AlertCircle, Zap, ZapOff, SwitchCamera } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Camera, Loader2, AlertCircle, Zap, ZapOff, SwitchCamera, CheckCircle2, XCircle, Upload } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { useToast } from '../../contexts/ToastContext';
+import { incrementBusHeadcount, logBoarding } from '../../services/transit';
+import { decodeQrFromImageFile } from '../../services/qrDecoder';
 
 /**
  * ValidateBusPassScanner
- * Minimalist, compact transit QR camera scanner with clean blue reticle framing and in-HUD camera controls.
+ * Minimalist, compact transit QR camera scanner supporting both standalone mode
+ * (auto camera lifecycle, pass decoding, headcount increment) and controlled mode.
  */
 export function ValidateBusPassScanner({
-  elementId,
-  isCameraActive,
-  onStartCamera,
-  onStopCamera,
-  cameraLoading = false,
-  cameraError = '',
+  elementId: propElementId,
+  isCameraActive: propIsActive,
+  onStartCamera: propStartCamera,
+  onStopCamera: propStopCamera,
+  cameraLoading: propLoading = false,
+  cameraError: propError = '',
   title = "Validate Student Bus Pass",
   embedded = false,
   className = "",
-  onToggleTorch,
-  torchActive = false,
-  showTorch = false,
-  onFlipCamera,
-  showFlip = false,
-  compact = false
+  onToggleTorch: propToggleTorch,
+  torchActive: propTorchActive = false,
+  showTorch: propShowTorch = false,
+  onFlipCamera: propFlipCamera,
+  showFlip: propShowFlip = false,
+  compact = false,
+  assignedBus = null,
+  verifierRole = 'driver',
+  verifierEmail = ''
 }) {
+  const { showSuccess, showError, showWarning } = useToast();
+
+  // Internal state for standalone mode
+  const [internalActive, setInternalActive] = useState(false);
+  const [internalLoading, setInternalLoading] = useState(false);
+  const [internalError, setInternalError] = useState('');
+  const [internalTorch, setInternalTorch] = useState(false);
+  const [internalFacing, setInternalFacing] = useState('environment');
+  const [hasMultipleCams, setHasMultipleCams] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [scanCooldown, setScanCooldown] = useState(false);
+
+  const scannerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const cooldownRef = useRef({});
+
+  const isControlled = typeof propStartCamera === 'function';
+  const effectiveElementId = propElementId || 'validate-qr-viewport-canvas';
+  const isCameraActive = isControlled ? propIsActive : internalActive;
+  const cameraLoading = isControlled ? propLoading : internalLoading;
+  const cameraError = isControlled ? propError : internalError;
+  const torchActive = isControlled ? propTorchActive : internalTorch;
+  const showTorch = isControlled ? propShowTorch : true;
+  const showFlip = isControlled ? propShowFlip : hasMultipleCams;
+
+  // Standalone camera start
+  const startInternalCamera = async (facing = internalFacing) => {
+    setInternalError('');
+    setInternalLoading(true);
+    try {
+      if (scannerRef.current) {
+        try { await scannerRef.current.stop(); } catch (_) {}
+      }
+
+      const qrScanner = new Html5Qrcode(effectiveElementId);
+      scannerRef.current = qrScanner;
+
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length > 1) {
+          setHasMultipleCams(true);
+        }
+      } catch (_) {}
+
+      await qrScanner.start(
+        { facingMode: facing },
+        {
+          fps: 15,
+          qrbox: (w, h) => {
+            const edge = Math.min(w, h);
+            const size = Math.max(160, Math.floor(edge * 0.72));
+            return { width: size, height: size };
+          }
+        },
+        (decodedText) => handleDecodedPass(decodedText),
+        () => {}
+      );
+
+      setInternalActive(true);
+    } catch (err) {
+      setInternalError(err.message || 'Camera access denied');
+      showError('Could not start camera scanner. Check camera permissions.');
+    } finally {
+      setInternalLoading(false);
+    }
+  };
+
+  const stopInternalCamera = async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+      } catch (_) {}
+      scannerRef.current = null;
+    }
+    setInternalActive(false);
+    setInternalTorch(false);
+  };
+
+  const toggleInternalTorch = async () => {
+    if (!scannerRef.current) return;
+    try {
+      const next = !internalTorch;
+      await scannerRef.current.applyVideoConstraints({
+        advanced: [{ torch: next }]
+      });
+      setInternalTorch(next);
+    } catch (_) {
+      showWarning('Flashlight not supported on this camera.');
+    }
+  };
+
+  const flipInternalCamera = async () => {
+    const nextFacing = internalFacing === 'environment' ? 'user' : 'environment';
+    setInternalFacing(nextFacing);
+    if (internalActive) {
+      await stopInternalCamera();
+      setTimeout(() => startInternalCamera(nextFacing), 150);
+    }
+  };
+
+  // Decode QR Pass in standalone mode
+  const handleDecodedPass = async (rawInput) => {
+    if (scanCooldown) return;
+    setScanCooldown(true);
+    setTimeout(() => setScanCooldown(false), 2200);
+
+    const token = String(rawInput || '').trim();
+    if (!token) return;
+
+    // Check anti-passback cooldown (same student scanned within 3 minutes)
+    const now = Date.now();
+    const lastScan = cooldownRef.current[token];
+    if (lastScan && now - lastScan < 180 * 1000) {
+      const diffSec = Math.round((180 * 1000 - (now - lastScan)) / 1000);
+      showWarning(`Pass already checked in! Anti-passback cooldown: ${diffSec}s remaining.`);
+      setScanResult({
+        status: 'denied',
+        reason: `Pass already scanned recently (${diffSec}s cooldown).`
+      });
+      return;
+    }
+    cooldownRef.current[token] = now;
+
+    // Increment headcount if bus is assigned
+    if (assignedBus?.id) {
+      try {
+        await incrementBusHeadcount(assignedBus.id, 1, assignedBus.capacity || 45);
+        await logBoarding({
+          studentId: token.slice(0, 32),
+          studentName: 'Verified Passenger',
+          busId: assignedBus.id,
+          busNumber: assignedBus.number,
+          routeName: assignedBus.route || 'Campus Route'
+        });
+      } catch (_) {}
+    }
+
+    setScanResult({
+      status: 'approved',
+      studentId: token.length > 24 ? `${token.slice(0, 20)}...` : token,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    });
+    showSuccess(`Pass Approved (+1 Boarded) · Bus #${assignedBus?.number || '—'}`);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const decodedText = await decodeQrFromImageFile(file);
+      await handleDecodedPass(decodedText);
+    } catch (err) {
+      showError('Could not decode QR code from the uploaded image.');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
+  }, []);
+
+  const onStartCamera = isControlled ? propStartCamera : () => startInternalCamera(internalFacing);
+  const onStopCamera = isControlled ? propStopCamera : stopInternalCamera;
+  const onToggleTorch = isControlled ? propToggleTorch : toggleInternalTorch;
+  const onFlipCamera = isControlled ? propFlipCamera : flipInternalCamera;
+
   const content = (
     <div className={`w-full ${compact ? 'max-w-[210px]' : 'max-w-[230px] sm:max-w-[250px]'} mx-auto ${className}`}>
       {!embedded && title && (
@@ -39,7 +218,7 @@ export function ValidateBusPassScanner({
       }`}>
         {/* Mount element for Html5Qrcode video stream */}
         <div
-          id={elementId}
+          id={effectiveElementId}
           className="w-full h-full absolute inset-0 overflow-hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover"
         />
 
@@ -128,7 +307,7 @@ export function ValidateBusPassScanner({
         )}
       </div>
 
-      {/* ─── Compact Minimal Action Button (Subtle, No Glowing Crimson or Stark Black) ── */}
+      {/* ─── Compact Minimal Action Button ── */}
       <button
         type="button"
         onClick={isCameraActive ? onStopCamera : onStartCamera}
@@ -156,6 +335,50 @@ export function ValidateBusPassScanner({
           </>
         )}
       </button>
+
+      {/* Optional Standalone File Upload */}
+      {!isControlled && (
+        <div className="mt-2 text-center">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="text-[11px] text-slate-500 hover:text-blue-600 inline-flex items-center gap-1 cursor-pointer"
+          >
+            <Upload className="w-3 h-3" />
+            <span>Upload Pass Image</span>
+          </button>
+        </div>
+      )}
+
+      {/* Standalone Scan Feedback Banner */}
+      {!isControlled && scanResult && (
+        <div className={`mt-2.5 p-2 rounded-lg text-xs flex items-center gap-2 border ${
+          scanResult.status === 'approved'
+            ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+            : 'bg-rose-50 text-rose-900 border-rose-200'
+        }`}>
+          {scanResult.status === 'approved' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          ) : (
+            <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          )}
+          <div className="truncate">
+            <span className="font-bold">
+              {scanResult.status === 'approved' ? 'Pass Verified' : 'Pass Denied'}
+            </span>
+            <span className="text-[10px] text-slate-500 ml-1">
+              {scanResult.studentId || scanResult.reason}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -169,3 +392,5 @@ export function ValidateBusPassScanner({
     </div>
   );
 }
+
+export default ValidateBusPassScanner;
