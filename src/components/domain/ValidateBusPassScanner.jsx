@@ -384,20 +384,20 @@ export function ValidateBusPassScanner({
             <button
               type="button"
               onClick={stopCamera}
-              className="absolute bottom-3 right-3 px-3 py-1.5 bg-slate-900/90 text-white font-mono text-xs rounded-lg border border-slate-700 cursor-pointer"
+              className="absolute bottom-3 right-3 px-3 py-1.5 bg-slate-900/90 hover:bg-slate-900 text-white font-semibold text-xs rounded-lg border border-slate-700 cursor-pointer transition-colors"
             >
               Stop Camera
             </button>
           </>
         ) : (
           <div className="text-center p-6 space-y-3">
-            <p className="text-xs font-mono uppercase tracking-wider text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Optical QR Pass Reader
             </p>
             <button
               type="button"
               onClick={startCamera}
-              className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold text-sm rounded-lg transition cursor-pointer"
+              className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm rounded-lg transition cursor-pointer"
             >
               Activate Camera Scanner
             </button>
@@ -422,25 +422,25 @@ export function ValidateBusPassScanner({
         >
           <div className="flex items-center justify-between">
             <span
-              className={`px-2.5 py-0.5 text-xs font-mono font-bold uppercase rounded ${
+              className={`px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider rounded ${
                 scanResult.valid ? 'bg-emerald-500 text-slate-950' : 'bg-rose-500 text-white'
               }`}
             >
               {scanResult.status}
             </span>
-            <span className="text-xs font-mono opacity-75">
+            <span className="text-xs opacity-75 tabular-nums">
               {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           </div>
 
           {scanResult.student && (
-            <div className="mt-3 pt-3 border-t border-white/15 grid grid-cols-2 gap-2 text-xs font-mono">
+            <div className="mt-3 pt-3 border-t border-white/15 grid grid-cols-2 gap-2 text-xs">
               <div>
-                <span className="opacity-60 block">STUDENT</span>
-                <span className="font-sans font-bold text-sm">{scanResult.student.name || 'Student'}</span>
+                <span className="opacity-60 block uppercase font-semibold text-[10px] tracking-wider">STUDENT</span>
+                <span className="font-bold text-sm">{scanResult.student.name || 'Student'}</span>
               </div>
               <div>
-                <span className="opacity-60 block">ASSIGNED BUS</span>
+                <span className="opacity-60 block uppercase font-semibold text-[10px] tracking-wider">ASSIGNED BUS</span>
                 <span className="font-bold text-sm">
                   Bus #{scanResult.student.busNumber || scanResult.student.assignedBus || '—'}
                 </span>
@@ -465,7 +465,7 @@ export function ValidateBusPassScanner({
           value={manualInput}
           onChange={(e) => setManualInput(e.target.value)}
           placeholder="Enter Student Email, Roll No, or Pass ID..."
-          className="flex-1 px-3.5 py-2.5 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
+          className="flex-1 px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
         />
         <button
           type="submit"

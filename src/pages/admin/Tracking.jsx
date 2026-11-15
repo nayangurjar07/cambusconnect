@@ -101,20 +101,20 @@ export function AdminTracking() {
       {summary.hasUnavailableBuses && (
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-950">
           <div className="text-xs sm:text-sm">
-            <span className="font-mono font-bold uppercase px-2 py-0.5 bg-amber-200/80 rounded mr-2">
+            <span className="font-bold uppercase tracking-wider text-[11px] px-2 py-0.5 bg-amber-200/80 rounded mr-2">
               Telemetry Alert
             </span>
             <strong>
               {summary.unavailableCount} {summary.unavailableCount === 1 ? 'bus is' : 'buses are'} not sharing live location:
             </strong>{' '}
-            <span className="font-mono">
+            <span className="font-semibold">
               {summary.unavailableBuses.map((b) => `Bus #${b.number}`).join(', ')}
             </span>
           </div>
           <button
             type="button"
             onClick={() => setStatusFilter(statusFilter === 'UNAVAILABLE' ? 'ALL' : 'UNAVAILABLE')}
-            className="px-3 py-1.5 bg-amber-900 text-white text-xs font-mono rounded-lg shrink-0 cursor-pointer"
+            className="px-3 py-1.5 bg-amber-900 text-white text-xs font-semibold uppercase tracking-wider rounded-lg shrink-0 cursor-pointer"
           >
             {statusFilter === 'UNAVAILABLE' ? 'Show All Buses' : 'Filter Unavailable'}
           </button>
@@ -127,12 +127,12 @@ export function AdminTracking() {
         <div className="lg:col-span-8 bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col min-h-[480px]">
           <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold uppercase text-slate-700">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
                 {selectedBus ? `Focused: Bus #${selectedBus.number}` : 'All Fleet Vehicles'}
               </span>
               {selectedBus?.trackingHealth && (
                 <span
-                  className={`text-[11px] font-mono px-2 py-0.5 rounded border ${
+                  className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${
                     selectedBus.trackingHealth.isLive
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                       : 'bg-rose-50 text-rose-800 border-rose-300'
@@ -143,7 +143,7 @@ export function AdminTracking() {
               )}
             </div>
             {selectedBus && (
-              <span className="text-xs font-mono text-slate-500">
+              <span className="text-xs font-medium text-slate-500">
                 {selectedBus.trackingHealth?.broadcasterLabel}
               </span>
             )}
@@ -166,9 +166,9 @@ export function AdminTracking() {
                 key={tab}
                 type="button"
                 onClick={() => setStatusFilter(tab)}
-                className={`flex-1 py-1.5 text-[11px] font-mono uppercase rounded-md cursor-pointer ${
+                className={`flex-1 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded-md cursor-pointer ${
                   statusFilter === tab
-                    ? 'bg-slate-900 text-white font-semibold'
+                    ? 'bg-slate-900 text-white'
                     : 'text-slate-600 hover:bg-slate-200/60'
                 }`}
               >
@@ -191,17 +191,17 @@ export function AdminTracking() {
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-sm">
+                    <span className="font-bold text-sm">
                       Bus #{bus.number}
                     </span>
                     <span
-                      className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
                         health.isLive
                           ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
                           : 'bg-rose-500/20 text-rose-400 border-rose-500/40'
                       }`}
                     >
-                      {health.isLive ? 'LIVE' : 'LOCATION UNAVAILABLE'}
+                      {health.isLive ? 'LIVE' : 'UNAVAILABLE'}
                     </span>
                   </div>
 
@@ -214,14 +214,14 @@ export function AdminTracking() {
                   </p>
 
                   <div
-                    className={`mt-2 pt-2 border-t flex items-center justify-between text-[11px] font-mono ${
+                    className={`mt-2 pt-2 border-t flex items-center justify-between text-[11px] ${
                       isSelected
                         ? 'border-slate-800 text-slate-400'
                         : 'border-slate-100 text-slate-500'
                     }`}
                   >
                     <span>{health.broadcasterLabel}</span>
-                    <span>{health.lastSeenText}</span>
+                    <span className="tabular-nums">{health.lastSeenText}</span>
                   </div>
                 </div>
               );

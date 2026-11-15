@@ -75,9 +75,9 @@ export function StudentTrack() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-5 space-y-4 font-sans text-slate-900">
       {/* Header & Bus Selector */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
         <div>
-          <span className="text-xs font-mono uppercase text-slate-500">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Student Live Transit Tracker
           </span>
           <h1 className="text-xl font-bold tracking-tight mt-0.5">
@@ -86,14 +86,14 @@ export function StudentTrack() {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-mono uppercase text-slate-500">Select Bus:</label>
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Select Bus:</label>
           <select
             value={selectedBusId}
             onChange={(e) => {
               setCachedTelemetry(null);
               setSelectedBusId(e.target.value);
             }}
-            className="px-3 py-2 bg-slate-900 text-white font-mono text-sm rounded-lg border border-slate-800"
+            className="px-3 py-2 bg-slate-900 text-white font-medium text-sm rounded-lg border border-slate-800 focus:outline-none"
           >
             {buses.map((b) => (
               <option key={b.id} value={b.id}>
@@ -106,9 +106,9 @@ export function StudentTrack() {
 
       {/* Unavailable / Offline Notice for Student */}
       {!health.isLive && (
-        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-amber-950 flex items-center justify-between gap-3">
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-amber-950 flex items-center justify-between gap-3 shadow-xs">
           <div>
-            <p className="text-xs font-mono uppercase font-bold text-amber-800">
+            <p className="text-xs uppercase font-bold tracking-wider text-amber-800">
               Live Location Not Active Yet
             </p>
             <p className="text-sm mt-0.5">
@@ -119,19 +119,19 @@ export function StudentTrack() {
       )}
 
       {/* Live Map Card */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+        <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
             <span
               className={`h-2.5 w-2.5 rounded-full ${
                 health.isLive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
               }`}
             />
-            <span className="font-bold">
+            <span className="font-bold text-slate-900">
               Bus #{currentBus?.number || '—'} · {health.label}
             </span>
           </div>
-          <div className="text-slate-600 tabular-nums">
+          <div className="text-slate-600 font-medium tabular-nums">
             Speed: {currentBus?.speed || 0} km/h · Updated: {health.lastSeenText}
           </div>
         </div>

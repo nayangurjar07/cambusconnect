@@ -29,9 +29,9 @@ export function DriverScanPass() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-5 space-y-4 font-sans text-slate-900">
       {/* Crisp Field Header */}
-      <div className="bg-slate-950 text-white rounded-xl p-4 border border-slate-800 flex items-center justify-between">
+      <div className="bg-slate-950 text-white rounded-xl p-4 border border-slate-800 flex items-center justify-between shadow-xs">
         <div>
-          <span className="text-[11px] font-mono uppercase tracking-wider text-amber-400 block">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-400 block">
             Boarding Verification Terminal
           </span>
           <h1 className="text-lg font-bold tracking-tight mt-0.5">
@@ -41,14 +41,14 @@ export function DriverScanPass() {
 
         <div className="flex items-center gap-2">
           {assignedBus && (
-            <span className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg font-mono text-xs tabular-nums">
+            <span className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs font-semibold tabular-nums">
               Bus #{assignedBus.number} ({assignedBus.headcount || 0}/{assignedBus.capacity || 45})
             </span>
           )}
           <button
             type="button"
             onClick={() => navigate('/driver/dashboard')}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-mono rounded-lg cursor-pointer"
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg cursor-pointer transition-colors"
           >
             ← Cockpit
           </button>

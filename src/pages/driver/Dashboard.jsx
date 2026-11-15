@@ -260,10 +260,10 @@ export function DriverDashboard() {
       <div className="bg-slate-950 text-white rounded-xl p-4 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 text-[11px] font-mono uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
+            <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
               {roleLabel}
             </span>
-            <span className="text-xs text-slate-400 font-mono">{user?.email}</span>
+            <span className="text-xs text-slate-400 font-medium">{user?.email}</span>
           </div>
           <h1 className="text-lg font-semibold tracking-tight mt-1">
             Onboard Telemetry Cockpit
@@ -272,12 +272,12 @@ export function DriverDashboard() {
 
         {/* Dynamic Bus Selector */}
         <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-400 uppercase font-mono">Bus:</label>
+          <label className="text-xs text-slate-400 uppercase font-semibold tracking-wider">Bus:</label>
           <select
             value={selectedBusId}
             disabled={isBroadcasting}
             onChange={(e) => setSelectedBusId(e.target.value)}
-            className="bg-slate-900 text-white font-mono text-sm px-3 py-2 rounded-lg border border-slate-700 focus:outline-none focus:border-amber-400 disabled:opacity-50"
+            className="bg-slate-900 text-white font-medium text-sm px-3 py-2 rounded-lg border border-slate-700 focus:outline-none focus:border-amber-400 disabled:opacity-50"
           >
             {buses.map((b) => (
               <option key={b.id} value={b.id}>
@@ -292,7 +292,7 @@ export function DriverDashboard() {
       {isStandby && standbyOwner && (
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-amber-900 flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-mono uppercase tracking-wider font-semibold text-amber-700">
+            <p className="text-xs uppercase tracking-wider font-bold text-amber-700">
               Standby Mode · Stream Priority Lock
             </p>
             <p className="text-sm mt-1">
@@ -316,7 +316,7 @@ export function DriverDashboard() {
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
-            <span className="text-xs uppercase tracking-wider font-mono text-slate-500">
+            <span className="text-xs uppercase tracking-wider font-semibold text-slate-500">
               Live Location Transmitter
             </span>
             <div className="flex items-center gap-2.5 mt-1">
@@ -339,7 +339,7 @@ export function DriverDashboard() {
 
           {/* Indoor Desk Testing Toggle */}
           {!isBroadcasting && (
-            <label className="flex items-center gap-2 text-xs font-mono bg-slate-100 px-3 py-1.5 rounded-lg cursor-pointer select-none border border-slate-200">
+            <label className="flex items-center gap-2 text-xs font-medium bg-slate-100 px-3 py-1.5 rounded-lg cursor-pointer select-none border border-slate-200">
               <input
                 type="checkbox"
                 checked={simulationMode}
@@ -351,18 +351,18 @@ export function DriverDashboard() {
           )}
         </div>
 
-        {/* Telemetry Readout Grid (Monospace Tabular) */}
+        {/* Telemetry Readout Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
-            <span className="text-[11px] font-mono uppercase text-slate-500 block">Coordinates</span>
-            <span className="text-sm font-mono font-semibold tabular-nums mt-1 block">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Coordinates</span>
+            <span className="text-sm font-semibold tabular-nums mt-1 block">
               {coords.lat ? `${coords.lat}, ${coords.lng}` : '— / —'}
             </span>
           </div>
 
           <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
-            <span className="text-[11px] font-mono uppercase text-slate-500 block">Speed / Accuracy</span>
-            <span className="text-sm font-mono font-semibold tabular-nums mt-1 block">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Speed / Accuracy</span>
+            <span className="text-sm font-semibold tabular-nums mt-1 block">
               {coords.speed || 0} km/h{' '}
               <span className="text-xs text-slate-500 font-normal">
                 ({coords.accuracy ? `±${coords.accuracy}m` : '—'})
@@ -371,15 +371,15 @@ export function DriverDashboard() {
           </div>
 
           <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
-            <span className="text-[11px] font-mono uppercase text-slate-500 block">Active Watchers</span>
-            <span className="text-sm font-mono font-semibold tabular-nums mt-1 block">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Active Watchers</span>
+            <span className="text-sm font-semibold tabular-nums mt-1 block">
               {activeWatchers} {activeWatchers === 1 ? 'viewer' : 'viewers'}
             </span>
           </div>
 
           <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
-            <span className="text-[11px] font-mono uppercase text-slate-500 block">Sync Cadence</span>
-            <span className="text-sm font-mono font-semibold tabular-nums mt-1 block">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Sync Cadence</span>
+            <span className="text-sm font-semibold tabular-nums mt-1 block">
               {isBroadcasting ? `${Math.round(recommendedIntervalMs / 1000)}s` : 'Paused'}
               {lastSyncedAt && (
                 <span className="block text-[10px] text-slate-400 font-normal">Last: {lastSyncedAt}</span>
@@ -397,7 +397,7 @@ export function DriverDashboard() {
               className="w-full py-4 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-base tracking-tight transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Start Live Location Broadcast</span>
-              <span className="text-xs font-mono bg-emerald-800/60 px-2 py-0.5 rounded">
+              <span className="text-xs font-semibold bg-emerald-800/60 px-2 py-0.5 rounded">
                 Bus #{currentBus?.number || '—'}
               </span>
             </button>
@@ -418,7 +418,7 @@ export function DriverDashboard() {
         {/* Pass Scanner Quick Launch */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between">
           <div>
-            <span className="text-xs font-mono uppercase text-slate-500">Boarding Verification</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Boarding Verification</span>
             <h3 className="text-base font-semibold mt-0.5">QR / Digital Pass Scanner</h3>
             <p className="text-xs text-slate-500 mt-1">
               Verify student bus passes and automatically increment live occupancy.
@@ -437,12 +437,12 @@ export function DriverDashboard() {
         <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-mono uppercase text-slate-500">Onboard Headcount</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Onboard Headcount</span>
               <h3 className="text-base font-semibold mt-0.5">
                 Bus #{currentBus?.number || '—'} Occupancy
               </h3>
             </div>
-            <div className="text-right font-mono tabular-nums">
+            <div className="text-right tabular-nums">
               <span className="text-2xl font-bold">{currentBus?.headcount || 0}</span>
               <span className="text-sm text-slate-400"> / {currentBus?.capacity || 45}</span>
             </div>

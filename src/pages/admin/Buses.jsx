@@ -99,10 +99,10 @@ export function AdminBuses() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 font-sans text-slate-900">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 text-slate-900">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <span className="text-xs font-mono uppercase tracking-wider text-slate-500">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Vehicle Inventory & Crew Slots
           </span>
           <h1 className="text-2xl font-bold tracking-tight mt-0.5">
@@ -112,18 +112,18 @@ export function AdminBuses() {
         <button
           type="button"
           onClick={openCreateModal}
-          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition cursor-pointer"
+          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg transition cursor-pointer"
         >
           + Register New Bus
         </button>
       </div>
 
       {/* Dense Fleet Operations Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-mono uppercase text-slate-500">
+              <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 <th className="py-3 px-4">Bus # / Reg</th>
                 <th className="py-3 px-4">Assigned Route</th>
                 <th className="py-3 px-4">Drivers (Primary / Sub)</th>
@@ -150,46 +150,46 @@ export function AdminBuses() {
 
                   return (
                     <tr key={bus.id} className="hover:bg-slate-50/80">
-                      <td className="py-3.5 px-4 font-mono">
+                      <td className="py-3.5 px-4">
                         <span className="font-bold text-slate-900">Bus #{bus.number}</span>
                         {bus.registrationNumber && (
                           <span className="block text-xs text-slate-500">{bus.registrationNumber}</span>
                         )}
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="font-medium">{bus.route || 'Unassigned'}</span>
+                        <span className="font-medium text-slate-800">{bus.route || 'Unassigned'}</span>
                       </td>
                       <td className="py-3.5 px-4 text-xs">
-                        <div>
-                          <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 bg-slate-900 text-white rounded mr-1.5">
+                        <div className="flex items-center">
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-slate-900 text-white rounded mr-1.5">
                             P
                           </span>
-                          <span className="font-medium">{pDriver}</span>
+                          <span className="font-medium text-slate-800">{pDriver}</span>
                         </div>
-                        <div className="mt-1 text-slate-500">
-                          <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded mr-1.5">
+                        <div className="mt-1 flex items-center text-slate-500">
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded mr-1.5">
                             S
                           </span>
                           <span>{sDriver}</span>
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-xs">
-                        <div>
-                          <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 bg-slate-900 text-white rounded mr-1.5">
+                        <div className="flex items-center">
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-slate-900 text-white rounded mr-1.5">
                             P
                           </span>
-                          <span className="font-medium">{pCond}</span>
+                          <span className="font-medium text-slate-800">{pCond}</span>
                         </div>
-                        <div className="mt-1 text-slate-500">
-                          <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded mr-1.5">
+                        <div className="mt-1 flex items-center text-slate-500">
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded mr-1.5">
                             S
                           </span>
                           <span>{sCond}</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-xs">
+                      <td className="py-3.5 px-4 text-xs">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded border ${
+                          className={`inline-block px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider ${
                             health.isLive
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                               : 'bg-rose-50 text-rose-800 border-rose-200'
@@ -201,21 +201,21 @@ export function AdminBuses() {
                           {health.lastSeenText}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-xs tabular-nums">
+                      <td className="py-3.5 px-4 text-xs font-semibold tabular-nums text-slate-700">
                         {bus.headcount || 0} / {bus.capacity || 45}
                       </td>
                       <td className="py-3.5 px-4 text-right space-x-2">
                         <button
                           type="button"
                           onClick={() => openEditModal(bus)}
-                          className="px-2.5 py-1 text-xs font-medium border border-slate-200 rounded hover:bg-slate-100 cursor-pointer"
+                          className="px-2.5 py-1 text-xs font-semibold border border-slate-200 rounded hover:bg-slate-100 cursor-pointer"
                         >
                           Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(bus)}
-                          className="px-2.5 py-1 text-xs font-medium text-rose-600 border border-rose-200 rounded hover:bg-rose-50 cursor-pointer"
+                          className="px-2.5 py-1 text-xs font-semibold text-rose-600 border border-rose-200 rounded hover:bg-rose-50 cursor-pointer"
                         >
                           Delete
                         </button>
@@ -234,13 +234,13 @@ export function AdminBuses() {
         <div className="fixed inset-0 z-50 bg-slate-950/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-bold">
+              <h2 className="text-lg font-bold text-slate-900">
                 {editingBusId ? `Edit Bus #${formData.number}` : 'Register New Bus'}
               </h2>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 font-mono text-sm cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -249,7 +249,7 @@ export function AdminBuses() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Bus Number *
                   </label>
                   <input
@@ -258,11 +258,11 @@ export function AdminBuses() {
                     value={formData.number}
                     onChange={(e) => setFormData({ ...formData, number: e.target.value })}
                     placeholder="e.g. 12"
-                    className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg"
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
                     Seating Capacity
                   </label>
                   <input
@@ -271,13 +271,13 @@ export function AdminBuses() {
                     max="100"
                     value={formData.capacity}
                     onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg"
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
                   Vehicle Registration Plate
                 </label>
                 <input
@@ -285,19 +285,19 @@ export function AdminBuses() {
                   value={formData.registrationNumber}
                   onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
                   placeholder="MP-09-FA-1012"
-                  className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-mono uppercase text-slate-600 mb-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
                   Assigned Route
                 </label>
                 {routes.length > 0 ? (
                   <select
                     value={formData.routeId}
                     onChange={(e) => handleRouteSelect(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white"
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-slate-900"
                   >
                     <option value="">— Select Route —</option>
                     {routes.map((r) => (
@@ -312,7 +312,7 @@ export function AdminBuses() {
                     value={formData.route}
                     onChange={(e) => setFormData({ ...formData, route: e.target.value })}
                     placeholder="e.g. Vijay Nagar - Campus"
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-slate-900"
                   />
                 )}
               </div>
@@ -321,14 +321,14 @@ export function AdminBuses() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm border border-slate-300 rounded-lg cursor-pointer"
+                  className="px-4 py-2 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 text-sm font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+                  className="px-5 py-2 text-sm font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 cursor-pointer disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : 'Save Bus'}
                 </button>
