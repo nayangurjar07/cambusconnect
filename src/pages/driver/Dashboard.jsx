@@ -1,513 +1,473 @@
 // src/pages/driver/Dashboard.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  Bus, Users, Radio, Clock, QrCode, Send, Play, Square, MapPin,
-  Shield, UserCheck, Sparkles, Navigation, AlertCircle, CheckCircle2,
-  Zap, RefreshCw
-} from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import {
   subscribeToBuses,
-  updateBusStatus,
-  updateBusHeadcount,
   updateBusLiveLocation,
-  releaseBusLiveStream
+  releaseBusLiveStream,
+  incrementBusHeadcount
 } from '../../services/transit';
-import { createNotification } from '../../services/communications';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { StatusIndicator } from '../../components/ui/StatusIndicator';
-import { PageHeader } from '../../components/layout/PageHeader';
-import { Badge } from '../../components/ui/Badge';
-
-// Realistic Waypoints for Route Simulation Testing (Indore Campus Transit Circuit)
-const INDORE_TRANSIT_WAYPOINTS = [
-  { lat: 22.7533, lng: 75.8937 }, // Campus Terminal Gate
-  { lat: 22.7562, lng: 75.8910 }, // Engineering Block Junction
-  { lat: 22.7590, lng: 75.8875 }, // Super Corridor Sector 1
-  { lat: 22.7625, lng: 75.8830 }, // TCS / Infosys Circle
-  { lat: 22.7660, lng: 75.8790 }, // Metro Station Stop
-  { lat: 22.7695, lng: 75.8745 }, // City Bypass Hub
-  { lat: 22.7640, lng: 75.8810 }, // Return Loop A
-  { lat: 22.7580, lng: 75.8880 }  // Return Loop B
-];
+import { getStaffRoleLabel } from '../../services/workforce';
 
 export function DriverDashboard() {
-  const { profile, user } = useAuth();
-  const { showSuccess, showError, showWarning } = useToast();
-
-  const isConductor = profile?.role === 'conductor';
-  const roleTier = profile?.roleTier || 'primary';
-  const userRoleTitle = isConductor
-    ? (roleTier === 'secondary' ? 'Secondary Conductor' : 'Primary Conductor')
-    : (roleTier === 'secondary' ? 'Secondary Driver' : 'Primary Driver');
+  const { user } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const navigate = useNavigate();
 
   const [buses, setBuses] = useState([]);
-  const [assignedBus, setAssignedBus] = useState(null);
-  const [isShiftActive, setIsShiftActive] = useState(false);
-  const [shiftDuration, setShiftDuration] = useState(0);
-  const [watchId, setWatchId] = useState(null);
-  const [gpsCoords, setGpsCoords] = useState(null);
-  const [headcount, setHeadcount] = useState(0);
-  const [alertType, setAlertType] = useState('delay');
-  const [alertMessage, setAlertMessage] = useState('');
-  const [broadcasting, setBroadcasting] = useState(false);
+  const [selectedBusId, setSelectedBusId] = useState('');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [isStandby, setIsStandby] = useState(false);
+  const [standbyOwner, setStandbyOwner] = useState(null);
+  const [simulationMode, setSimulationMode] = useState(false);
 
-  // Single Active Stream Guard State
-  const [streamStandby, setStreamStandby] = useState({
-    isStandby: false,
-    activeBroadcaster: null,
-    message: ''
-  });
+  // Live Hardware Telemetry State
+  const [coords, setCoords] = useState({ lat: null, lng: null, speed: 0, accuracy: null });
+  const [gpsError, setGpsError] = useState('');
+  const [activeWatchers, setActiveWatchers] = useState(0);
+  const [syncMode, setSyncMode] = useState('OFFLINE'); // 'HIGH_FREQ_WATCHED' | 'ECO_IDLE' | 'OFFLINE'
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  const [recommendedIntervalMs, setRecommendedIntervalMs] = useState(25000);
 
-  // Testing Simulation Mode State
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simWaypointIndex, setSimWaypointIndex] = useState(0);
-  const simIntervalRef = useRef(null);
+  const watchIdRef = useRef(null);
+  const broadcastTimerRef = useRef(null);
+  const latestCoordsRef = useRef({ lat: null, lng: null, speed: 0, accuracy: 10 });
+  const wakeLockRef = useRef(null);
 
-  // 1. Subscribe to fleet buses & match crew assignment
+  // Load Fleet & Auto-Select Assigned Bus
   useEffect(() => {
-    const unsub = subscribeToBuses((list) => {
-      setBuses(list);
-      const myEmail = profile?.email?.toLowerCase();
-      const myBus = list.find(b =>
-        (b.driverEmails && b.driverEmails.includes(myEmail)) ||
-        (b.conductorEmails && b.conductorEmails.includes(myEmail)) ||
-        (b.driver && b.driver.toLowerCase() === profile?.name?.toLowerCase()) ||
-        (b.conductor && b.conductor.toLowerCase() === profile?.name?.toLowerCase()) ||
-        (profile?.assignedBus && String(b.number) === String(profile.assignedBus))
-      ) || list[0];
-
-      if (myBus) {
-        setAssignedBus(myBus);
-        setHeadcount(myBus.headcount || 0);
-
-        // Check if another crew member is actively broadcasting
-        const activeB = myBus.activeBroadcaster;
-        if (activeB && activeB.email && activeB.email !== myEmail) {
-          const isFresh = activeB.lastHeartbeat && (Date.now() - activeB.lastHeartbeat) < 25000;
-          if (isFresh) {
-            setStreamStandby({
-              isStandby: true,
-              activeBroadcaster: activeB,
-              message: `${activeB.role === 'driver' ? 'Driver' : 'Conductor'} (${activeB.name || activeB.email}) has active stream priority.`
-            });
-          } else {
-            setStreamStandby({ isStandby: false, activeBroadcaster: null, message: '' });
-          }
+    const unsub = subscribeToBuses((fleet) => {
+      setBuses(fleet);
+      if (!selectedBusId && fleet.length > 0) {
+        const userEmail = user?.email?.toLowerCase().trim();
+        const assigned = fleet.find(
+          (b) =>
+            String(b.number) === String(user?.assignedBus) ||
+            b.id === user?.assignedBusId ||
+            b.primaryDriver?.email === userEmail ||
+            b.secondaryDriver?.email === userEmail ||
+            b.primaryConductor?.email === userEmail ||
+            b.secondaryConductor?.email === userEmail
+        );
+        if (assigned) {
+          setSelectedBusId(assigned.id);
         } else {
-          setStreamStandby({ isStandby: false, activeBroadcaster: null, message: '' });
+          setSelectedBusId(fleet[0].id);
         }
       }
     });
     return () => unsub();
-  }, [profile]);
+  }, [user, selectedBusId]);
 
-  // 2. Shift Duration Timer
-  useEffect(() => {
-    let interval = null;
-    if (isShiftActive) {
-      interval = setInterval(() => setShiftDuration(prev => prev + 1), 1000);
-    } else {
-      setShiftDuration(0);
+  const currentBus = buses.find((b) => b.id === selectedBusId) || null;
+  const roleLabel = getStaffRoleLabel(user?.role || 'driver', user?.roleTier || 'primary');
+
+  // Request Screen WakeLock while broadcasting
+  const acquireWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await navigator.wakeLock.request('screen');
+      }
+    } catch (_) {}
+  };
+
+  const releaseWakeLock = async () => {
+    try {
+      if (wakeLockRef.current) {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      }
+    } catch (_) {}
+  };
+
+  // Push coordinates to Backend Cache & Throttled Firestore
+  const pushTelemetryTick = useCallback(
+    async (forceSync = false) => {
+      if (!selectedBusId) return;
+      const { lat, lng, speed, accuracy } = latestCoordsRef.current;
+      if (lat == null || lng == null) return;
+
+      const result = await updateBusLiveLocation({
+        busId: selectedBusId,
+        busNumber: currentBus?.number || selectedBusId,
+        lat,
+        lng,
+        speed,
+        accuracy,
+        user,
+        streamSource: simulationMode ? 'simulation' : 'gps',
+        forceFirestoreSync: forceSync,
+        onStandby: (standbyInfo) => {
+          setIsStandby(true);
+          setStandbyOwner(standbyInfo.activeBroadcaster);
+        }
+      });
+
+      if (result.isStandby) {
+        setIsStandby(true);
+        setStandbyOwner(result.activeBroadcaster);
+        return;
+      }
+
+      if (result.success) {
+        setIsStandby(false);
+        setStandbyOwner(null);
+        setActiveWatchers(result.activeWatchers || 0);
+        setSyncMode(result.mode || 'ECO_IDLE');
+        setLastSyncedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        if (result.recommendedIntervalMs && result.recommendedIntervalMs !== recommendedIntervalMs) {
+          setRecommendedIntervalMs(result.recommendedIntervalMs);
+        }
+      }
+    },
+    [selectedBusId, currentBus?.number, user, simulationMode, recommendedIntervalMs]
+  );
+
+  // Start Live Hardware GPS or Test Simulation
+  const startLiveTracking = async () => {
+    if (!selectedBusId) {
+      showError('Please select a bus first.');
+      return;
     }
-    return () => { if (interval) clearInterval(interval); };
-  }, [isShiftActive]);
+    setGpsError('');
 
-  // 3. Geolocation Watcher Unmount Cleanup
+    if (simulationMode) {
+      // Simulation mode for indoor desk testing
+      const baseLat = currentBus?.location?.lat || 22.7196;
+      const baseLng = currentBus?.location?.lng || 75.8577;
+      latestCoordsRef.current = { lat: baseLat, lng: baseLng, speed: 32, accuracy: 5 };
+      setCoords(latestCoordsRef.current);
+      setIsBroadcasting(true);
+      await acquireWakeLock();
+      await pushTelemetryTick(true);
+      showSuccess(`Simulation broadcast started for Bus ${currentBus?.number || selectedBusId}`);
+      return;
+    }
+
+    if (!('geolocation' in navigator)) {
+      setGpsError('Geolocation is not supported by this browser/device.');
+      showError('Hardware GPS not supported on this device.');
+      return;
+    }
+
+    await acquireWakeLock();
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(6));
+        const lng = Number(pos.coords.longitude.toFixed(6));
+        const speedKmh = pos.coords.speed ? Math.max(0, Math.round(pos.coords.speed * 3.6)) : 0;
+        const accuracy = Math.round(pos.coords.accuracy || 10);
+
+        const isFirstFix = latestCoordsRef.current.lat === null;
+        latestCoordsRef.current = { lat, lng, speed: speedKmh, accuracy };
+        setCoords({ lat, lng, speed: speedKmh, accuracy });
+        setGpsError('');
+
+        if (isFirstFix) {
+          await pushTelemetryTick(true);
+        }
+      },
+      (err) => {
+        const msg =
+          err.code === 1
+            ? 'Location permission denied. Please allow GPS access in browser settings.'
+            : err.code === 2
+            ? 'GPS signal unavailable. Move outdoors or enable Simulation Mode for testing.'
+            : 'GPS request timed out. Retrying...';
+        setGpsError(msg);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 8000,
+        timeout: 20000
+      }
+    );
+
+    setIsBroadcasting(true);
+    showSuccess(`Live GPS broadcasting active for Bus ${currentBus?.number || selectedBusId}`);
+  };
+
+  // Stop Live Tracking
+  const stopLiveTracking = async () => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (broadcastTimerRef.current) {
+      clearInterval(broadcastTimerRef.current);
+      broadcastTimerRef.current = null;
+    }
+    await releaseWakeLock();
+    setIsBroadcasting(false);
+    setIsStandby(false);
+    setSyncMode('OFFLINE');
+    latestCoordsRef.current = { lat: null, lng: null, speed: 0, accuracy: null };
+    if (selectedBusId) {
+      await releaseBusLiveStream(selectedBusId, user?.email);
+    }
+    showSuccess('Live location broadcast stopped.');
+  };
+
+  // Dynamic Interval Loop (Adjusts between 15s when watched and 60s when idle)
+  useEffect(() => {
+    if (!isBroadcasting) return;
+
+    if (broadcastTimerRef.current) clearInterval(broadcastTimerRef.current);
+
+    broadcastTimerRef.current = setInterval(() => {
+      if (simulationMode && latestCoordsRef.current.lat != null) {
+        // Slightly jitter coordinates in simulation mode to verify live map movement
+        latestCoordsRef.current = {
+          ...latestCoordsRef.current,
+          lat: Number((latestCoordsRef.current.lat + (Math.random() - 0.45) * 0.0004).toFixed(6)),
+          lng: Number((latestCoordsRef.current.lng + (Math.random() - 0.45) * 0.0004).toFixed(6)),
+          speed: Math.floor(24 + Math.random() * 14)
+        };
+        setCoords({ ...latestCoordsRef.current });
+      }
+      pushTelemetryTick(false);
+    }, recommendedIntervalMs);
+
+    return () => {
+      if (broadcastTimerRef.current) clearInterval(broadcastTimerRef.current);
+    };
+  }, [isBroadcasting, recommendedIntervalMs, simulationMode, pushTelemetryTick]);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (watchId && 'geolocation' in navigator) {
-        navigator.geolocation.clearWatch(watchId);
-      }
-      if (simIntervalRef.current) {
-        clearInterval(simIntervalRef.current);
-      }
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+      if (broadcastTimerRef.current) clearInterval(broadcastTimerRef.current);
+      releaseWakeLock();
     };
-  }, [watchId]);
+  }, []);
 
-  const formatTime = (secs) => {
-    const hrs = Math.floor(secs / 3600);
-    const mins = Math.floor((secs % 3600) / 60);
-    const s = secs % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  // ─── Shift & Live Location Broadcasting ─────────────────────────────
-  const toggleShift = async () => {
-    if (!assignedBus) { showError("No vehicle assigned."); return; }
-
-    if (!isShiftActive) {
-      // Starting Shift & Live Tracking
-      setIsShiftActive(true);
-
-      if ('geolocation' in navigator) {
-        const id = navigator.geolocation.watchPosition(
-          async (pos) => {
-            const { latitude, longitude, speed } = pos.coords;
-            setGpsCoords({ lat: latitude, lng: longitude });
-
-            const res = await updateBusLiveLocation({
-              busId: assignedBus.id,
-              busNumber: assignedBus.number,
-              lat: latitude,
-              lng: longitude,
-              speed: speed ? Math.round(speed * 3.6) : 25,
-              user: {
-                email: profile?.email,
-                name: profile?.name,
-                role: profile?.role || 'driver',
-                roleTier
-              },
-              streamSource: 'gps',
-              onStandby: (info) => {
-                setStreamStandby({
-                  isStandby: true,
-                  activeBroadcaster: info.activeBroadcaster,
-                  message: `${info.activeBroadcaster?.name || 'Primary crew'} is actively broadcasting.`
-                });
-              }
-            });
-
-            if (res.success) {
-              setStreamStandby({ isStandby: false, activeBroadcaster: null, message: '' });
-            }
-          },
-          () => showWarning("Device GPS unavailable. You can use Testing Simulation Mode."),
-          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-        );
-        setWatchId(id);
-      }
-
-      showSuccess(`Shift started — Bus ${assignedBus.number}`);
-    } else {
-      // Ending Shift
-      if (watchId && 'geolocation' in navigator) {
-        navigator.geolocation.clearWatch(watchId);
-        setWatchId(null);
-      }
-      if (isSimulating) {
-        stopSimulation();
-      }
-
-      await releaseBusLiveStream(assignedBus.id, profile?.email);
-      setIsShiftActive(false);
-      setGpsCoords(null);
-      setStreamStandby({ isStandby: false, activeBroadcaster: null, message: '' });
-      showSuccess("Shift ended. Stream released.");
-    }
-  };
-
-  // ─── Testing Mode: Route Movement Simulation ────────────────────────
-  const toggleSimulation = () => {
-    if (!assignedBus) { showError("No vehicle assigned."); return; }
-
-    if (isSimulating) {
-      stopSimulation();
-      showSuccess("Simulation ended.");
-    } else {
-      startSimulation();
-      showSuccess("Testing Mode: Simulating route transit movement.");
-    }
-  };
-
-  const startSimulation = () => {
-    setIsSimulating(true);
-    let index = 0;
-
-    const runStep = async () => {
-      const waypoint = INDORE_TRANSIT_WAYPOINTS[index % INDORE_TRANSIT_WAYPOINTS.length];
-      setSimWaypointIndex(index % INDORE_TRANSIT_WAYPOINTS.length);
-      setGpsCoords(waypoint);
-
-      await updateBusLiveLocation({
-        busId: assignedBus.id,
-        busNumber: assignedBus.number,
-        lat: waypoint.lat,
-        lng: waypoint.lng,
-        speed: 32 + (index % 4) * 3, // Realistic simulated speeds (32 - 41 km/h)
-        user: {
-          email: profile?.email,
-          name: profile?.name,
-          role: profile?.role || 'driver',
-          roleTier
-        },
-        streamSource: 'simulation'
-      });
-
-      index++;
-    };
-
-    runStep();
-    simIntervalRef.current = setInterval(runStep, 3500);
-  };
-
-  const stopSimulation = () => {
-    if (simIntervalRef.current) {
-      clearInterval(simIntervalRef.current);
-      simIntervalRef.current = null;
-    }
-    setIsSimulating(false);
-    if (!isShiftActive) {
-      releaseBusLiveStream(assignedBus?.id, profile?.email);
-    }
-  };
-
-  const adjustHeadcount = async (delta) => {
-    if (!assignedBus) return;
-    const newCount = Math.max(0, headcount + delta);
-    setHeadcount(newCount);
-    try { await updateBusHeadcount(assignedBus.id, newCount); } catch (e) { /* silent */ }
-  };
-
-  const handleStatusChange = async (newStatus) => {
-    if (!assignedBus) return;
+  const handleHeadcountDelta = async (delta) => {
+    if (!currentBus) return;
     try {
-      await updateBusStatus(assignedBus.id, newStatus);
-      showSuccess(`Status: ${newStatus}`);
-    } catch (e) { showError("Failed: " + e.message); }
-  };
-
-  const handleSendAlert = async (e) => {
-    e.preventDefault();
-    if (!alertMessage) return;
-    setBroadcasting(true);
-    try {
-      await createNotification({
-        title: `Bus ${assignedBus?.number || ''} — ${alertType}`,
-        message: alertMessage,
-        type: alertType,
-        targetRouteId: assignedBus?.route || 'all'
-      });
-      showSuccess("Alert sent to riders.");
-      setAlertMessage('');
-    } catch (err) { showError("Failed: " + err.message); }
-    finally { setBroadcasting(false); }
+      await incrementBusHeadcount(currentBus.id, delta, currentBus.capacity || 45);
+    } catch (err) {
+      showError('Failed to update headcount');
+    }
   };
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto pb-10 font-sans">
-      <PageHeader
-        title={isConductor ? "Conductor Command Dashboard" : "Driver Command Dashboard"}
-        subtitle={assignedBus ? `Bus ${assignedBus.number} — ${assignedBus.route || 'Campus Line'}` : 'No vehicle assigned'}
-        actions={
+    <div className="max-w-3xl mx-auto px-4 py-5 space-y-5 font-sans text-slate-900">
+      {/* Top Crew & Vehicle Bar */}
+      <div className="bg-slate-950 text-white rounded-xl p-4 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-              isConductor 
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-blue-50 text-blue-700 border-blue-200'
-            }`}>
-              {isConductor ? <UserCheck className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
-              <span>{userRoleTitle}</span>
+            <span className="px-2 py-0.5 text-[11px] font-mono uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
+              {roleLabel}
             </span>
-
-            <Link to="/driver/scan-pass">
-              <Button variant="primary" size="md" icon={QrCode} className="rounded-2xl px-4 py-2.5 shadow-sm shadow-blue-500/20">
-                Scan Pass
-              </Button>
-            </Link>
+            <span className="text-xs text-slate-400 font-mono">{user?.email}</span>
           </div>
-        }
-      />
+          <h1 className="text-lg font-semibold tracking-tight mt-1">
+            Onboard Telemetry Cockpit
+          </h1>
+        </div>
 
-      {/* ─── Single Active Stream Guard Warning Banner ─── */}
-      {streamStandby.isStandby && (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start gap-3 shadow-xs">
-          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="space-y-0.5 flex-1">
-            <div className="font-extrabold flex items-center gap-2">
-              <span>Stream Standby Guard Active</span>
-              <span className="text-[10px] bg-amber-200/80 text-amber-800 px-2 py-0.5 rounded-full font-bold">Priority Active</span>
-            </div>
-            <p className="text-amber-800">
-              {streamStandby.message}
+        {/* Dynamic Bus Selector */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-400 uppercase font-mono">Bus:</label>
+          <select
+            value={selectedBusId}
+            disabled={isBroadcasting}
+            onChange={(e) => setSelectedBusId(e.target.value)}
+            className="bg-slate-900 text-white font-mono text-sm px-3 py-2 rounded-lg border border-slate-700 focus:outline-none focus:border-amber-400 disabled:opacity-50"
+          >
+            {buses.map((b) => (
+              <option key={b.id} value={b.id}>
+                Bus #{b.number} — {b.route || 'Unassigned Route'}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Single Active Stream Guard Standby Banner */}
+      {isStandby && standbyOwner && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-amber-900 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-mono uppercase tracking-wider font-semibold text-amber-700">
+              Standby Mode · Stream Priority Lock
             </p>
-            <p className="text-[11px] text-amber-700">
-              To prevent jittery map markers, your location updates are held in standby and will automatically broadcast if the primary stream goes offline.
+            <p className="text-sm mt-1">
+              <strong>{standbyOwner.name || standbyOwner.email}</strong> ({standbyOwner.roleTier || 'primary'}{' '}
+              {standbyOwner.role}) is currently broadcasting GPS for Bus #{currentBus?.number}. Your portal will
+              automatically take over if their stream drops.
             </p>
           </div>
         </div>
       )}
 
-      {/* ─── Simulation Active Banner ─── */}
-      {isSimulating && (
-        <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs flex items-center justify-between gap-3 shadow-xs animate-fadeIn">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" />
-            <div>
-              <strong className="font-bold">Testing Mode Active:</strong>
-              <span className="ml-1 text-slate-700">Simulating live bus movement (Waypoint {simWaypointIndex + 1}/{INDORE_TRANSIT_WAYPOINTS.length})</span>
+      {/* GPS Hardware Error Banner */}
+      {gpsError && (
+        <div className="bg-rose-50 border border-rose-300 rounded-xl p-4 text-rose-900 text-sm">
+          <p className="font-semibold">GPS Hardware Alert</p>
+          <p className="mt-0.5 text-rose-700">{gpsError}</p>
+        </div>
+      )}
+
+      {/* Main Live GPS Transmitter Control */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div>
+            <span className="text-xs uppercase tracking-wider font-mono text-slate-500">
+              Live Location Transmitter
+            </span>
+            <div className="flex items-center gap-2.5 mt-1">
+              <span
+                className={`h-3 w-3 rounded-full ${
+                  isBroadcasting
+                    ? 'bg-emerald-500 animate-pulse'
+                    : 'bg-slate-300'
+                }`}
+              />
+              <h2 className="text-xl font-bold tracking-tight">
+                {isBroadcasting
+                  ? syncMode === 'HIGH_FREQ_WATCHED'
+                    ? 'Broadcasting Live (High-Freq · Watched)'
+                    : 'Broadcasting Live (Eco Standby · 0 Watchers)'
+                  : 'Transmitter Offline'}
+              </h2>
             </div>
+          </div>
+
+          {/* Indoor Desk Testing Toggle */}
+          {!isBroadcasting && (
+            <label className="flex items-center gap-2 text-xs font-mono bg-slate-100 px-3 py-1.5 rounded-lg cursor-pointer select-none border border-slate-200">
+              <input
+                type="checkbox"
+                checked={simulationMode}
+                onChange={(e) => setSimulationMode(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              Simulate GPS (Desk Test)
+            </label>
+          )}
+        </div>
+
+        {/* Telemetry Readout Grid (Monospace Tabular) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
+            <span className="text-[11px] font-mono uppercase text-slate-500 block">Coordinates</span>
+            <span className="text-sm font-mono font-semibold tabular-nums mt-1 block">
+              {coords.lat ? `${coords.lat}, ${coords.lng}` : '— / —'}
+            </span>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
+            <span className="text-[11px] font-mono uppercase text-slate-500 block">Speed / Accuracy</span>
+            <span className="text-sm font-mono font-semibold tabular-nums mt-1 block">
+              {coords.speed || 0} km/h{' '}
+              <span className="text-xs text-slate-500 font-normal">
+                ({coords.accuracy ? `±${coords.accuracy}m` : '—'})
+              </span>
+            </span>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
+            <span className="text-[11px] font-mono uppercase text-slate-500 block">Active Watchers</span>
+            <span className="text-sm font-mono font-semibold tabular-nums mt-1 block">
+              {activeWatchers} {activeWatchers === 1 ? 'viewer' : 'viewers'}
+            </span>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
+            <span className="text-[11px] font-mono uppercase text-slate-500 block">Sync Cadence</span>
+            <span className="text-sm font-mono font-semibold tabular-nums mt-1 block">
+              {isBroadcasting ? `${Math.round(recommendedIntervalMs / 1000)}s` : 'Paused'}
+              {lastSyncedAt && (
+                <span className="block text-[10px] text-slate-400 font-normal">Last: {lastSyncedAt}</span>
+              )}
+            </span>
+          </div>
+        </div>
+
+        {/* Start / Stop Hero Button */}
+        <div className="pt-1">
+          {!isBroadcasting ? (
+            <button
+              type="button"
+              onClick={startLiveTracking}
+              className="w-full py-4 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-base tracking-tight transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Start Live Location Broadcast</span>
+              <span className="text-xs font-mono bg-emerald-800/60 px-2 py-0.5 rounded">
+                Bus #{currentBus?.number || '—'}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={stopLiveTracking}
+              className="w-full py-4 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-semibold text-base tracking-tight transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>End Trip & Stop Broadcasting</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Operations Row: Pass Scanner & Live Occupancy Counter */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Pass Scanner Quick Launch */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between">
+          <div>
+            <span className="text-xs font-mono uppercase text-slate-500">Boarding Verification</span>
+            <h3 className="text-base font-semibold mt-0.5">QR / Digital Pass Scanner</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Verify student bus passes and automatically increment live occupancy.
+            </p>
           </div>
           <button
             type="button"
-            onClick={stopSimulation}
-            className="px-3 py-1 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors cursor-pointer"
+            onClick={() => navigate('/driver/scan-pass')}
+            className="mt-4 w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition cursor-pointer"
           >
-            Stop Simulation
+            Open Pass Scanner →
           </button>
         </div>
-      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Main Controls */}
-        <div className="lg:col-span-2 space-y-5">
-          {/* Shift & Telemetry Card */}
-          <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
-              <div className="flex items-center gap-3.5">
-                <span className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-700 font-bold text-base flex items-center justify-center shadow-2xs">
-                  {assignedBus?.number || '—'}
-                </span>
-                <div>
-                  <div className="text-base font-bold text-slate-900 tracking-tight">Bus {assignedBus?.number || 'Unassigned'}</div>
-                  <div className="text-xs text-slate-500 font-medium mt-0.5">
-                    Route: <strong className="text-slate-800">{assignedBus?.route || 'Campus Line'}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Testing Simulation Mode Toggle Button */}
-                <button
-                  type="button"
-                  onClick={toggleSimulation}
-                  className={`px-3.5 py-2.5 rounded-2xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
-                    isSimulating
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                  }`}
-                  title="Test live route tracking without physical driving"
-                >
-                  <Navigation className="w-3.5 h-3.5" />
-                  <span>{isSimulating ? 'Stop Sim' : 'Test Mode (Sim)'}</span>
-                </button>
-
-                <Button
-                  variant={isShiftActive ? 'danger' : 'success'}
-                  size="md"
-                  icon={isShiftActive ? Square : Play}
-                  onClick={toggleShift}
-                  className="rounded-2xl px-5 py-2.5 font-bold shadow-sm"
-                >
-                  {isShiftActive ? 'End Shift' : 'Start Shift'}
-                </Button>
-              </div>
+        {/* Manual Occupancy Counter */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-mono uppercase text-slate-500">Onboard Headcount</span>
+              <h3 className="text-base font-semibold mt-0.5">
+                Bus #{currentBus?.number || '—'} Occupancy
+              </h3>
             </div>
-
-            {/* Telemetry Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-150/70">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Shift Time</div>
-                <div className="text-lg font-bold text-slate-900 mt-1 font-mono tracking-tight">{formatTime(shiftDuration)}</div>
-                <div className={`text-[11px] font-semibold mt-1 flex items-center gap-1 ${isShiftActive ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${isShiftActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                  {isShiftActive ? 'Active Shift' : 'Off-duty'}
-                </div>
-              </div>
-
-              <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-150/70">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Live GPS</div>
-                <div className="text-xs font-semibold text-slate-800 mt-1 truncate">
-                  {gpsCoords ? `${gpsCoords.lat.toFixed(4)}, ${gpsCoords.lng.toFixed(4)}` : 'Standby'}
-                </div>
-                <div className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-1">
-                  <Radio className="w-3 h-3" />
-                  <span>
-                    {isSimulating ? 'Simulating' : (isShiftActive ? (streamStandby.isStandby ? 'Standby' : 'Transmitting') : 'Idle')}
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-150/70">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bus Status</div>
-                <div className="mt-1.5"><StatusIndicator status={assignedBus?.status} /></div>
-              </div>
-
-              <div className="bg-blue-50/70 rounded-2xl p-3.5 border border-blue-100/70">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Live Riders</div>
-                <div className="text-xl font-bold text-blue-700 mt-0.5">{headcount}</div>
-                <div className="text-[10px] text-blue-500 font-medium mt-0.5">onboard</div>
-              </div>
-            </div>
-
-            {/* Broadcast Transit Condition */}
-            <div className="mt-5 pt-4 border-t border-slate-100">
-              <div className="text-xs font-bold text-slate-600 mb-2.5">Broadcast Transit Condition:</div>
-              <div className="grid grid-cols-3 gap-2.5">
-                {['On Time', 'Delayed', 'Breakdown'].map(status => (
-                  <button
-                    key={status}
-                    onClick={() => handleStatusChange(status)}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border cursor-pointer active:scale-95 ${
-                      assignedBus?.status === status
-                        ? status === 'On Time' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
-                          : status === 'Delayed' ? 'bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-500/20'
-                          : 'bg-rose-600 text-white border-rose-600 shadow-sm shadow-rose-500/20'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
+            <div className="text-right font-mono tabular-nums">
+              <span className="text-2xl font-bold">{currentBus?.headcount || 0}</span>
+              <span className="text-sm text-slate-400"> / {currentBus?.capacity || 45}</span>
             </div>
           </div>
-        </div>
 
-        {/* Right Column */}
-        <div className="space-y-5">
-          {/* Headcount Counter Card */}
-          <div className="bg-white border border-slate-200/80 rounded-3xl p-6 text-center shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Riders Onboard</div>
-            <div className="text-5xl font-extrabold text-slate-900 my-4 font-mono tracking-tight">{headcount}</div>
-            <div className="grid grid-cols-2 gap-2.5">
-              <Button variant="secondary" size="md" onClick={() => adjustHeadcount(-1)} className="text-lg font-bold py-3 rounded-2xl">
-                − 1
-              </Button>
-              <Button variant="primary" size="md" onClick={() => adjustHeadcount(1)} className="text-lg font-bold py-3 rounded-2xl">
-                + 1
-              </Button>
-            </div>
+          <div className="grid grid-cols-2 gap-2 mt-4">
             <button
-              onClick={() => { if (window.confirm("Reset headcount to 0?")) adjustHeadcount(-headcount); }}
-              className="mt-3 text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer transition-colors"
+              type="button"
+              onClick={() => handleHeadcountDelta(-1)}
+              className="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-mono font-semibold rounded-lg text-sm cursor-pointer"
             >
-              Reset Counter
+              −1 Alighted
             </button>
-          </div>
-
-          {/* Alert Form Card */}
-          <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Send Rider Notice</div>
-            <form onSubmit={handleSendAlert} className="space-y-3">
-              <select
-                className="w-full text-xs font-semibold border border-slate-200 rounded-xl px-3.5 py-2.5 bg-slate-50/50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
-                value={alertType}
-                onChange={(e) => setAlertType(e.target.value)}
-              >
-                <option value="delay">Traffic Congestion Delay</option>
-                <option value="alert">Vehicle Breakdown</option>
-                <option value="crowd">Bus at Max Capacity</option>
-                <option value="info">General Route Notice</option>
-              </select>
-              <textarea
-                rows={2}
-                className="w-full text-xs border border-slate-200 rounded-xl p-3 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 placeholder:text-slate-400 font-medium"
-                placeholder="Type notification for waiting students..."
-                value={alertMessage}
-                onChange={(e) => setAlertMessage(e.target.value)}
-                required
-              />
-              <Button type="submit" variant="primary" size="md" className="w-full rounded-2xl py-2.5 font-bold shadow-sm shadow-blue-500/20" icon={Send} isLoading={broadcasting}>
-                Broadcast to Riders
-              </Button>
-            </form>
+            <button
+              type="button"
+              onClick={() => handleHeadcountDelta(1)}
+              className="py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-mono font-semibold rounded-lg text-sm cursor-pointer"
+            >
+              +1 Boarded
+            </button>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+export default DriverDashboard;

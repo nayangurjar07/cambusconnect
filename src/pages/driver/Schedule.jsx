@@ -1,296 +1,149 @@
 // src/pages/driver/Schedule.jsx
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  Calendar, Clock, MapPin, Bus, CheckCircle2, ArrowRight,
-  Navigation, User, Shield, AlertCircle, RefreshCw
-} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscribeToBuses, subscribeToRoutes } from '../../services/transit';
-import { db, collection, query, where, onSnapshot } from '../../config/firebase';
-import { PageHeader } from '../../components/layout/PageHeader';
-import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
+import { subscribeToShiftConfig, getStaffRoleLabel } from '../../services/workforce';
 
 export function DriverSchedule() {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
-  const [assignedBus, setAssignedBus] = useState(null);
-  const [assignedRoute, setAssignedRoute] = useState(null);
-  const [recentSessions, setRecentSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [shifts, setShifts] = useState([]);
+  const [completedStops, setCompletedStops] = useState({});
 
-  const isConductor = profile?.role === 'conductor';
-  const roleTier = profile?.roleTier || 'primary';
-  const roleLabel = isConductor
-    ? (roleTier === 'secondary' ? 'Secondary Conductor' : 'Primary Conductor')
-    : (roleTier === 'secondary' ? 'Secondary Driver' : 'Primary Driver');
-
-  // 1. Subscribe to buses & match assignment
   useEffect(() => {
-    const unsubBuses = subscribeToBuses((busList) => {
-      setBuses(busList);
-      const myEmail = profile?.email?.toLowerCase();
-      const myBus = busList.find(b =>
-        (b.driverEmails && b.driverEmails.includes(myEmail)) ||
-        (b.conductorEmails && b.conductorEmails.includes(myEmail)) ||
-        (b.driver && b.driver.toLowerCase() === profile?.name?.toLowerCase()) ||
-        (b.conductor && b.conductor.toLowerCase() === profile?.name?.toLowerCase()) ||
-        (profile?.assignedBus && String(b.number) === String(profile.assignedBus))
-      ) || busList[0];
-
-      setAssignedBus(myBus);
-      setLoading(false);
-    });
-
-    const unsubRoutes = subscribeToRoutes((routeList) => {
-      setRoutes(routeList);
-    });
-
+    const unsubBuses = subscribeToBuses(setBuses);
+    const unsubRoutes = subscribeToRoutes(setRoutes);
+    const unsubShifts = subscribeToShiftConfig(setShifts);
     return () => {
       unsubBuses();
       unsubRoutes();
+      unsubShifts();
     };
-  }, [profile]);
+  }, []);
 
-  // 2. Match route stops
-  useEffect(() => {
-    if (assignedBus && routes.length > 0) {
-      const match = routes.find(r => 
-        (assignedBus.routeId && r.id === assignedBus.routeId) ||
-        (assignedBus.route && r.name && r.name.toLowerCase().includes(assignedBus.route.toLowerCase()))
-      );
-      setAssignedRoute(match || null);
-    }
-  }, [assignedBus, routes]);
+  const userEmail = user?.email?.toLowerCase().trim();
+  const assignedBus =
+    buses.find(
+      (b) =>
+        String(b.number) === String(user?.assignedBus) ||
+        b.primaryDriver?.email === userEmail ||
+        b.secondaryDriver?.email === userEmail ||
+        b.primaryConductor?.email === userEmail ||
+        b.secondaryConductor?.email === userEmail
+    ) || buses[0];
 
-  // 3. Subscribe to shift sessions
-  useEffect(() => {
-    const userEmail = profile?.email?.toLowerCase();
-    if (!userEmail) return;
+  const assignedRoute =
+    routes.find(
+      (r) =>
+        r.id === assignedBus?.routeId ||
+        r.name?.toLowerCase() === assignedBus?.route?.toLowerCase()
+    ) || routes[0];
 
-    try {
-      const q = query(
-        collection(db, 'driver_sessions'),
-        where('driverEmail', '==', userEmail)
-      );
-      const unsub = onSnapshot(q, (snapshot) => {
-        const sessions = [];
-        snapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          sessions.push({ id: docSnap.id, ...data });
-        });
-        sessions.sort((a, b) => (b.startTime?.toDate?.() || 0) - (a.startTime?.toDate?.() || 0));
-        setRecentSessions(sessions.slice(0, 5));
-      }, (err) => {
-        console.warn("Driver sessions query notice:", err.message);
-      });
-      return () => unsub();
-    } catch (e) {
-      // fallback
-    }
-  }, [profile]);
+  const stops = Array.isArray(assignedRoute?.stops) && assignedRoute.stops.length > 0
+    ? assignedRoute.stops
+    : [
+        { name: 'Starting Point / Depot', time: '07:45 AM' },
+        { name: 'Main Square Pickup', time: '08:00 AM' },
+        { name: 'City Center Junction', time: '08:15 AM' },
+        { name: 'Campus Main Gate', time: '08:35 AM' }
+      ];
 
-  const defaultStops = [
-    { name: 'Campus Main Gate / Terminal', time: '07:30 AM', type: 'origin' },
-    { name: 'Engineering & Tech Block Junction', time: '07:45 AM', type: 'transit' },
-    { name: 'Super Corridor Sector 1', time: '08:05 AM', type: 'transit' },
-    { name: 'TCS / Infosys Transit Square', time: '08:20 AM', type: 'transit' },
-    { name: 'Metro Interchange Station', time: '08:35 AM', type: 'transit' },
-    { name: 'Rajwada / Central Drop Terminal', time: '08:55 AM', type: 'destination' }
-  ];
-
-  const stops = assignedRoute?.stops?.length > 0 
-    ? assignedRoute.stops.map((s, idx) => ({
-        name: typeof s === 'string' ? s : s.name,
-        time: s.time || `${7 + Math.floor(idx * 15 / 60)}:${String((idx * 15) % 60).padStart(2, '0')} AM`,
-        type: idx === 0 ? 'origin' : (idx === assignedRoute.stops.length - 1 ? 'destination' : 'transit')
-      }))
-    : defaultStops;
+  const toggleStop = (idx) => {
+    setCompletedStops((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12 font-sans">
-      <PageHeader
-        title="Shift & Route Schedule"
-        subtitle={`Daily transit duty timetable, stop sequence, and shift logs for ${roleLabel}`}
-        actions={
-          <div className="flex items-center gap-2">
-            <Link to="/driver/dashboard">
-              <Button variant="primary" className="gap-1.5 text-xs">
-                <Navigation className="w-3.5 h-3.5" />
-                Go to Live Telemetry
-              </Button>
-            </Link>
-          </div>
-        }
-      />
+    <div className="max-w-3xl mx-auto px-4 py-5 space-y-5 font-sans text-slate-900">
+      {/* Header */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <span className="text-xs font-mono uppercase text-slate-500">
+            {getStaffRoleLabel(user?.role || 'driver', user?.roleTier || 'primary')}
+          </span>
+          <h1 className="text-xl font-bold tracking-tight mt-0.5">
+            Shift Roster & Route Timeline
+          </h1>
+        </div>
+        <div className="bg-slate-900 text-white px-3.5 py-2 rounded-lg font-mono text-xs">
+          Assigned: Bus #{assignedBus?.number || '—'} · {assignedRoute?.code || 'Route'}
+        </div>
+      </div>
 
-      {/* ─── Top Assigned Vehicle Banner ─── */}
-      <Card className="border border-blue-100 bg-gradient-to-r from-blue-50/80 via-white to-indigo-50/40 p-5 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-blue-500/20">
-              <Bus className="w-6 h-6" />
-            </div>
+      {/* Active Shifts Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {shifts.map((shift) => (
+          <div
+            key={shift.id}
+            className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between"
+          >
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-slate-900">
-                  {assignedBus ? `Bus #${assignedBus.number}` : 'Vehicle Assignment Pending'}
-                </h2>
-                <Badge variant="primary" className="text-[11px] font-semibold">
-                  {roleLabel}
-                </Badge>
-              </div>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Route: <strong className="text-slate-800">{assignedBus?.route || 'Main Campus Corridor Loop'}</strong>
-                {assignedBus?.capacity && ` • Max Capacity: ${assignedBus.capacity} passengers`}
-              </p>
+              <span className="text-xs font-mono uppercase text-slate-400">Shift Window</span>
+              <p className="font-semibold text-sm mt-0.5">{shift.name}</p>
             </div>
+            <span className="font-mono text-sm font-semibold tabular-nums bg-slate-100 px-3 py-1 rounded border border-slate-200">
+              {shift.startTime} – {shift.endTime}
+            </span>
           </div>
+        ))}
+      </div>
 
-          <div className="flex items-center gap-2">
-            <div className="px-3.5 py-1.5 bg-white border border-slate-200/80 rounded-xl text-center shadow-xs">
-              <p className="text-[10px] uppercase font-bold text-slate-400">Status</p>
-              <p className="text-xs font-bold text-emerald-600 flex items-center gap-1 justify-center">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Active Run
-              </p>
-            </div>
-            <div className="px-3.5 py-1.5 bg-white border border-slate-200/80 rounded-xl text-center shadow-xs">
-              <p className="text-[10px] uppercase font-bold text-slate-400">Next Shift</p>
-              <p className="text-xs font-bold text-slate-800">Tomorrow 07:30 AM</p>
-            </div>
+      {/* Vertical Stop-by-Stop Checklist */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+          <div>
+            <h2 className="text-base font-bold">
+              {assignedRoute?.name || assignedBus?.route || 'Scheduled Campus Route'}
+            </h2>
+            <p className="text-xs text-slate-500">Tap a stop as you reach it to log route progress</p>
           </div>
+          <span className="text-xs font-mono text-slate-500 tabular-nums">
+            {Object.values(completedStops).filter(Boolean).length} / {stops.length} Reached
+          </span>
         </div>
-      </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Route Stops Sequence */}
-        <div className="lg:col-span-7 space-y-6">
-          <Card className="bg-white border border-slate-200/80 shadow-xs">
-            <CardHeader className="pb-3 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-600" />
-                <CardTitle className="text-sm font-bold text-slate-900">Today's Route Timetable & Stops</CardTitle>
-              </div>
-              <span className="text-[11px] text-slate-400 font-medium">
-                {stops.length} Scheduled Waypoints
-              </span>
-            </CardHeader>
-            <CardBody className="p-5">
-              <div className="relative pl-6 space-y-6 before:content-[''] before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-blue-100">
-                {stops.map((stop, index) => (
-                  <div key={index} className="relative flex items-start justify-between gap-3 group">
-                    <div className={`absolute -left-6 top-1 w-4 h-4 rounded-full border-2 bg-white flex items-center justify-center transition-all ${
-                      stop.type === 'origin'
-                        ? 'border-blue-600 ring-4 ring-blue-50'
-                        : (stop.type === 'destination' ? 'border-emerald-600 ring-4 ring-emerald-50' : 'border-slate-300')
-                    }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        stop.type === 'origin' ? 'bg-blue-600' : (stop.type === 'destination' ? 'bg-emerald-600' : 'bg-slate-400')
-                      }`} />
-                    </div>
+        <div className="space-y-3">
+          {stops.map((stop, idx) => {
+            const stopName = typeof stop === 'string' ? stop : stop.name || `Stop #${idx + 1}`;
+            const stopTime = typeof stop === 'object' && stop.time ? stop.time : `Stop ${idx + 1}`;
+            const isDone = Boolean(completedStops[idx]);
 
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
-                        {stop.name}
-                      </p>
-                      <p className="text-[11px] text-slate-400">
-                        Stop #{index + 1} {stop.type === 'origin' ? '• Departure Terminal' : (stop.type === 'destination' ? '• Final Destination' : '• Passenger Boarding')}
-                      </p>
-                    </div>
-
-                    <div className="shrink-0 text-right">
-                      <span className="inline-block px-2.5 py-1 bg-slate-50 border border-slate-200/60 rounded-md font-mono text-xs font-semibold text-slate-700">
-                        {stop.time}
-                      </span>
-                    </div>
+            return (
+              <div
+                key={idx}
+                onClick={() => toggleStop(idx)}
+                className={`p-3.5 rounded-lg border transition cursor-pointer flex items-center justify-between ${
+                  isDone
+                    ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`w-6 h-6 rounded-full font-mono text-xs flex items-center justify-center font-bold ${
+                      isDone
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white border border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {isDone ? '✓' : idx + 1}
+                  </span>
+                  <div>
+                    <p className={`text-sm font-semibold ${isDone ? 'line-through opacity-75' : ''}`}>
+                      {stopName}
+                    </p>
                   </div>
-                ))}
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-
-        {/* Right Column: Shift Policies, Next Day ETA & History */}
-        <div className="lg:col-span-5 space-y-6">
-          {/* Next Day ETA Card */}
-          <Card className="bg-gradient-to-br from-indigo-50/60 via-white to-blue-50/40 border border-indigo-100/80 shadow-xs">
-            <CardBody className="p-5 space-y-3">
-              <div className="flex items-center gap-2 text-indigo-700">
-                <Calendar className="w-4 h-4" />
-                <h3 className="text-xs font-bold uppercase tracking-wider">Next Day Schedule ETA</h3>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Scheduled Next Day Departure Time: <strong className="text-indigo-900 font-bold">07:30 AM IST</strong>. 
-                Pre-trip bus diagnostics and GPS sensor calibration begin at <strong>07:15 AM</strong>.
-              </p>
-              <div className="pt-2 border-t border-indigo-100/60 flex items-center justify-between text-[11px] text-slate-500">
-                <span>Morning Shift: 07:30 – 10:00 AM</span>
-                <span>Evening Shift: 04:30 – 06:30 PM</span>
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* Shift Duty Checklist */}
-          <Card className="bg-white border border-slate-200/80 shadow-xs">
-            <CardHeader className="pb-3 border-b border-slate-100">
-              <CardTitle className="text-sm font-bold text-slate-900">Shift Readiness Checklist</CardTitle>
-            </CardHeader>
-            <CardBody className="p-4 space-y-2.5 text-xs text-slate-600">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Device GPS Location Permissions Granted</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Optical Camera Scanner Calibrated</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Primary / Secondary Crew Sync Initialized</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Headcount Counter Reset to 0 at Origin</span>
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* Recent Shift Activity Log */}
-          <Card className="bg-white border border-slate-200/80 shadow-xs">
-            <CardHeader className="pb-3 border-b border-slate-100 flex items-center justify-between">
-              <CardTitle className="text-sm font-bold text-slate-900">Recent Shift Logs</CardTitle>
-              <span className="text-[11px] text-slate-400">Duty Records</span>
-            </CardHeader>
-            <CardBody className="p-4">
-              {recentSessions.length > 0 ? (
-                <div className="divide-y divide-slate-100">
-                  {recentSessions.map(session => (
-                    <div key={session.id} className="py-2.5 flex items-center justify-between text-xs">
-                      <div>
-                        <p className="font-bold text-slate-800">Bus {session.busNumber || assignedBus?.number || '--'}</p>
-                        <p className="text-[11px] text-slate-400">{session.route || 'Campus Route'}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[10px] font-bold">
-                          {session.status || 'Completed'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
                 </div>
-              ) : (
-                <p className="text-xs text-slate-400 text-center py-4">
-                  No previous shift history recorded today.
-                </p>
-              )}
-            </CardBody>
-          </Card>
+                <span className="text-xs font-mono tabular-nums text-slate-500">
+                  {stopTime}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
   );
 }
+
+export default DriverSchedule;

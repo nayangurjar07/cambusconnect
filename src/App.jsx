@@ -1,31 +1,10 @@
 // src/App.jsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { TenantProvider } from './contexts/TenantContext';
-import { ToastProvider } from './contexts/ToastContext';
+import { ToastProvider, useToast } from './contexts/ToastContext';
 import { AppShell } from './components/layout/AppShell';
-import { useToast } from './contexts/ToastContext';
-import { useEffect } from 'react';
-
-function NetworkStatusListener() {
-  const { showError, showSuccess } = useToast();
-
-  useEffect(() => {
-    const handleOffline = () => showError("You are offline. Some features may be unavailable.");
-    const handleOnline = () => showSuccess("Back online! Connection restored.");
-
-    window.addEventListener('offline', handleOffline);
-    window.addEventListener('online', handleOnline);
-
-    return () => {
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('online', handleOnline);
-    };
-  }, [showError, showSuccess]);
-
-  return null;
-}
 
 // Public pages
 import { LandingPage } from './pages/Landing';
@@ -42,7 +21,7 @@ import { StudentLostFound } from './pages/student/LostFound';
 import { StudentSupport } from './pages/student/Support';
 import { StudentProfile } from './pages/student/Profile';
 
-// Driver pages
+// Driver pages (Distinct Views)
 import { DriverDashboard } from './pages/driver/Dashboard';
 import { DriverScanPass } from './pages/driver/ScanPass';
 import { DriverSchedule } from './pages/driver/Schedule';
@@ -64,6 +43,25 @@ import { AdminSettings } from './pages/admin/Settings';
 
 // Owner pages
 import { OwnerDashboard } from './pages/owner/Dashboard';
+
+function NetworkStatusListener() {
+  const { showError, showSuccess } = useToast();
+
+  useEffect(() => {
+    const handleOffline = () => showError("You are offline. Some features may be unavailable.");
+    const handleOnline = () => showSuccess("Back online! Connection restored.");
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [showError, showSuccess]);
+
+  return null;
+}
 
 export function App() {
   return (
@@ -90,13 +88,13 @@ export function App() {
                 <Route path="profile" element={<StudentProfile />} />
               </Route>
 
-              {/* Driver Portal (Shared by Driver & Conductor onboard crew) */}
+              {/* Driver & Conductor Portal (Distinct Pages) */}
               <Route path="/driver" element={<AppShell allowedRole="driver" />}>
                 <Route index element={<Navigate to="/driver/dashboard" replace />} />
                 <Route path="dashboard" element={<DriverDashboard />} />
                 <Route path="scan-pass" element={<DriverScanPass />} />
-                <Route path="alerts" element={<DriverAlerts />} />
                 <Route path="schedule" element={<DriverSchedule />} />
+                <Route path="alerts" element={<DriverAlerts />} />
                 <Route path="support" element={<DriverSupport />} />
               </Route>
 
@@ -104,6 +102,8 @@ export function App() {
               <Route path="/conductor" element={<Navigate to="/driver/dashboard" replace />} />
               <Route path="/conductor/dashboard" element={<Navigate to="/driver/dashboard" replace />} />
               <Route path="/conductor/scan-pass" element={<Navigate to="/driver/scan-pass" replace />} />
+              <Route path="/conductor/schedule" element={<Navigate to="/driver/schedule" replace />} />
+              <Route path="/conductor/alerts" element={<Navigate to="/driver/alerts" replace />} />
               <Route path="/conductor/*" element={<Navigate to="/driver/dashboard" replace />} />
 
               {/* Admin Portal */}
