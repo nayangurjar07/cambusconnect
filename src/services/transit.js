@@ -275,11 +275,13 @@ export async function updateBusLiveLocation({
 
   const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const updatePayload = {
+    isTracking: true,
     'location.lat': Number(lat),
     'location.lng': Number(lng),
     speed: Number(speed) || 0,
     locationSource: streamSource === 'simulation' ? 'simulation' : (role === 'conductor' ? 'conductor_phone' : 'driver_phone'),
     lastUpdate: nowTime,
+    lastUpdated: now,
     activeBroadcaster: {
       email: userEmail,
       name: user?.name || (role === 'conductor' ? 'Conductor' : 'Driver'),
@@ -310,7 +312,10 @@ export async function releaseBusLiveStream(busId, userEmail) {
       const cleanEmail = userEmail ? String(userEmail).toLowerCase().trim() : '';
       if (!cleanEmail || data.activeBroadcaster?.email === cleanEmail) {
         await updateDoc(busRef, {
+          isTracking: false,
           activeBroadcaster: null,
+          speed: 0,
+          lastUpdate: 'Shift ended',
           updatedAt: serverTimestamp()
         });
       }
@@ -318,6 +323,181 @@ export async function releaseBusLiveStream(busId, userEmail) {
   } catch (err) {
     console.warn("Failed to release bus live stream:", err);
   }
+}
+
+/**
+ * getBusTrackingHealth
+ * Evaluates live location health with a strict stale heartbeat threshold (default 60 seconds).
+ * Returns: { isLive, status: 'LIVE' | 'STALE' | 'OFFLINE' | 'NO_LOCATION', badgeColor, label, detail, lastSeenText, broadcasterLabel, broadcaster }
+ */
+export function getBusTrackingHealth(bus, staleThresholdSeconds = 60) {
+  if (!bus) {
+    return {
+      isLive: false,
+      status: 'OFFLINE',
+      badgeColor: 'rose',
+      label: 'Unavailable',
+      detail: 'No vehicle data',
+      lastSeenText: 'Never started',
+      broadcasterLabel: 'Unassigned',
+      diffSeconds: Infinity
+    };
+  }
+
+  // 1. Check coordinates existence and validity
+  const hasCoords = bus.location && 
+    typeof bus.location.lat === 'number' && 
+    typeof bus.location.lng === 'number' &&
+    !isNaN(bus.location.lat) && 
+    !isNaN(bus.location.lng) &&
+    bus.location.lat >= -90 && bus.location.lat <= 90 &&
+    bus.location.lng >= -180 && bus.location.lng <= 180;
+
+  if (!hasCoords) {
+    return {
+      isLive: false,
+      status: 'NO_LOCATION',
+      badgeColor: 'rose',
+      label: 'Location Unavailable',
+      detail: 'GPS coordinates missing',
+      lastSeenText: 'Never started',
+      broadcasterLabel: bus.driver ? `Driver: ${bus.driver}` : 'Unassigned Crew',
+      diffSeconds: Infinity
+    };
+  }
+
+  // 2. Extract highest precision last updated timestamp
+  let lastTimestampMs = 0;
+  if (typeof bus.lastUpdated === 'number' && bus.lastUpdated > 0) {
+    lastTimestampMs = bus.lastUpdated;
+  } else if (bus.activeBroadcaster?.lastHeartbeat && typeof bus.activeBroadcaster.lastHeartbeat === 'number') {
+    lastTimestampMs = bus.activeBroadcaster.lastHeartbeat;
+  } else if (bus.updatedAt?.toMillis) {
+    lastTimestampMs = bus.updatedAt.toMillis();
+  } else if (bus.updatedAt?.toDate) {
+    lastTimestampMs = bus.updatedAt.toDate().getTime();
+  } else if (bus.updatedAt) {
+    lastTimestampMs = new Date(bus.updatedAt).getTime();
+  } else if (bus.lastGpsUpdate?.toDate) {
+    lastTimestampMs = bus.lastGpsUpdate.toDate().getTime();
+  } else if (bus.lastGpsUpdate) {
+    lastTimestampMs = new Date(bus.lastGpsUpdate).getTime();
+  }
+
+  const now = Date.now();
+  const diffSec = lastTimestampMs > 0 ? Math.max(0, Math.floor((now - lastTimestampMs) / 1000)) : Infinity;
+
+  // Format human-friendly relative time text
+  let lastSeenText = 'Never started';
+  if (lastTimestampMs > 0 && !isNaN(lastTimestampMs)) {
+    if (diffSec < 5) lastSeenText = 'Just now';
+    else if (diffSec < 60) lastSeenText = `${diffSec}s ago`;
+    else if (diffSec < 3600) lastSeenText = `${Math.floor(diffSec / 60)}m ago`;
+    else lastSeenText = `${Math.floor(diffSec / 3600)}h ago`;
+  } else if (bus.lastUpdate) {
+    lastSeenText = String(bus.lastUpdate);
+  }
+
+  // Broadcaster designation
+  const broadcaster = bus.activeBroadcaster;
+  const broadcasterLabel = broadcaster 
+    ? `${broadcaster.roleTier === 'secondary' ? 'Secondary' : 'Primary'} ${broadcaster.role === 'conductor' ? 'Conductor' : 'Driver'}${broadcaster.name ? ` (${broadcaster.name})` : ''}`
+    : (bus.driver ? `Driver: ${bus.driver}` : 'Unassigned Crew');
+
+  const isExplicitlyTracking = bus.isTracking === true || Boolean(broadcaster);
+
+  // Status Tier 1: LIVE active stream within heartbeat threshold
+  if (diffSec <= staleThresholdSeconds && bus.isTracking !== false) {
+    return {
+      isLive: true,
+      status: 'LIVE',
+      badgeColor: 'emerald',
+      label: 'Live',
+      detail: `Broadcasting (${lastSeenText})`,
+      diffSeconds: diffSec,
+      lastSeenText,
+      broadcasterLabel,
+      broadcaster
+    };
+  }
+
+  // Status Tier 2: STALE (missed recent heartbeat but was recently active)
+  if (diffSec <= staleThresholdSeconds * 3 && isExplicitlyTracking) {
+    return {
+      isLive: false,
+      status: 'STALE',
+      badgeColor: 'amber',
+      label: 'Signal Stale',
+      detail: `Heartbeat missed (${lastSeenText})`,
+      diffSeconds: diffSec,
+      lastSeenText,
+      broadcasterLabel,
+      broadcaster
+    };
+  }
+
+  // Status Tier 3: OFFLINE / Location Unavailable
+  return {
+    isLive: false,
+    status: 'OFFLINE',
+    badgeColor: 'rose',
+    label: 'Location Unavailable',
+    detail: lastTimestampMs > 0 ? `Offline (Last seen ${lastSeenText})` : 'Never started',
+    diffSeconds: diffSec,
+    lastSeenText,
+    broadcasterLabel,
+    broadcaster
+  };
+}
+
+/**
+ * getBusesTrackingSummary
+ * Aggregates fleet tracking status across all registered buses.
+ */
+export function getBusesTrackingSummary(buses = [], staleThresholdSeconds = 60) {
+  const liveBuses = [];
+  const unavailableBuses = [];
+  const staleBuses = [];
+
+  buses.forEach(bus => {
+    const health = getBusTrackingHealth(bus, staleThresholdSeconds);
+    const enrichedBus = { ...bus, trackingHealth: health };
+
+    if (health.isLive) {
+      liveBuses.push(enrichedBus);
+    } else {
+      unavailableBuses.push(enrichedBus);
+      if (health.status === 'STALE') {
+        staleBuses.push(enrichedBus);
+      }
+    }
+  });
+
+  return {
+    total: buses.length,
+    liveCount: liveBuses.length,
+    unavailableCount: unavailableBuses.length,
+    staleCount: staleBuses.length,
+    liveBuses,
+    unavailableBuses,
+    staleBuses,
+    hasUnavailableBuses: unavailableBuses.length > 0,
+    hasLiveBuses: liveBuses.length > 0
+  };
+}
+
+/**
+ * getBusByNumber
+ * Case-insensitive lookup of a bus by busNumber or string id.
+ */
+export function getBusByNumber(buses = [], busNumberQuery = '') {
+  if (!busNumberQuery) return null;
+  const q = String(busNumberQuery).toLowerCase().trim();
+  return buses.find(b => 
+    String(b.number || '').toLowerCase().trim() === q ||
+    String(b.id || '').toLowerCase().trim() === q ||
+    String(b.registrationNumber || '').toLowerCase().trim() === q
+  ) || null;
 }
 
 export async function deleteBus(busId) {

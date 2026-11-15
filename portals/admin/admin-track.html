@@ -260,6 +260,17 @@
             <!-- Actual Google Map Canvas -->
             <div id="map"></div>
 
+            <!-- Visual Warning Alert Banner when buses have unavailable live locations -->
+            <div id="fleet-alert-banner" class="hidden absolute top-4 left-4 right-4 sm:right-36 z-20 bg-amber-500/95 backdrop-blur-md text-white px-4 py-2.5 rounded-xl shadow-lg border border-amber-400 flex items-center justify-between gap-3 text-xs">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="material-symbols-outlined text-lg shrink-0">warning</span>
+                    <span id="fleet-alert-message" class="font-medium truncate">Tracking Alert: Some buses are currently offline or unavailable.</span>
+                </div>
+                <button onclick="filterOfflineBuses()" class="bg-white text-amber-900 px-3 py-1 rounded-lg font-bold text-[11px] shrink-0 hover:bg-amber-50 transition cursor-pointer">
+                    Inspect Offline
+                </button>
+            </div>
+
             <!-- Floating Controls Overlay -->
             <div class="absolute right-4 top-4 flex flex-col gap-2 z-[20]">
                 <button id="center-map-btn" onclick="map.setCenter({ lat: 22.7196, lng: 75.8577 }); map.setZoom(13);" class="bg-white hover:bg-slate-50 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center space-x-2 border border-outline-variant">
@@ -286,18 +297,15 @@
             </div>
 
             <!-- Filter Buttons Section -->
-            <div class="p-3 bg-white border-b border-outline-variant grid grid-cols-2 gap-2 shrink-0">
-                <button class="filter-btn py-2 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm" data-filter="all">
-                    All Buses
+            <div class="p-2.5 bg-white border-b border-outline-variant grid grid-cols-3 gap-1.5 shrink-0">
+                <button class="filter-btn py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold transition-all shadow-xs" data-filter="all">
+                    All (<span id="filter-all-count">0</span>)
                 </button>
-                <button class="filter-btn py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-xl text-xs font-bold transition-all" data-filter="on-time">
-                    On Time
+                <button class="filter-btn py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg text-xs font-bold transition-all" data-filter="live">
+                    Live (<span id="filter-live-count">0</span>)
                 </button>
-                <button class="filter-btn py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-xl text-xs font-bold transition-all" data-filter="delayed">
-                    Delayed
-                </button>
-                <button class="filter-btn py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-xl text-xs font-bold transition-all" data-filter="issues">
-                    With Issues
+                <button class="filter-btn py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg text-xs font-bold transition-all" data-filter="offline">
+                    Offline (<span id="filter-offline-count">0</span>)
                 </button>
             </div>
 

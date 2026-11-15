@@ -461,16 +461,35 @@ function showMyBusAlert(bus) {
 
     if (!alertEl || !alertTextEl) return;
 
-    let message = '';
+    let hasLiveStream = false;
+    let lastHeartbeatMs = 0;
+    if (bus && bus.activeBroadcaster && bus.activeBroadcaster.lastHeartbeat) {
+        if (typeof bus.activeBroadcaster.lastHeartbeat.toMillis === 'function') {
+            lastHeartbeatMs = bus.activeBroadcaster.lastHeartbeat.toMillis();
+        } else {
+            lastHeartbeatMs = new Date(bus.activeBroadcaster.lastHeartbeat).getTime();
+        }
+    } else if (bus && bus.lastUpdated) {
+        if (typeof bus.lastUpdated.toMillis === 'function') {
+            lastHeartbeatMs = bus.lastUpdated.toMillis();
+        } else {
+            lastHeartbeatMs = new Date(bus.lastUpdated).getTime();
+        }
+    }
+    const diffSec = lastHeartbeatMs > 0 ? Math.floor((Date.now() - lastHeartbeatMs) / 1000) : 999999;
+    if (bus && bus.location && typeof bus.location.lat === 'number' && typeof bus.location.lng === 'number' && diffSec <= 60 && bus.isTracking !== false) {
+        hasLiveStream = true;
+    }
 
-    if (bus.status === 'On Time') {
-        message = `Tracking Bus #${bus.number}. It is running on schedule.`;
+    let message = '';
+    if (!hasLiveStream) {
+        message = `Live tracking for Bus #${bus.number} has not started yet.`;
+    } else if (bus.status === 'On Time') {
+        message = `Tracking Bus #${bus.number}. Running on schedule.`;
     } else if (bus.status === 'Delayed') {
-        message = `Tracking Bus #${bus.number}. It is delayed. Please check the live map.`;
-    } else if (bus.status === 'Breakdown') {
-        message = `Tracking Bus #${bus.number} is experiencing issues.`;
+        message = `Tracking Bus #${bus.number}. Currently delayed.`;
     } else {
-        message = `Tracking Bus #${bus.number} status: ${bus.status}`;
+        message = `Tracking Bus #${bus.number}. Status: ${bus.status}`;
     }
 
     alertTextEl.textContent = message;
@@ -791,11 +810,32 @@ function checkTrackedBusStatus() {
     if (!trackedBusId) return;
 
     const bus = busesData.find(b => b.id === trackedBusId);
-    const isStale = !bus || bus.status === 'Breakdown' || bus.status === 'Offline';
+    let hasLiveStream = false;
+    let diffSec = 999999;
+    if (bus && bus.location && typeof bus.location.lat === 'number' && typeof bus.location.lng === 'number' && bus.isTracking !== false) {
+        let lastHeartbeatMs = 0;
+        if (bus.activeBroadcaster && bus.activeBroadcaster.lastHeartbeat) {
+            if (typeof bus.activeBroadcaster.lastHeartbeat.toMillis === 'function') {
+                lastHeartbeatMs = bus.activeBroadcaster.lastHeartbeat.toMillis();
+            } else {
+                lastHeartbeatMs = new Date(bus.activeBroadcaster.lastHeartbeat).getTime();
+            }
+        } else if (bus.lastUpdated) {
+            if (typeof bus.lastUpdated.toMillis === 'function') {
+                lastHeartbeatMs = bus.lastUpdated.toMillis();
+            } else {
+                lastHeartbeatMs = new Date(bus.lastUpdated).getTime();
+            }
+        }
+        diffSec = lastHeartbeatMs > 0 ? Math.floor((Date.now() - lastHeartbeatMs) / 1000) : 999999;
+        if (diffSec <= 60) {
+            hasLiveStream = true;
+        }
+    }
 
-    if (isStale && offlineAlert && offlineAlertText) {
-        const busNum = bus ? `Bus #${bus.number}` : `assigned Bus`;
-        offlineAlertText.textContent = `Your default tracked ${busNum} is currently offline. Showing active routes.`;
+    if (!hasLiveStream && offlineAlert && offlineAlertText) {
+        const busNum = bus ? `Bus #${bus.number}` : `your assigned bus`;
+        offlineAlertText.textContent = `Live tracking for ${busNum} has not started yet.`;
         offlineAlert.classList.remove('hidden');
 
         if (searchInput) {

@@ -126,6 +126,56 @@ async function startBusTracking() {
     });
 }
 
+
+function evaluateBusHealth(bus, staleThresholdSeconds = 60) {
+    const hasCoords = Boolean(bus && bus.location && typeof bus.location.lat === 'number' && typeof bus.location.lng === 'number');
+    let lastHeartbeatMs = 0;
+    if (bus && bus.activeBroadcaster && bus.activeBroadcaster.lastHeartbeat) {
+        if (typeof bus.activeBroadcaster.lastHeartbeat.toMillis === 'function') {
+            lastHeartbeatMs = bus.activeBroadcaster.lastHeartbeat.toMillis();
+        } else {
+            lastHeartbeatMs = new Date(bus.activeBroadcaster.lastHeartbeat).getTime();
+        }
+    } else if (bus && bus.lastUpdated) {
+        if (typeof bus.lastUpdated.toMillis === 'function') {
+            lastHeartbeatMs = bus.lastUpdated.toMillis();
+        } else {
+            lastHeartbeatMs = new Date(bus.lastUpdated).getTime();
+        }
+    }
+    const now = Date.now();
+    const diffSec = lastHeartbeatMs > 0 ? Math.max(0, Math.floor((now - lastHeartbeatMs) / 1000)) : 999999;
+    
+    if (!hasCoords || diffSec > 180 || bus.isTracking === false) {
+        return {
+            isLive: false,
+            status: 'OFFLINE',
+            badgeColor: '#ef4444',
+            label: 'Location Unavailable',
+            detail: diffSec > 180 && lastHeartbeatMs > 0 ? `Offline (${Math.floor(diffSec/60)}m ago)` : 'Never started',
+            diffSec
+        };
+    }
+    if (diffSec > staleThresholdSeconds) {
+        return {
+            isLive: false,
+            status: 'STALE',
+            badgeColor: '#f59e0b',
+            label: 'Telemetry Stale',
+            detail: `Stale (${diffSec}s ago)`,
+            diffSec
+        };
+    }
+    return {
+        isLive: true,
+        status: 'LIVE',
+        badgeColor: '#10b981',
+        label: 'Live',
+        detail: `Broadcasting (${diffSec}s ago)`,
+        diffSec
+    };
+}
+
 // Update or create bus marker
 function updateBusMarker(bus) {
     if (!bus.location || !bus.location.lat || !bus.location.lng) {
@@ -151,7 +201,7 @@ function updateBusMarker(bus) {
         markers[bus.id].setPosition(position);
         
         // Update icon color based on status
-        const icon = createBusIcon(bus.status);
+        const icon = createBusIcon(bus);
         markers[bus.id].setIcon(icon);
         
         // Update info window
@@ -160,7 +210,7 @@ function updateBusMarker(bus) {
         
     } else {
         // Create new marker
-        const icon = createBusIcon(bus.status);
+        const icon = createBusIcon(bus);
         
         const marker = new google.maps.Marker({
             position: position,
@@ -189,8 +239,14 @@ function updateBusMarker(bus) {
 }
 
 // Create custom bus icon
-function createBusIcon(status) {
-    const color = getStatusColor(status);
+function createBusIcon(busOrStatus) {
+    let color = '#10b981';
+    if (typeof busOrStatus === 'object') {
+        const health = evaluateBusHealth(busOrStatus);
+        color = health.badgeColor;
+    } else {
+        color = getStatusColor(busOrStatus);
+    }
     
     return {
         path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z',
@@ -205,26 +261,28 @@ function createBusIcon(status) {
 
 // Create info window HTML
 function createInfoWindowContent(bus) {
+    const health = evaluateBusHealth(bus);
     const statusClass = getStatusClass(bus.status);
-    const lastUpdate = bus.lastUpdate || 'Just now';
+    const lastUpdate = health.detail || bus.lastUpdate || 'Just now';
     const sourceType = bus.locationSource || bus.tracking?.sourceType;
     const sourceLabel = getSourceLabel(sourceType);
     const trackerId = bus.tracking?.trackerId || '-';
-    const googleEmail = bus.tracking?.googleAccount?.connected ? bus.tracking.googleAccount.email : '-';
+    const broadcaster = bus.activeBroadcaster?.userName ? `${bus.activeBroadcaster.userName} (${bus.activeBroadcaster.role || 'Active'})` : (bus.driver || 'N/A');
     
     return `
-        <div class="bus-info-window">
-            <h3>Bus ${bus.number}</h3>
-            <p><strong>Route:</strong> ${bus.route}</p>
-            <p><strong>Driver:</strong> ${bus.driver || 'N/A'}</p>
-            <p><strong>Conductor:</strong> ${bus.conductor || 'N/A'}</p>
-            <p><strong>Status:</strong> <span class="status-badge ${statusClass}">${bus.status}</span></p>
-            <p><strong>Headcount (Riders):</strong> <span style="font-weight: bold; color: #4f46e5;">${bus.headcount || 0}</span></p>
-            <p><strong>Source:</strong> ${sourceLabel}</p>
-            <p><strong>Tracker ID:</strong> ${trackerId}</p>
-            <p><strong>Google:</strong> ${googleEmail}</p>
-            <p><strong>Last Update:</strong> ${lastUpdate}</p>
-            <button onclick="openUpdateModal('${bus.id}')">Update Location</button>
+        <div class="bus-info-window" style="font-family: inherit; font-size: 13px; line-height: 1.4; padding: 2px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #1e293b;">Bus ${bus.number}</h3>
+                <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700; color: white; background: ${health.badgeColor};">
+                    ${health.label}
+                </span>
+            </div>
+            <p style="margin: 3px 0;"><strong>Route:</strong> ${bus.route || 'Campus Route'}</p>
+            <p style="margin: 3px 0;"><strong>Broadcaster:</strong> <span style="color: #2563eb; font-weight: 600;">${broadcaster}</span></p>
+            <p style="margin: 3px 0;"><strong>Schedule:</strong> <span class="status-badge ${statusClass}">${bus.status}</span></p>
+            <p style="margin: 3px 0;"><strong>Occupancy:</strong> <span style="font-weight: bold; color: #4f46e5;">${bus.headcount || 0} / ${bus.capacity || 45} seats</span></p>
+            <p style="margin: 3px 0;"><strong>Heartbeat:</strong> ${lastUpdate}</p>
+            <button onclick="openUpdateModal('${bus.id}')" style="margin-top: 6px; width: 100%; padding: 6px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 11px; cursor: pointer;">Update Telemetry Override</button>
         </div>
     `;
 }
@@ -232,12 +290,58 @@ function createInfoWindowContent(bus) {
 // Render bus list in sidebar
 function renderBusList() {
     const listContainer = document.getElementById('bus-list');
+    if (!listContainer) return;
     listContainer.innerHTML = '';
     
-    // Filter buses
-    let filtered = busesData;
+    // Evaluate health across all fleet buses
+    let liveCount = 0;
+    let offlineCount = 0;
+    const offlineBuses = [];
+
+    busesData.forEach(bus => {
+        const health = evaluateBusHealth(bus);
+        if (health.isLive) {
+            liveCount++;
+        } else {
+            offlineCount++;
+            offlineBuses.push(bus);
+        }
+    });
+
+    // Update count labels in UI
+    const filterAllEl = document.getElementById('filter-all-count');
+    const filterLiveEl = document.getElementById('filter-live-count');
+    const filterOfflineEl = document.getElementById('filter-offline-count');
+    const headerActiveEl = document.getElementById('header-active-count');
+    const headerTotalEl = document.getElementById('header-total-count');
+
+    if (filterAllEl) filterAllEl.textContent = busesData.length;
+    if (filterLiveEl) filterLiveEl.textContent = liveCount;
+    if (filterOfflineEl) filterOfflineEl.textContent = offlineCount;
+    if (headerActiveEl) headerActiveEl.textContent = liveCount;
+    if (headerTotalEl) headerTotalEl.textContent = busesData.length;
+
+    // Control Alert Banner visibility
+    const alertBanner = document.getElementById('fleet-alert-banner');
+    const alertMessage = document.getElementById('fleet-alert-message');
+    if (alertBanner && alertMessage) {
+        if (offlineCount > 0) {
+            alertBanner.classList.remove('hidden');
+            const busNames = offlineBuses.slice(0, 3).map(b => `Bus ${b.number}`).join(', ');
+            const extra = offlineBuses.length > 3 ? ` +${offlineBuses.length - 3} more` : '';
+            alertMessage.textContent = `Tracking Alert: ${offlineCount} registered vehicle${offlineCount > 1 ? 's' : ''} have unavailable live locations (${busNames}${extra}).`;
+        } else {
+            alertBanner.classList.add('hidden');
+        }
+    }
     
-    if (currentFilter === 'on-time') {
+    // Filter buses based on active selection
+    let filtered = busesData;
+    if (currentFilter === 'live') {
+        filtered = busesData.filter(b => evaluateBusHealth(b).isLive);
+    } else if (currentFilter === 'offline') {
+        filtered = busesData.filter(b => !evaluateBusHealth(b).isLive);
+    } else if (currentFilter === 'on-time') {
         filtered = busesData.filter(b => b.status === 'On Time');
     } else if (currentFilter === 'delayed') {
         filtered = busesData.filter(b => b.status === 'Delayed');
@@ -246,44 +350,55 @@ function renderBusList() {
     }
     
     if (filtered.length === 0) {
-        listContainer.innerHTML = '<p class="text-center text-gray-500 py-8">No buses found</p>';
+        listContainer.innerHTML = `
+            <div class="text-center py-8 bg-white border border-gray-100 rounded-xl p-4">
+                <span class="material-symbols-outlined text-3xl text-gray-300">directions_bus</span>
+                <p class="text-gray-500 text-xs font-semibold mt-2">No buses match the filter '${currentFilter}'</p>
+            </div>
+        `;
         return;
     }
     
     filtered.forEach(bus => {
-        const statusColor = getStatusColor(bus.status);
-        const hasLocation = bus.location && bus.location.lat && bus.location.lng;
-        const sourceLabel = getSourceLabel(bus.locationSource || bus.tracking?.sourceType);
+        const health = evaluateBusHealth(bus);
+        const hasLocation = Boolean(bus.location && typeof bus.location.lat === 'number' && typeof bus.location.lng === 'number');
+        const broadcasterLabel = bus.activeBroadcaster?.userName 
+            ? `${bus.activeBroadcaster.userName} (${bus.activeBroadcaster.role || 'Staff'})` 
+            : (bus.driver || 'Assigned Driver');
         
         const card = document.createElement('div');
-        card.className = 'bg-white rounded-xl p-4 border-2 border-gray-100 hover:border-blue-300 hover:shadow-md transition cursor-pointer';
+        card.className = `bg-white rounded-xl p-3.5 border-2 transition cursor-pointer ${
+            health.isLive ? 'border-gray-100 hover:border-emerald-300' : 'border-amber-100/80 hover:border-amber-300 bg-amber-50/20'
+        } hover:shadow-md`;
         
         card.innerHTML = `
             <div class="flex items-start justify-between mb-2">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white text-sm" style="background-color: ${statusColor}">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white text-sm" style="background-color: ${health.badgeColor}">
                         ${bus.number}
                     </div>
                     <div>
-                        <h4 class="font-bold text-gray-800">Bus ${bus.number}</h4>
-                        <p class="text-xs text-gray-500">${bus.route}</p>
-                        <p class="text-xs text-gray-500">${sourceLabel}</p>
+                        <div class="flex items-center gap-1.5">
+                            <h4 class="font-bold text-gray-800 text-sm">Bus ${bus.number}</h4>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background-color: ${health.badgeColor}20; color: ${health.badgeColor}">
+                                ${health.label}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500">${bus.route || 'Campus Route'}</p>
+                        <p class="text-[11px] text-blue-600 font-medium">Broadcast: ${broadcasterLabel}</p>
                     </div>
                 </div>
-                <span class="text-xs font-bold px-2 py-1 rounded-full" style="background-color: ${statusColor}20; color: ${statusColor}">
-                    ${bus.status}
-                </span>
             </div>
             <div class="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
                 <span class="flex items-center gap-1.5 font-medium">
-                    <span>${bus.driver || 'No driver'}</span>
+                    <span class="text-slate-500">${health.detail}</span>
                     <span class="text-slate-300">|</span>
                     <span class="material-symbols-outlined text-[15px] text-blue-600" style="font-variation-settings: 'FILL' 1;">groups</span>
                     <span class="font-bold text-blue-600">${bus.headcount || 0} Riders</span>
                 </span>
                 ${hasLocation ? 
-                    `<button onclick="event.stopPropagation(); focusBus('${bus.id}')" class="text-blue-600 hover:text-blue-700 font-semibold">Locate</button>` : 
-                    '<span class="text-red-500">No GPS</span>'
+                    `<button onclick="event.stopPropagation(); focusBus('${bus.id}')" class="text-blue-600 hover:text-blue-700 font-semibold px-2 py-0.5 rounded hover:bg-blue-50">Locate</button>` : 
+                    '<span class="text-rose-500 font-semibold">No GPS</span>'
                 }
             </div>
         `;
@@ -297,6 +412,22 @@ function renderBusList() {
         listContainer.appendChild(card);
     });
 }
+
+// Global filter switcher for alert button
+window.filterOfflineBuses = function() {
+    currentFilter = 'offline';
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    filterBtns.forEach(btn => {
+        if (btn.dataset.filter === 'offline') {
+            btn.classList.add('bg-blue-600', 'text-white');
+            btn.classList.remove('bg-gray-100', 'text-gray-700');
+        } else {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-700');
+        }
+    });
+    renderBusList();
+};
 
 // Focus on specific bus
 window.focusBus = function(busId) {
