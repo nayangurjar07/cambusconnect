@@ -46,9 +46,23 @@ export function DriverScanPass() {
   const [selectedBusId, setSelectedBusId] = useState('');
 
   // Policies & Controls
-  const [fastMode, setFastMode] = useState(true);
+  const [fastMode, setFastMode] = useState(() => {
+    const saved = localStorage.getItem('driver_fast_mode');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [sameBusScanLock, setSameBusScanLock] = useState(true);
   const [lockoutMinutes, setLockoutMinutes] = useState(180);
+
+  const handleToggleFastMode = () => {
+    const nextVal = !fastMode;
+    setFastMode(nextVal);
+    localStorage.setItem('driver_fast_mode', String(nextVal));
+    if (nextVal) {
+      showSuccess('Fast headcount enabled (Auto +1 on scan)');
+    } else {
+      showWarning('Fast headcount disabled (Manual counting mode)');
+    }
+  };
 
   // Manual Input State
   const [manualInput, setManualInput] = useState('');
@@ -445,7 +459,7 @@ export function DriverScanPass() {
         return;
       }
 
-      // Layer 4: Atomic Firestore Anti-Passback Shift Lock (3-Hour Shift Lockout)
+      // Layer 4: Multi-Layer Anti-Passback & Duplicate Guard (Locks same pass re-scans & halts headcount)
       const sId = student.collegeId || student.enrollment || student.id || student.email;
       const cleanStudentKey = String(sId).replace(/[/.]/g, '_');
       const dateStr = new Date().toISOString().split('T')[0];
@@ -454,63 +468,113 @@ export function DriverScanPass() {
       const antiPassbackRef = doc(db, 'boarding_logs', antiPassbackDocId);
 
       if (sameBusScanLock) {
-        try {
-          const passbackSnap = await getDoc(antiPassbackRef);
-          if (passbackSnap.exists()) {
-            const pbData = passbackSnap.data();
-            const loggedTime = pbData.timestamp?.toDate ? pbData.timestamp.toDate().getTime() : (pbData.createdAt || 0);
-            const diffMs = Date.now() - loggedTime;
-            const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+        const lockoutMs = (Number(lockoutMinutes) || 180) * 60 * 1000;
+        const now = Date.now();
 
-            if (diffMs < THREE_HOURS_MS) {
-              const minsAgo = Math.max(1, Math.round(diffMs / 60000));
-              const prevBus = pbData.busNumber || 'Fleet Vehicle';
-              playTone('error');
-              setVerificationResult({
-                status: 'rejected',
-                student,
-                reason: `ANTI-PASSBACK VIOLATION: Pass already scanned ${minsAgo}m ago on Bus #${prevBus}. Duplicate boarding is locked for this shift.`,
-                recommendation: 'Pass sharing violation. Do not permit passenger to board.'
-              });
-              showError(`Pass Already Used! Scanned ${minsAgo}m ago on Bus #${prevBus}`);
-              return;
-            }
+        // 1. Instant In-Memory Cache Check (catches rapid repeat frames and fast double-scans immediately)
+        const studentAliases = [
+          sId,
+          cleanStudentKey,
+          student.email ? student.email.toLowerCase() : null,
+          student.collegeId,
+          student.enrollment,
+          student.id
+        ].filter(Boolean);
+
+        let isAlreadyScanned = false;
+        for (const alias of studentAliases) {
+          const prevTime = localScanLogs.current[alias];
+          if (prevTime && (now - prevTime < lockoutMs)) {
+            isAlreadyScanned = true;
+            break;
           }
-        } catch (pbErr) {
-          console.warn("[AntiPassback] Firestore check notice:", pbErr);
+        }
+
+        // 2. Active Bus Boardings Array Check (checks already-loaded boardings for this bus session)
+        if (!isAlreadyScanned && Array.isArray(boardingLog)) {
+          const matchLog = boardingLog.find((b) => {
+            const bEmail = (b.studentEmail || '').toLowerCase();
+            const bId = String(b.studentId || '');
+            return (
+              (student.email && bEmail === student.email.toLowerCase()) ||
+              (sId && bId === String(sId)) ||
+              (student.collegeId && bId === String(student.collegeId))
+            );
+          });
+          if (matchLog) {
+            isAlreadyScanned = true;
+          }
+        }
+
+        // 3. Firestore Shift Lockout Check (cross-device persistent check)
+        if (!isAlreadyScanned) {
+          try {
+            const passbackSnap = await getDoc(antiPassbackRef);
+            if (passbackSnap.exists()) {
+              const pbData = passbackSnap.data();
+              const loggedTime = pbData.timestamp?.toDate ? pbData.timestamp.toDate().getTime() : (pbData.createdAt || 0);
+              const diffMs = now - loggedTime;
+              if (diffMs < lockoutMs) {
+                isAlreadyScanned = true;
+              }
+            }
+          } catch (pbErr) {
+            console.warn("[AntiPassback] Firestore check notice:", pbErr);
+          }
+        }
+
+        if (isAlreadyScanned) {
+          playTone('error');
+          setVerificationResult({
+            status: 'rejected',
+            student,
+            reason: 'Bus pass is already scanned',
+            recommendation: 'Passenger has already boarded this bus run.'
+          });
+          showWarning('Bus pass is already scanned');
+          return; // STOP! Headcount will NOT be incremented, no duplicate boarding logged!
         }
       }
 
       // Approved!
       playTone('success');
-      localScanLogs.current[sId] = Date.now();
+      const scanNow = Date.now();
+      localScanLogs.current[sId] = scanNow;
+      if (student.email) localScanLogs.current[student.email.toLowerCase()] = scanNow;
+      if (cleanStudentKey) localScanLogs.current[cleanStudentKey] = scanNow;
+      if (student.collegeId) localScanLogs.current[student.collegeId] = scanNow;
 
       setVerificationResult({
         status: 'approved',
         student,
-        reason: 'Boarding Authorized'
+        reason: fastMode ? 'Boarding Authorized (+1 Count)' : 'Boarding Authorized (Manual Count Mode)'
       });
 
+      // 1. Atomic shift anti-passback write (persists lock first)
+      try {
+        await setDoc(antiPassbackRef, {
+          studentId: sId,
+          studentName: student.name || 'Student',
+          studentEmail: student.email || '',
+          busId: selectedBus.id,
+          busNumber: selectedBus.number || '',
+          driverEmail: user?.email || profile?.email || '',
+          driverName: profile?.name || user?.displayName || 'Driver Staff',
+          shiftId: shiftId,
+          stopName: student.pickupStop || student.stop || '',
+          timestamp: serverTimestamp(),
+          createdAt: scanNow
+        }, { merge: true });
+      } catch (apErr) {
+        console.warn("[AntiPassback] Firestore write warning:", apErr);
+      }
+
+      // 2. Increment headcount ONLY if driver has Fast Headcount enabled!
       if (fastMode) {
         await handleHeadcountChange(1);
       }
 
-      // 1. Atomic shift anti-passback write
-      await setDoc(antiPassbackRef, {
-        studentId: sId,
-        studentName: student.name || 'Student',
-        studentEmail: student.email || '',
-        busId: selectedBus.id,
-        busNumber: selectedBus.number || '',
-        driverEmail: user?.email || profile?.email || '',
-        driverName: profile?.name || user?.displayName || 'Driver Staff',
-        shiftId: shiftId,
-        stopName: student.pickupStop || student.stop || '',
-        timestamp: serverTimestamp(),
-        createdAt: Date.now()
-      }, { merge: true });
-
-      // 2. Bus specific boarding entry
+      // 3. Bus specific boarding entry
       const logId = `${cleanStudentKey}_${dateStr}_${Date.now()}`;
       const logRef = doc(db, `buses/${selectedBus.id}/boardings`, logId);
 
@@ -640,6 +704,20 @@ export function DriverScanPass() {
                   title="Reset count to 0"
                 />
               </div>
+
+              <button
+                type="button"
+                onClick={handleToggleFastMode}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                  fastMode
+                    ? 'bg-blue-600 text-white border-blue-500 shadow-xs shadow-blue-500/20'
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                }`}
+                title="Toggle automatic headcount increment (+1 on approved scan)"
+              >
+                <span className={`w-2 h-2 rounded-full ${fastMode ? 'bg-emerald-300 animate-pulse' : 'bg-slate-400'}`} />
+                <span>Fast Count: {fastMode ? 'Auto +1' : 'Manual'}</span>
+              </button>
             </div>
           </div>
         </CardBody>
@@ -767,8 +845,74 @@ export function DriverScanPass() {
           </Card>
         </div>
 
-        {/* Right Column (5 cols): Manual Fallback & Boarding Log */}
+        {/* Right Column (5 cols): Controls & Manual Fallback & Boarding Log */}
         <div className="lg:col-span-5 space-y-4">
+          {/* Headcount Mode & Scanner Settings */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-blue-600" />
+                <CardTitle>Boarding & Headcount Mode</CardTitle>
+              </div>
+              <Badge variant={fastMode ? 'primary' : 'neutral'}>
+                {fastMode ? 'Auto Count' : 'Manual'}
+              </Badge>
+            </CardHeader>
+            <CardBody className="p-4 sm:p-5 space-y-4">
+              {/* Fast Headcount Toggle */}
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Fast Headcount Mode</p>
+                  <p className="text-[11px] text-slate-500">
+                    {fastMode 
+                      ? 'Auto-increment passenger count (+1) on valid scan' 
+                      : 'Disabled — passenger count is controlled manually'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleFastMode}
+                  className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                    fastMode ? 'bg-blue-600' : 'bg-slate-200'
+                  }`}
+                  aria-label="Toggle Fast Headcount Mode"
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                      fastMode ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Anti-Passback Duplicate Guard */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Same-Bus Anti-Duplicate Lock</p>
+                  <p className="text-[11px] text-slate-500">
+                    {sameBusScanLock 
+                      ? 'Active — rejects repeat scans of the same bus pass' 
+                      : 'Warning: Repeated scans will be permitted'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSameBusScanLock(!sameBusScanLock)}
+                  className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                    sameBusScanLock ? 'bg-blue-600' : 'bg-slate-200'
+                  }`}
+                  aria-label="Toggle Anti-Duplicate Lock"
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                      sameBusScanLock ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </CardBody>
+          </Card>
+
           {/* Manual Entry Fallback */}
           <Card>
             <CardHeader>

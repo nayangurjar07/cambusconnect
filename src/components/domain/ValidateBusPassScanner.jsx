@@ -43,6 +43,7 @@ export function ValidateBusPassScanner({
   const [cameraError, setCameraError] = useState('');
 
   const autoResetTimerRef = useRef(null);
+  const scannedPassesRef = useRef({});
 
   // Auto-reset scan result after 2.8s for continuous scanning
   useEffect(() => {
@@ -225,7 +226,21 @@ export function ValidateBusPassScanner({
         return;
       }
 
-      // Valid Pass -> Increment headcount & log boarding
+      // Check if already scanned
+      const studentKey = (studentData.email || studentData.id || '').toLowerCase();
+      const lastScanned = scannedPassesRef.current[studentKey];
+      if (lastScanned && Date.now() - lastScanned < 3 * 60 * 60 * 1000) {
+        setScanResult({
+          valid: false,
+          status: 'ALREADY SCANNED',
+          student: studentData,
+          message: 'Bus pass is already scanned'
+        });
+        return;
+      }
+
+      // Valid Pass -> Record scan in memory & increment headcount & log boarding
+      scannedPassesRef.current[studentKey] = Date.now();
       if (assignedBus?.id) {
         await incrementBusHeadcount(assignedBus.id, 1, assignedBus.capacity || 45);
         await logBoarding({

@@ -171,6 +171,13 @@ service cloud.firestore {
       }
     }
 
+    // =========================================================================
+    // ANTI-PASSBACK SHIFT BOARDING LOCKS
+    // =========================================================================
+    match /boarding_logs/{logId} {
+      allow read, write: if isAuthenticated() && (isAdmin() || isDriverOrConductor());
+    }
+
     match /submitted-boardings/{boardingId} {
       allow read: if isAuthenticated() && (
         isAdmin() || 

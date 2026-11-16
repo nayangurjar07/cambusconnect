@@ -410,7 +410,7 @@ export function AdminScanPass() {
         }
       }
 
-      // Layer 4: Atomic Firestore Anti-Passback Shift Lock (3-Hour Shift Lockout)
+      // Layer 4: Multi-Layer Anti-Passback & Duplicate Guard (Locks same pass re-scans & halts headcount)
       const sId = student.collegeId || student.enrollment || student.id || student.email;
       const cleanStudentKey = String(sId).replace(/[/.]/g, '_');
       const dateStr = new Date().toISOString().split('T')[0];
@@ -419,36 +419,81 @@ export function AdminScanPass() {
       const antiPassbackRef = doc(db, 'boarding_logs', antiPassbackDocId);
 
       if (sameBusScanLock && !lateOverride) {
-        try {
-          const passbackSnap = await getDoc(antiPassbackRef);
-          if (passbackSnap.exists()) {
-            const pbData = passbackSnap.data();
-            const loggedTime = pbData.timestamp?.toDate ? pbData.timestamp.toDate().getTime() : (pbData.createdAt || 0);
-            const diffMs = Date.now() - loggedTime;
-            const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+        const lockoutMs = (Number(lockoutMinutes) || 240) * 60 * 1000;
+        const now = Date.now();
 
-            if (diffMs < THREE_HOURS_MS) {
-              const minsAgo = Math.max(1, Math.round(diffMs / 60000));
-              const prevBus = pbData.busNumber || 'Fleet Vehicle';
-              playTone('error');
-              setVerificationResult({
-                status: 'rejected',
-                student,
-                reason: `ANTI-PASSBACK VIOLATION: Pass already scanned ${minsAgo}m ago on Bus #${prevBus}. Duplicate boarding is locked for this shift.`,
-                recommendation: 'Pass sharing violation. Do not permit passenger to board.'
-              });
-              showError(`Pass Already Used! Scanned ${minsAgo}m ago on Bus #${prevBus}`);
-              return;
-            }
+        // 1. Instant In-Memory Cache Check (catches rapid repeat frames and fast double-scans immediately)
+        const studentAliases = [
+          sId,
+          cleanStudentKey,
+          student.email ? student.email.toLowerCase() : null,
+          student.collegeId,
+          student.enrollment,
+          student.id
+        ].filter(Boolean);
+
+        let isAlreadyScanned = false;
+        for (const alias of studentAliases) {
+          const prevTime = localScanLogs.current[alias];
+          if (prevTime && (now - prevTime < lockoutMs)) {
+            isAlreadyScanned = true;
+            break;
           }
-        } catch (pbErr) {
-          console.warn("[AdminScanPass] Firestore check notice:", pbErr);
+        }
+
+        // 2. Active Bus Boardings Array Check (checks already-loaded boardings for this bus session)
+        if (!isAlreadyScanned && Array.isArray(boardingLog)) {
+          const matchLog = boardingLog.find((b) => {
+            const bEmail = (b.studentEmail || '').toLowerCase();
+            const bId = String(b.studentId || '');
+            return (
+              (student.email && bEmail === student.email.toLowerCase()) ||
+              (sId && bId === String(sId)) ||
+              (student.collegeId && bId === String(student.collegeId))
+            );
+          });
+          if (matchLog) {
+            isAlreadyScanned = true;
+          }
+        }
+
+        // 3. Firestore Shift Lockout Check (cross-device persistent check)
+        if (!isAlreadyScanned) {
+          try {
+            const passbackSnap = await getDoc(antiPassbackRef);
+            if (passbackSnap.exists()) {
+              const pbData = passbackSnap.data();
+              const loggedTime = pbData.timestamp?.toDate ? pbData.timestamp.toDate().getTime() : (pbData.createdAt || 0);
+              const diffMs = now - loggedTime;
+              if (diffMs < lockoutMs) {
+                isAlreadyScanned = true;
+              }
+            }
+          } catch (pbErr) {
+            console.warn("[AdminScanPass] Firestore check notice:", pbErr);
+          }
+        }
+
+        if (isAlreadyScanned) {
+          playTone('error');
+          setVerificationResult({
+            status: 'rejected',
+            student,
+            reason: 'Bus pass is already scanned',
+            recommendation: 'Passenger has already boarded this bus run.'
+          });
+          showWarning('Bus pass is already scanned');
+          return; // STOP! Headcount will NOT be incremented, no duplicate boarding logged!
         }
       }
 
       // Approved!
       playTone('success');
-      localScanLogs.current[sId] = Date.now();
+      const scanNow = Date.now();
+      localScanLogs.current[sId] = scanNow;
+      if (student.email) localScanLogs.current[student.email.toLowerCase()] = scanNow;
+      if (cleanStudentKey) localScanLogs.current[cleanStudentKey] = scanNow;
+      if (student.collegeId) localScanLogs.current[student.collegeId] = scanNow;
 
       setVerificationResult({
         status: 'approved',
@@ -457,26 +502,31 @@ export function AdminScanPass() {
       });
 
       if (scanMode === 'checkin') {
+        // 1. Atomic shift anti-passback write (persists lock first)
+        try {
+          await setDoc(antiPassbackRef, {
+            studentId: sId,
+            studentName: student.name || 'Student',
+            studentEmail: student.email || '',
+            busId: selectedBus.id,
+            busNumber: selectedBus.number || '',
+            driverEmail: user?.email || profile?.email || '',
+            driverName: profile?.name || user?.displayName || 'Admin Staff',
+            shiftId: shiftId,
+            stopName: student.pickupStop || student.stop || '',
+            timestamp: serverTimestamp(),
+            createdAt: scanNow
+          }, { merge: true });
+        } catch (apErr) {
+          console.warn("[AdminScanPass] Firestore write warning:", apErr);
+        }
+
+        // 2. Increment headcount ONLY if Fast Mode enabled!
         if (fastMode) {
           await handleHeadcountChange(1);
         }
 
-        // 1. Atomic shift anti-passback write
-        await setDoc(antiPassbackRef, {
-          studentId: sId,
-          studentName: student.name || 'Student',
-          studentEmail: student.email || '',
-          busId: selectedBus.id,
-          busNumber: selectedBus.number || '',
-          driverEmail: 'admin@cambusconnect.in',
-          driverName: 'Admin Terminal',
-          shiftId: shiftId,
-          stopName: student.pickupStop || student.stop || '',
-          timestamp: serverTimestamp(),
-          createdAt: Date.now()
-        }, { merge: true });
-
-        // 2. Bus specific boarding entry
+        // 3. Bus specific boarding entry
         const logId = `${cleanStudentKey}_${dateStr}_${Date.now()}`;
         const logRef = doc(db, `buses/${selectedBus.id}/boardings`, logId);
 
