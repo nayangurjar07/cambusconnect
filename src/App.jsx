@@ -43,6 +43,7 @@ import { AdminSettings } from './pages/admin/Settings';
 
 // Owner pages
 import { OwnerDashboard } from './pages/owner/Dashboard';
+import { OwnerSettings } from './pages/owner/Settings';
 
 function NetworkStatusListener() {
   const { showError, showSuccess } = useToast();
@@ -127,7 +128,7 @@ export function App() {
                 <Route index element={<Navigate to="/owner/dashboard" replace />} />
                 <Route path="dashboard" element={<OwnerDashboard />} />
                 <Route path="tenants" element={<OwnerDashboard />} />
-                <Route path="settings" element={<AdminSettings />} />
+                <Route path="settings" element={<OwnerSettings />} />
               </Route>
 
               {/* 404 Catch-All */}

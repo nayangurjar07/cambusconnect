@@ -1,19 +1,17 @@
 // src/pages/admin/Settings.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-  Settings as SettingsIcon, Save, Building2, Radio, Shield, 
-  Database, RefreshCw, CheckCircle2, Lock, Sparkles, MapPin, Key
+  Settings as SettingsIcon, Save, Building2, Radio,
+  RefreshCw
 } from 'lucide-react';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Tabs } from '../../components/ui/Tabs';
 import { Badge } from '../../components/ui/Badge';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { StudentSchemaEditor } from '../../components/domain/StudentSchemaEditor';
-import { fetchBackendMapsKey, updateBackendMapsKey } from '../../services/googleMaps';
 
 export function AdminSettings() {
   const { tenant, tenantKey, updateTenantBranding } = useTenant();
@@ -27,16 +25,8 @@ export function AdminSettings() {
   const [shortName, setShortName] = useState(tenant?.branding?.shortName || 'IIST');
   const [primaryColor, setPrimaryColor] = useState(tenant?.branding?.colors?.primary || '#2563eb');
   const [telemetryInterval, setTelemetryInterval] = useState(() => localStorage.getItem('gps_interval') || '5');
-  const [googleMapsKey, setGoogleMapsKey] = useState(() => localStorage.getItem('custom_maps_key') || import.meta.env?.VITE_GOOGLE_MAPS_API_KEY || '');
   const [lockoutMinutes, setLockoutMinutes] = useState(() => localStorage.getItem('default_lockout') || '240');
   const [autoVerify, setAutoVerify] = useState(() => localStorage.getItem('auto_verify_boardings') !== 'false');
-
-  // Sync Google Maps key from backend logic
-  useEffect(() => {
-    fetchBackendMapsKey().then(key => {
-      if (key) setGoogleMapsKey(key);
-    });
-  }, []);
 
   const handleSaveGeneral = async (e) => {
     e.preventDefault();
@@ -55,13 +45,10 @@ export function AdminSettings() {
         });
       }
 
-      // 2. Persist tracking & policy settings in storage and backend logic
+      // 2. Persist tracking & policy settings
       localStorage.setItem('gps_interval', telemetryInterval);
       localStorage.setItem('default_lockout', lockoutMinutes);
       localStorage.setItem('auto_verify_boardings', String(autoVerify));
-      
-      // Update key in backend logic
-      await updateBackendMapsKey(googleMapsKey.trim());
 
       await new Promise(r => setTimeout(r, 400));
       showSuccess("Settings updated and saved successfully!");
@@ -74,14 +61,12 @@ export function AdminSettings() {
   };
 
   const handleClearCache = () => {
-    if (window.confirm("Clear localized transit cache and reload application?")) {
-      const keysToKeep = ['userRole', 'userTenantId', 'isLoggedIn', 'activeTenantKey'];
-      Object.keys(localStorage).forEach(key => {
-        if (!keysToKeep.includes(key)) localStorage.removeItem(key);
-      });
-      showSuccess("Cache cleared. Reloading...");
-      setTimeout(() => window.location.reload(), 600);
-    }
+    const keysToKeep = ['userRole', 'userTenantId', 'isLoggedIn', 'activeTenantKey'];
+    Object.keys(localStorage).forEach(key => {
+      if (!keysToKeep.includes(key)) localStorage.removeItem(key);
+    });
+    showSuccess("Cache cleared. Reloading...");
+    setTimeout(() => window.location.reload(), 600);
   };
 
   return (
@@ -250,51 +235,16 @@ export function AdminSettings() {
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Hardware Telematics API Credentials
-                </label>
+            {/* API keys & infrastructure credentials are managed in Owner → Settings */}
+            <div className="pt-3 border-t border-slate-100">
+              <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-xs text-blue-800">
+                  <strong>API keys</strong> (Google Maps, Telematics, Firebase) are managed in the <strong>Owner → Infrastructure Settings</strong> panel.
+                </p>
               </div>
-              <div className="space-y-3">
-                <Input
-                  label="API Key"
-                  type="password"
-                  placeholder="Enter telematics API key"
-                  // You can add state hooks for these if needed, or leave as placeholder
-                />
-                <Input
-                  label="Client Secret"
-                  type="password"
-                  placeholder="Enter client secret token"
-                />
-              </div>
-              <p className="text-[11px] text-slate-400 mt-2">
-                Credentials are encrypted at rest and used by dispatch services to poll hardware GPS beacons from connected vehicles.
-              </p>
-            </div>
-
-            <div className="pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Google Maps JavaScript API Key
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setGoogleMapsKey('')}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
-                >
-                  Clear Key
-                </button>
-              </div>
-              <Input
-                placeholder="AIzaSy..."
-                value={googleMapsKey}
-                onChange={(e) => setGoogleMapsKey(e.target.value)}
-              />
-              <p className="text-xs text-slate-500 mt-1.5">
-                Active key powers real-time vehicle radar, route overlays, and student tracking map layers.
-              </p>
             </div>
           </div>
 
