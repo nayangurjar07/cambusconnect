@@ -40,6 +40,8 @@ export function AppShell({ allowedRole }) {
     if (!expected) return true;
     if (Array.isArray(expected)) return expected.includes(actual);
     if (expected === 'driver') return actual === 'driver' || actual === 'conductor';
+    if (expected === 'owner') return actual === 'owner' || actual === 'superadmin';
+    if (expected === 'admin') return actual === 'admin' || actual === 'owner' || actual === 'superadmin';
     return actual === expected;
   };
 
