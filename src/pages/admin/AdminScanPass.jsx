@@ -13,6 +13,7 @@ import { db, collection, doc, getDoc, onSnapshot, setDoc, deleteDoc, serverTimes
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ValidateBusPassScanner } from '../../components/domain/ValidateBusPassScanner';
 import { useToast } from '../../contexts/ToastContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -32,6 +33,10 @@ export function AdminScanPass() {
 
   // Scanner Mode: 'checkin' | 'checkout' | 'verify'
   const [scanMode, setScanMode] = useState('checkin');
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [logToRemove, setLogToRemove] = useState(null);
+  const [isRemovingLog, setIsRemovingLog] = useState(false);
 
   // Manual Input State
   const [manualInput, setManualInput] = useState('');
@@ -242,14 +247,22 @@ export function AdminScanPass() {
     }
   };
 
-  const handleHeadcountReset = async () => {
+  const handleHeadcountReset = () => {
     if (!selectedBus) return;
-    if (!window.confirm(`Reset passenger count for Bus ${selectedBus.number} to 0?`)) return;
+    setIsResetConfirmOpen(true);
+  };
+
+  const confirmHeadcountReset = async () => {
+    if (!selectedBus) return;
+    setIsResetting(true);
     try {
       await updateBusHeadcount(selectedBus.id, 0, Number(selectedBus.capacity) || 45);
       showSuccess(`Headcount reset to 0 for Bus ${selectedBus.number}`);
+      setIsResetConfirmOpen(false);
     } catch (err) {
       showError("Failed to reset headcount: " + err.message);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -509,16 +522,24 @@ export function AdminScanPass() {
     showSuccess(`Anti-loop timer set to ${tempLockout} minutes.`);
   };
 
-  const handleRemoveLog = async (logItem) => {
-    if (!window.confirm(`Remove check-in log for ${logItem.studentName}?`)) return;
+  const handleRemoveLog = (logItem) => {
+    setLogToRemove(logItem);
+  };
+
+  const confirmRemoveLog = async () => {
+    if (!logToRemove) return;
+    setIsRemovingLog(true);
     try {
-      const bRef = doc(db, `buses/${selectedBusId}/boardings`, logItem.id);
+      const bRef = doc(db, `buses/${selectedBusId}/boardings`, logToRemove.id);
       await deleteDoc(bRef);
       if (fastMode) await handleHeadcountChange(-1);
-      delete localScanLogs.current[logItem.studentId];
+      delete localScanLogs.current[logToRemove.studentId];
       showSuccess("Boarding removed and headcount updated.");
+      setLogToRemove(null);
     } catch (err) {
       showError("Could not remove boarding: " + err.message);
+    } finally {
+      setIsRemovingLog(false);
     }
   };
 
@@ -1047,6 +1068,30 @@ export function AdminScanPass() {
           )}
         </CardBody>
       </Card>
+
+      {/* Headcount Reset Confirmation */}
+      <ConfirmModal
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        onConfirm={confirmHeadcountReset}
+        isLoading={isResetting}
+        title="Reset Passenger Count"
+        message={`Are you sure you want to reset the onboard passenger count for Bus ${selectedBus?.number} to 0?`}
+        confirmText="Reset to 0"
+        variant="danger"
+      />
+
+      {/* Remove Boarding Log Confirmation */}
+      <ConfirmModal
+        isOpen={Boolean(logToRemove)}
+        onClose={() => setLogToRemove(null)}
+        onConfirm={confirmRemoveLog}
+        isLoading={isRemovingLog}
+        title="Remove Boarding Log"
+        message={`Are you sure you want to remove the check-in log for ${logToRemove?.studentName || 'this student'}? Headcount will be decremented if fast-mode is enabled.`}
+        confirmText="Remove Entry"
+        variant="danger"
+      />
     </div>
   );
 }

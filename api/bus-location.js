@@ -37,6 +37,19 @@ function pruneAndCountWatchers(entry) {
     return entry.watchers.size;
 }
 
+function pruneTelemetryMemoryCache() {
+    if (busTelemetryMemoryCache.size > 250) {
+        const now = Date.now();
+        for (const [k, v] of busTelemetryMemoryCache.entries()) {
+            const watchers = pruneAndCountWatchers(v);
+            const age = now - (v.locationData?.timestamp || 0);
+            if (watchers === 0 && age > 10 * 60 * 1000) {
+                busTelemetryMemoryCache.delete(k);
+            }
+        }
+    }
+}
+
 function getClientKey(req) {
     const forwardedFor = req.headers['x-forwarded-for'];
     const ip = Array.isArray(forwardedFor)
@@ -59,6 +72,13 @@ function applyRateLimit(req, res) {
 
     bucket.count += 1;
     rateLimitBuckets.set(key, bucket);
+
+    // Evict expired buckets periodically to avoid unbounded serverless memory growth
+    if (rateLimitBuckets.size > 1500) {
+        for (const [k, b] of rateLimitBuckets.entries()) {
+            if (now >= b.resetAt) rateLimitBuckets.delete(k);
+        }
+    }
 
     res.setHeader('X-RateLimit-Limit', String(RATE_LIMIT_MAX_REQUESTS));
     res.setHeader('X-RateLimit-Remaining', String(Math.max(0, RATE_LIMIT_MAX_REQUESTS - bucket.count)));
@@ -159,7 +179,13 @@ export default async function handler(req, res) {
     // POST: DRIVER / CONDUCTOR LIVE GPS BROADCAST (Demand-Throttled Write)
     // ========================================================================
     if (req.method === 'POST') {
-        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        pruneTelemetryMemoryCache();
+        let body;
+        try {
+            body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        } catch {
+            return res.status(400).json({ error: "Malformed JSON in request body." });
+        }
         const {
             busId,
             busNumber,

@@ -33,6 +33,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ValidateBusPassScanner } from '../../components/domain/ValidateBusPassScanner';
 
 export function DriverScanPass() {
@@ -63,6 +64,8 @@ export function DriverScanPass() {
   const [scanLockActive, setScanLockActive] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
   const [boardingLog, setBoardingLog] = useState([]);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const html5QrScannerRef = useRef(null);
   const localScanLogs = useRef({});
@@ -276,14 +279,22 @@ export function DriverScanPass() {
     }
   };
 
-  const handleHeadcountReset = async () => {
+  const handleHeadcountReset = () => {
     if (!selectedBus) return;
-    if (!window.confirm(`Reset passenger count for Bus #${selectedBus.number} to 0?`)) return;
+    setIsResetConfirmOpen(true);
+  };
+
+  const confirmHeadcountReset = async () => {
+    if (!selectedBus) return;
+    setIsResetting(true);
     try {
       await updateBusHeadcount(selectedBus.id, 0, Number(selectedBus.capacity) || 45);
       showSuccess(`Headcount reset to 0 for Bus #${selectedBus.number}`);
+      setIsResetConfirmOpen(false);
     } catch (err) {
       showError('Failed to reset headcount: ' + err.message);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -831,6 +842,18 @@ export function DriverScanPass() {
           </Card>
         </div>
       </div>
+
+      {/* Headcount Reset Confirmation */}
+      <ConfirmModal
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        onConfirm={confirmHeadcountReset}
+        isLoading={isResetting}
+        title="Reset Passenger Count"
+        message={`Are you sure you want to reset the onboard passenger count for Bus #${selectedBus?.number} to 0?`}
+        confirmText="Reset to 0"
+        variant="danger"
+      />
     </div>
   );
 }

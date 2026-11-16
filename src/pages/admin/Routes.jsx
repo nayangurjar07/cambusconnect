@@ -17,6 +17,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Badge } from '../../components/ui/Badge';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -36,6 +37,8 @@ export function AdminRoutes() {
   const [editingRoute, setEditingRoute] = useState(null);
   const [expandedRouteId, setExpandedRouteId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [routeToDelete, setRouteToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -155,15 +158,17 @@ export function AdminRoutes() {
     }
   };
 
-  const handleDelete = async (route) => {
-    if (!window.confirm(`Delete Route "${route.name}"? Buses and students assigned to this route will need updating.`)) {
-      return;
-    }
+  const confirmDeleteRoute = async () => {
+    if (!routeToDelete) return;
+    setIsDeleting(true);
     try {
-      await deleteRoute(route.id);
-      showSuccess(`Route ${route.code} deleted`);
+      await deleteRoute(routeToDelete.id);
+      showSuccess(`Route ${routeToDelete.code} deleted`);
+      setRouteToDelete(null);
     } catch (err) {
       showError('Failed to delete route: ' + err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -251,7 +256,7 @@ export function AdminRoutes() {
                     Edit Route
                   </Button>
                   <button
-                    onClick={() => handleDelete(route)}
+                    onClick={() => setRouteToDelete(route)}
                     className="p-2 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-colors"
                     title="Delete Route"
                   >
@@ -445,6 +450,17 @@ export function AdminRoutes() {
           </div>
         </form>
       </Modal>
+      {/* Delete Route Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(routeToDelete)}
+        onClose={() => setRouteToDelete(null)}
+        onConfirm={confirmDeleteRoute}
+        isLoading={isDeleting}
+        title="Delete Transit Route"
+        message={`Are you sure you want to delete Route "${routeToDelete?.name}" (${routeToDelete?.code})? Buses and students assigned to this route will need to be updated.`}
+        confirmText="Delete Route"
+        variant="danger"
+      />
     </div>
   );
 }

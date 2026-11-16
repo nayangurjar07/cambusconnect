@@ -27,6 +27,12 @@ function applyRateLimit(req, res) {
     bucket.count += 1;
     rateLimitBuckets.set(key, bucket);
 
+    if (rateLimitBuckets.size > 1000) {
+        for (const [k, b] of rateLimitBuckets.entries()) {
+            if (now >= b.resetAt) rateLimitBuckets.delete(k);
+        }
+    }
+
     res.setHeader('X-RateLimit-Limit', String(RATE_LIMIT_MAX_REQUESTS));
     res.setHeader('X-RateLimit-Remaining', String(Math.max(0, RATE_LIMIT_MAX_REQUESTS - bucket.count)));
     res.setHeader('X-RateLimit-Reset', String(Math.ceil(bucket.resetAt / 1000)));

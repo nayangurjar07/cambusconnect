@@ -15,6 +15,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 const INITIAL_FORM = {
   name: '',
@@ -40,6 +41,8 @@ export function AdminStaff() {
   const [editingEmail, setEditingEmail] = useState(null);
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
+  const [memberToTerminate, setMemberToTerminate] = useState(null);
+  const [isTerminating, setIsTerminating] = useState(false);
 
   useEffect(() => {
     const unsubStaff = subscribeToStaff(setStaff);
@@ -177,13 +180,17 @@ export function AdminStaff() {
     }
   };
 
-  const handleTerminate = async (member) => {
-    if (!window.confirm(`Revoke access and terminate ${member.name || member.email}?`)) return;
+  const confirmTerminateMember = async () => {
+    if (!memberToTerminate) return;
+    setIsTerminating(true);
     try {
-      await deleteStaffMember(member.email);
-      showSuccess(`Access revoked for ${member.email}`);
+      await deleteStaffMember(memberToTerminate.email);
+      showSuccess(`Access revoked for ${memberToTerminate.email}`);
+      setMemberToTerminate(null);
     } catch (err) {
       showError('Failed to revoke staff member');
+    } finally {
+      setIsTerminating(false);
     }
   };
 
@@ -321,7 +328,7 @@ export function AdminStaff() {
                           size="xs"
                           icon={Trash2}
                           className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                          onClick={() => handleTerminate(member)}
+                          onClick={() => setMemberToTerminate(member)}
                         >
                           Revoke
                         </Button>
@@ -537,6 +544,17 @@ export function AdminStaff() {
           </div>
         </div>
       )}
+      {/* Revoke Staff Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(memberToTerminate)}
+        onClose={() => setMemberToTerminate(null)}
+        onConfirm={confirmTerminateMember}
+        isLoading={isTerminating}
+        title="Revoke Staff Access"
+        message={`Are you sure you want to revoke access and terminate ${memberToTerminate?.name || memberToTerminate?.email}? Their crew assignments and account access will be immediately suspended.`}
+        confirmText="Revoke Access"
+        variant="danger"
+      />
     </div>
   );
 }

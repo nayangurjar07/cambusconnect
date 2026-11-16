@@ -1,7 +1,7 @@
 // src/components/layout/MobileNav.jsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Map, QrCode, Bell, User, Bus, Clock } from 'lucide-react';
+import { LayoutDashboard, Map, QrCode, Bell, User, Bus, Clock, Building2, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export function MobileNav() {
@@ -32,6 +32,14 @@ export function MobileNav() {
           { label: 'Fleet', path: '/admin/buses', icon: Bus },
           { label: 'Students', path: '/admin/students', icon: User },
         ];
+      case 'owner':
+      case 'superadmin':
+        return [
+          { label: 'Platform', path: '/owner/dashboard', icon: LayoutDashboard },
+          { label: 'Tenants', path: '/owner/tenants', icon: Building2 },
+          { label: 'Fleet', path: '/admin/track', icon: Map },
+          { label: 'Settings', path: '/owner/settings', icon: Settings },
+        ];
       default:
         return [];
     }
@@ -44,11 +52,12 @@ export function MobileNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200/80 px-3 py-1.5 flex items-center justify-around lg:hidden shadow-[0_-4px_25px_rgba(0,0,0,0.04)]">
       {navItems.map((item) => {
         const Icon = item.icon;
+        const isRootTab = item.path.endsWith('/dashboard') || item.path.endsWith('/home');
         return (
           <NavLink
             key={item.path}
             to={item.path}
-            end={true}
+            end={isRootTab}
             className={({ isActive }) => `
               flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl text-[10px] font-semibold transition-all min-w-[54px] active:scale-95
               ${isActive 

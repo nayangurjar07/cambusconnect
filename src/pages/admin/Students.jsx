@@ -23,6 +23,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Badge } from '../../components/ui/Badge';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { useToast } from '../../contexts/ToastContext';
@@ -75,6 +76,8 @@ export function AdminStudents() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -202,90 +205,115 @@ export function AdminStudents() {
   };
 
   // Bulk Operations
-  const handleBulkExtendValidity = async () => {
+  const handleBulkExtendValidity = () => {
     if (selectedEmails.size === 0) return;
-    if (!window.confirm(`Extend pass validity for ${selectedEmails.size} selected students by 6 months?`)) return;
+    setConfirmAction({
+      title: 'Extend Pass Validity',
+      message: `Extend bus pass validity for ${selectedEmails.size} selected students by 6 months?`,
+      confirmText: 'Extend Validity',
+      variant: 'primary',
+      onConfirm: async () => {
+        const futureDate = new Date();
+        futureDate.setMonth(futureDate.getMonth() + 6);
+        const isoDate = futureDate.toISOString().split('T')[0];
 
-    const futureDate = new Date();
-    futureDate.setMonth(futureDate.getMonth() + 6);
-    const isoDate = futureDate.toISOString().split('T')[0];
-
-    try {
-      const emailList = Array.from(selectedEmails);
-      const res = await bulkExtendPassValidity(emailList, isoDate);
-      showSuccess(`Extended pass validity for ${res.updatedCount} students (Atomic Batch)`);
-      setSelectedEmails(new Set());
-      await fetchPage(1);
-    } catch (err) {
-      showError("Bulk extend failed: " + err.message);
-    }
+        try {
+          const emailList = Array.from(selectedEmails);
+          const res = await bulkExtendPassValidity(emailList, isoDate);
+          showSuccess(`Extended pass validity for ${res.updatedCount} students (Atomic Batch)`);
+          setSelectedEmails(new Set());
+          await fetchPage(1);
+        } catch (err) {
+          showError("Bulk extend failed: " + err.message);
+        }
+      }
+    });
   };
 
-  const handleBulkRevoke = async () => {
+  const handleBulkRevoke = () => {
     if (selectedEmails.size === 0) return;
-    if (!window.confirm(`Revoke pass privileges for ${selectedEmails.size} students?`)) return;
-
-    try {
-      const emailList = Array.from(selectedEmails);
-      const res = await bulkUpdateStudentStatus(emailList, 'Revoked');
-      showSuccess(`Revoked ${res.updatedCount} passes (Atomic Batch)`);
-      setSelectedEmails(new Set());
-      await fetchPage(1);
-    } catch (err) {
-      showError("Bulk revoke failed: " + err.message);
-    }
+    setConfirmAction({
+      title: 'Revoke Pass Privileges',
+      message: `Revoke bus pass privileges for ${selectedEmails.size} selected students?`,
+      confirmText: 'Revoke Passes',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const emailList = Array.from(selectedEmails);
+          const res = await bulkUpdateStudentStatus(emailList, 'Revoked');
+          showSuccess(`Revoked ${res.updatedCount} passes (Atomic Batch)`);
+          setSelectedEmails(new Set());
+          await fetchPage(1);
+        } catch (err) {
+          showError("Bulk revoke failed: " + err.message);
+        }
+      }
+    });
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedEmails.size === 0) return;
-    if (!window.confirm(`PERMANENTLY DELETE ${selectedEmails.size} students? This cannot be undone.`)) return;
-
-    try {
-      const emailList = Array.from(selectedEmails);
-      const res = await bulkDeleteStudents(emailList);
-      showSuccess(`Permanently deleted ${res.deletedCount} student records (Atomic Batch)`);
-      setSelectedEmails(new Set());
-      await fetchPage(1);
-    } catch (err) {
-      showError("Bulk delete failed: " + err.message);
-    }
+    setConfirmAction({
+      title: 'Delete Student Records',
+      message: `PERMANENTLY DELETE ${selectedEmails.size} students? This cannot be undone.`,
+      confirmText: 'Delete Permanently',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const emailList = Array.from(selectedEmails);
+          const res = await bulkDeleteStudents(emailList);
+          showSuccess(`Permanently deleted ${res.deletedCount} student records (Atomic Batch)`);
+          setSelectedEmails(new Set());
+          await fetchPage(1);
+        } catch (err) {
+          showError("Bulk delete failed: " + err.message);
+        }
+      }
+    });
   };
 
-  const handleBulkGeneratePasswords = async () => {
+  const handleBulkGeneratePasswords = () => {
     const targetEmails = selectedEmails.size > 0 
       ? Array.from(selectedEmails) 
       : filteredStudents.map(s => s.email);
     
     if (targetEmails.length === 0) return;
-    if (!window.confirm(`Auto-generate passwords for ${targetEmails.length} students?\n\nA CSV file with the generated credentials will be downloaded immediately.`)) return;
 
-    try {
-      const results = await bulkGeneratePasswords(targetEmails);
-      
-      // Generate CSV output
-      const headers = ['Email', 'Generated Password', 'Status'];
-      const rows = results.map(r => `"${r.email}","${r.password}","${r.status}"`);
-      const csvContent = `${headers.join(',')}\n${rows.join('\n')}\n`;
-      
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `cambus_student_passwords_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      const successCount = results.filter(r => r.status === 'Created').length;
-      if (successCount > 0) {
-        showSuccess(`Generated ${successCount} new passwords and downloaded CSV`);
-      } else {
-        showError("No new passwords generated. Users might already exist.");
+    setConfirmAction({
+      title: 'Generate Student Passwords',
+      message: `Auto-generate passwords for ${targetEmails.length} students?\n\nA CSV file with the generated credentials will be downloaded immediately.`,
+      confirmText: 'Generate Passwords',
+      variant: 'primary',
+      onConfirm: async () => {
+        try {
+          const results = await bulkGeneratePasswords(targetEmails);
+          
+          // Generate CSV output
+          const headers = ['Email', 'Generated Password', 'Status'];
+          const rows = results.map(r => `"${r.email}","${r.password}","${r.status}"`);
+          const csvContent = `${headers.join(',')}\n${rows.join('\n')}\n`;
+          
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', `cambus_student_passwords_${new Date().toISOString().split('T')[0]}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          const successCount = results.filter(r => r.status === 'Created').length;
+          if (successCount > 0) {
+            showSuccess(`Generated ${successCount} new passwords and downloaded CSV`);
+          } else {
+            showSuccess(`Processed credentials for ${results.length} students (CSV downloaded)`);
+          }
+          setSelectedEmails(new Set());
+        } catch (err) {
+          showError("Password generation failed: " + err.message);
+        }
       }
-      setSelectedEmails(new Set());
-    } catch (err) {
-      showError("Failed to generate passwords: " + err.message);
-    }
+    });
   };
 
   // CSV Export
@@ -406,15 +434,22 @@ export function AdminStudents() {
     }
   };
 
-  const handleDelete = async (email, name) => {
-    if (window.confirm(`Remove student ${name}?`)) {
-      try {
-        await deleteStudent(email);
-        showSuccess(`Student removed`);
-      } catch (err) {
-        showError("Delete failed: " + err.message);
+  const handleDelete = (email, name) => {
+    setConfirmAction({
+      title: 'Remove Student',
+      message: `Are you sure you want to remove student "${name || email}"?`,
+      confirmText: 'Remove Student',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteStudent(email);
+          showSuccess(`Student removed`);
+          await fetchPage(1);
+        } catch (err) {
+          showError("Delete failed: " + err.message);
+        }
       }
-    }
+    });
   };
 
   const activeRouteObj = routes.find(r => r.name === formData.busRoute);
@@ -959,6 +994,30 @@ export function AdminStudents() {
         onImportComplete={() => {
           showSuccess("Student directory refreshed from CSV");
         }}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(confirmAction)}
+        onClose={() => {
+          if (!confirmLoading) setConfirmAction(null);
+        }}
+        onConfirm={async () => {
+          if (confirmAction?.onConfirm) {
+            setConfirmLoading(true);
+            try {
+              await confirmAction.onConfirm();
+            } finally {
+              setConfirmLoading(false);
+              setConfirmAction(null);
+            }
+          }
+        }}
+        isLoading={confirmLoading}
+        title={confirmAction?.title || 'Please Confirm'}
+        message={confirmAction?.message || ''}
+        confirmText={confirmAction?.confirmText || 'Confirm'}
+        variant={confirmAction?.variant || 'primary'}
       />
     </div>
   );

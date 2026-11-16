@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -167,6 +168,8 @@ function LostFoundTab() {
   const { showSuccess, showError } = useToast();
   const [items, setItems] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToLostItems(setItems);
@@ -186,14 +189,17 @@ function LostFoundTab() {
     }
   };
 
-  const handleDelete = async (id, title) => {
-    if (window.confirm(`Delete record for "${title}"?`)) {
-      try {
-        await deleteLostItem(id);
-        showSuccess("Record deleted");
-      } catch (e) {
-        showError("Delete failed: " + e.message);
-      }
+  const confirmDeleteItem = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteLostItem(itemToDelete.id);
+      showSuccess("Record deleted");
+      setItemToDelete(null);
+    } catch (e) {
+      showError("Delete failed: " + e.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -253,7 +259,7 @@ function LostFoundTab() {
                 </button>
               </div>
               <button
-                onClick={() => handleDelete(item.id, item.title)}
+                onClick={() => setItemToDelete({ id: item.id, title: item.title })}
                 className="p-1 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                 title="Delete item"
               >
@@ -268,6 +274,17 @@ function LostFoundTab() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={Boolean(itemToDelete)}
+        onClose={() => setItemToDelete(null)}
+        onConfirm={confirmDeleteItem}
+        isLoading={isDeleting}
+        title="Delete Lost & Found Item"
+        message={`Are you sure you want to delete the record for "${itemToDelete?.title}"?`}
+        confirmText="Delete Record"
+        variant="danger"
+      />
     </div>
   );
 }

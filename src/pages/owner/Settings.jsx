@@ -12,6 +12,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { fetchBackendMapsKey, updateBackendMapsKey } from '../../services/googleMaps';
+import { auth } from '../../config/firebase';
 
 /** Masked value helper — shows last 4 chars only */
 function maskSecret(val = '') {
@@ -31,12 +32,8 @@ export function OwnerSettings() {
   const [mapsKeySaved, setMapsKeySaved] = useState(false);
 
   // ── Telematics ───────────────────────────────────────────
-  const [telematicsApiKey, setTelematicsApiKey] = useState(
-    () => localStorage.getItem('telematics_api_key') || ''
-  );
-  const [telematicsSecret, setTelematicsSecret] = useState(
-    () => localStorage.getItem('telematics_secret') || ''
-  );
+  const [telematicsApiKey, setTelematicsApiKey] = useState('');
+  const [telematicsSecret, setTelematicsSecret] = useState('');
   const [showTelematicsKey, setShowTelematicsKey] = useState(false);
   const [showTelematicsSecret, setShowTelematicsSecret] = useState(false);
 
@@ -72,16 +69,33 @@ export function OwnerSettings() {
     }
   };
 
-  // ── Save Telematics Credentials ───────────────────────────
-  const handleSaveTelematics = (e) => {
+  // ── Save Telematics Credentials (Encrypted via API) ──────
+  const handleSaveTelematics = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      // In production these would be persisted to a secure backend endpoint,
-      // not localStorage. Stored here for demonstrative wiring only.
-      localStorage.setItem('telematics_api_key', telematicsApiKey.trim());
-      localStorage.setItem('telematics_secret', telematicsSecret.trim());
-      showSuccess('Hardware telematics credentials saved.');
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Authentication required (Admin/Owner session)');
+
+      const res = await fetch('/api/save-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          apiKey: telematicsApiKey.trim(),
+          clientSecret: telematicsSecret.trim()
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Server rejected telematics update');
+      }
+
+      showSuccess('Hardware telematics credentials encrypted and stored securely at rest.');
+      setTelematicsSecret('');
     } catch (err) {
       showError('Failed to save telematics credentials: ' + err.message);
     } finally {

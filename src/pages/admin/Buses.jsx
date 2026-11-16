@@ -16,6 +16,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 const INITIAL_BUS_FORM = {
   number: '',
@@ -38,6 +39,8 @@ export function AdminBuses() {
   const [editingBusId, setEditingBusId] = useState(null);
   const [formData, setFormData] = useState(INITIAL_BUS_FORM);
   const [saving, setSaving] = useState(false);
+  const [busToDelete, setBusToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const unsubBuses = subscribeToBuses(setBuses);
@@ -169,13 +172,17 @@ export function AdminBuses() {
     }
   };
 
-  const handleDelete = async (bus) => {
-    if (!window.confirm(`Delete Bus #${bus.number} from the fleet?`)) return;
+  const confirmDeleteBus = async () => {
+    if (!busToDelete) return;
+    setIsDeleting(true);
     try {
-      await deleteBus(bus.id);
-      showSuccess(`Removed Bus #${bus.number}`);
+      await deleteBus(busToDelete.id);
+      showSuccess(`Removed Bus #${busToDelete.number}`);
+      setBusToDelete(null);
     } catch (_) {
       showError('Could not delete bus');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -308,7 +315,7 @@ export function AdminBuses() {
                           size="xs"
                           icon={Trash2}
                           className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                          onClick={() => handleDelete(bus)}
+                          onClick={() => setBusToDelete(bus)}
                         >
                           Delete
                         </Button>
@@ -492,6 +499,17 @@ export function AdminBuses() {
           </div>
         </div>
       )}
+      {/* Delete Bus Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(busToDelete)}
+        onClose={() => setBusToDelete(null)}
+        onConfirm={confirmDeleteBus}
+        isLoading={isDeleting}
+        title="Delete Vehicle"
+        message={`Are you sure you want to delete Bus #${busToDelete?.number} from the active fleet? This action cannot be undone.`}
+        confirmText="Delete Bus"
+        variant="danger"
+      />
     </div>
   );
 }
