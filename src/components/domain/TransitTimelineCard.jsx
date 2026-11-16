@@ -14,9 +14,9 @@ export function TransitTimelineCard({
   trackUrl = "/student/track",
   className
 }) {
-  const busNumber = bus?.number || "14";
-  const busRoute = bus?.route || "Campus Express";
-  const trackingId = bus?.id ? `CC-${bus.id.slice(0, 6).toUpperCase()}` : `BUS-${busNumber}`;
+  const busNumber = bus?.number || "--";
+  const busRoute = bus?.route || "Campus Route";
+  const trackingId = bus?.id ? `CC-${bus.id.slice(0, 6).toUpperCase()}` : (bus?.number ? `BUS-${bus.number}` : "STANDBY");
   const isBreakdown = bus?.status === 'Breakdown';
   const isDelayed = bus?.status === 'Delayed';
 

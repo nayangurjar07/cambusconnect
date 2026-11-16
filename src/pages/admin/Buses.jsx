@@ -113,7 +113,7 @@ export function AdminBuses() {
         subtitle="Manage campus buses, registration details, dedicated assigned routes, and operational crew"
         badge={
           <Badge variant="primary" dot>
-            {buses.length} Vehicles
+            {buses.length} {buses.length === 1 ? 'Vehicle' : 'Vehicles'}
           </Badge>
         }
         actions={

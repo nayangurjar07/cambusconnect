@@ -43,8 +43,13 @@ export function AdminDashboard() {
         title="Fleet Dispatch Overview"
         subtitle="Central transit operations command, real-time telemetry health, and occupancy monitoring"
         badge={
-          <Badge variant="primary" dot>
-            System Operational
+          <Badge 
+            variant={trackingSummary.liveCount > 0 ? 'success' : (trackingSummary.total === 0 ? 'neutral' : 'warning')} 
+            dot
+          >
+            {trackingSummary.liveCount > 0 
+              ? `${trackingSummary.liveCount} Vehicles Live` 
+              : (trackingSummary.total === 0 ? 'Fleet Ready' : 'Fleet Standby')}
           </Badge>
         }
         actions={

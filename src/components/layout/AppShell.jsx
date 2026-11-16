@@ -55,7 +55,7 @@ export function AppShell({ allowedRole }) {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-mesh flex">
+    <div className="h-screen overflow-hidden bg-slate-50 flex">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

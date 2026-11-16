@@ -54,9 +54,14 @@ export function Topbar({ onOpenSidebar }) {
 
   const handleSignOut = async () => {
     setShowProfileDropdown(false);
+    if (typeof window !== 'undefined' && window.CambusCache && typeof window.CambusCache.clearAll === 'function') {
+      window.CambusCache.clearAll();
+    }
     await logout();
+    localStorage.clear();
+    sessionStorage.clear();
     showSuccess("Signed out successfully");
-    navigate('/login');
+    window.location.replace('/login');
   };
 
   const getNotificationLink = () => {
@@ -164,7 +169,7 @@ export function Topbar({ onOpenSidebar }) {
           </button>
 
           {showNotificationDropdown && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 glass-card rounded-3xl shadow-[0_16px_64px_rgba(0,0,0,0.1)] z-50 overflow-hidden animate-slide-up border border-white/60">
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-3xl shadow-xl z-50 overflow-hidden">
               <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-bold text-slate-900">Notifications &amp; Alerts</h4>
@@ -223,7 +228,7 @@ export function Topbar({ onOpenSidebar }) {
           </button>
 
           {showProfileDropdown && (
-            <div className="absolute right-0 mt-2 w-72 glass-card rounded-3xl shadow-[0_16px_64px_rgba(0,0,0,0.1)] p-4 z-50 space-y-3 animate-slide-up border border-white/60">
+            <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-3xl shadow-xl p-4 z-50 space-y-3">
               {/* User Identity Banner */}
               <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
                 <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white font-bold text-base flex items-center justify-center shadow-xs shrink-0">

@@ -5,12 +5,11 @@ import {
   ShieldCheck, Clock, Trash2, Lock, Sparkles, Upload, Download 
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { decodeQrFromImageFile } from '../../services/qrDecoder';
 import { subscribeToBuses, updateBusHeadcount, incrementBusHeadcount } from '../../services/transit';
 import { getStudentProfile } from '../../services/students';
 import { logBoarding } from '../../services/transit';
 import { verifyTotp } from '../../utils/crypto';
-import { db, collection, doc, onSnapshot, setDoc, deleteDoc, serverTimestamp } from '../../config/firebase';
+import { db, collection, doc, getDoc, onSnapshot, setDoc, deleteDoc, serverTimestamp } from '../../config/firebase';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -34,10 +33,8 @@ export function AdminScanPass() {
   // Scanner Mode: 'checkin' | 'checkout' | 'verify'
   const [scanMode, setScanMode] = useState('checkin');
 
-  // Manual & Simulation State
+  // Manual Input State
   const [manualInput, setManualInput] = useState('');
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef(null);
 
   // Camera & Scanner State
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -257,31 +254,7 @@ export function AdminScanPass() {
   };
 
   // 4. File Upload QR Scanner with Multi-Engine Fallback
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingImage(true);
-    try {
-      const decodedText = await decodeQrFromImageFile(file);
-      showSuccess('QR Code successfully decoded from image!');
-      await handleScannedData(decodedText);
-    } catch (err) {
-      console.warn("QR file scan error:", err);
-      showError(err.message || "Could not read a QR code from this image. Please ensure the QR is clear and visible.");
-    } finally {
-      setUploadingImage(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
 
-  const handleDrop = async (e) => {
-    e.preventDefault();
-    const file = e.dataTransfer?.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const syntheticEvent = { target: { files: [file] } };
-      await handleFileUpload(syntheticEvent);
-    }
-  };
 
   const handleScannedData = async (rawInput) => {
     if (scanLockActive) return;
@@ -424,28 +397,45 @@ export function AdminScanPass() {
         }
       }
 
-      // Anti-Passback / Same Bus Lock
+      // Layer 4: Atomic Firestore Anti-Passback Shift Lock (3-Hour Shift Lockout)
       const sId = student.collegeId || student.enrollment || student.id || student.email;
-      const now = Date.now();
-      const lastScannedTime = localScanLogs.current[sId] || 0;
-      const lockoutMs = lockoutMinutes * 60 * 1000;
+      const cleanStudentKey = String(sId).replace(/[/.]/g, '_');
+      const dateStr = new Date().toISOString().split('T')[0];
+      const shiftId = 'shift_1';
+      const antiPassbackDocId = `${dateStr}_${shiftId}_${cleanStudentKey}`;
+      const antiPassbackRef = doc(db, 'boarding_logs', antiPassbackDocId);
 
-      if (sameBusScanLock && !lateOverride && (now - lastScannedTime) < lockoutMs) {
-        const remainingMinutes = Math.ceil((lockoutMs - (now - lastScannedTime)) / (60 * 1000));
-        playTone('error');
-        setVerificationResult({
-          status: 'rejected',
-          student,
-          reason: `Anti-Passback Protection: Scanned ${Math.round((now - lastScannedTime) / 60000)}m ago on this vehicle.`,
-          recommendation: `Re-scan locked for ${remainingMinutes} more minutes to prevent pass sharing.`
-        });
-        showError(`Duplicate scan blocked (${remainingMinutes}m remaining)`);
-        return;
+      if (sameBusScanLock && !lateOverride) {
+        try {
+          const passbackSnap = await getDoc(antiPassbackRef);
+          if (passbackSnap.exists()) {
+            const pbData = passbackSnap.data();
+            const loggedTime = pbData.timestamp?.toDate ? pbData.timestamp.toDate().getTime() : (pbData.createdAt || 0);
+            const diffMs = Date.now() - loggedTime;
+            const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+
+            if (diffMs < THREE_HOURS_MS) {
+              const minsAgo = Math.max(1, Math.round(diffMs / 60000));
+              const prevBus = pbData.busNumber || 'Fleet Vehicle';
+              playTone('error');
+              setVerificationResult({
+                status: 'rejected',
+                student,
+                reason: `ANTI-PASSBACK VIOLATION: Pass already scanned ${minsAgo}m ago on Bus #${prevBus}. Duplicate boarding is locked for this shift.`,
+                recommendation: 'Pass sharing violation. Do not permit passenger to board.'
+              });
+              showError(`Pass Already Used! Scanned ${minsAgo}m ago on Bus #${prevBus}`);
+              return;
+            }
+          }
+        } catch (pbErr) {
+          console.warn("[AdminScanPass] Firestore check notice:", pbErr);
+        }
       }
 
       // Approved!
       playTone('success');
-      localScanLogs.current[sId] = now;
+      localScanLogs.current[sId] = Date.now();
 
       setVerificationResult({
         status: 'approved',
@@ -458,8 +448,23 @@ export function AdminScanPass() {
           await handleHeadcountChange(1);
         }
 
-        const dateStr = new Date().toISOString().split('T')[0];
-        const logId = `${sId}_${dateStr}_${Date.now()}`;
+        // 1. Atomic shift anti-passback write
+        await setDoc(antiPassbackRef, {
+          studentId: sId,
+          studentName: student.name || 'Student',
+          studentEmail: student.email || '',
+          busId: selectedBus.id,
+          busNumber: selectedBus.number || '',
+          driverEmail: 'admin@cambusconnect.in',
+          driverName: 'Admin Terminal',
+          shiftId: shiftId,
+          stopName: student.pickupStop || student.stop || '',
+          timestamp: serverTimestamp(),
+          createdAt: Date.now()
+        }, { merge: true });
+
+        // 2. Bus specific boarding entry
+        const logId = `${cleanStudentKey}_${dateStr}_${Date.now()}`;
         const logRef = doc(db, `buses/${selectedBus.id}/boardings`, logId);
 
         await setDoc(logRef, {
@@ -471,7 +476,7 @@ export function AdminScanPass() {
           routeName: selectedBus.route || student.busRoute || '',
           checkInTime: serverTimestamp(),
           date: dateStr,
-          method: tokenPayload ? 'QR Scanner' : 'Manual Entry'
+          method: tokenPayload ? 'Dynamic QR Scanner' : 'Manual Entry'
         }, { merge: true });
 
         await logBoarding({
@@ -497,9 +502,7 @@ export function AdminScanPass() {
     }
   };
 
-  const handleQuickDemoScan = () => {
-    executeVerify('nayan@indoreinstitute.com');
-  };
+
 
   const handleSaveLockTimer = () => {
     setLockoutMinutes(Number(tempLockout));
@@ -698,26 +701,8 @@ export function AdminScanPass() {
                 <h3 className="text-sm font-semibold text-gray-900">QR Code Scanner</h3>
               </div>
 
-              {/* Mode Selector Tabs & Upload Option */}
+              {/* Mode Selector Tabs */}
               <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImage}
-                  className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-                  title="Upload a QR pass image from disk"
-                >
-                  <Upload className="w-3.5 h-3.5 text-blue-600" />
-                  <span>{uploadingImage ? 'Scanning Image...' : 'Upload QR Image'}</span>
-                </button>
-
                 <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
                   <button
                     type="button"
@@ -777,17 +762,6 @@ export function AdminScanPass() {
                 onFlipCamera={handleFlipCamera}
                 compact={true}
               />
-
-              <div className="mt-2.5 text-center">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-slate-500 hover:text-blue-600 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Upload className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Or <strong className="font-semibold underline">upload QR screenshot / image file</strong></span>
-                </button>
-              </div>
             </div>
 
             {/* Verification Result Feedback */}
@@ -816,22 +790,49 @@ export function AdminScanPass() {
                 </div>
 
                 {verificationResult.student && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mt-2.5">
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-2xs">
-                      <span className="text-gray-400 block text-[11px]">Student</span>
-                      <span className="font-semibold text-gray-900 truncate block mt-0.5">{verificationResult.student.name}</span>
+                  <div className="space-y-2.5 mt-2.5">
+                    <div className="flex items-center gap-3 p-2.5 bg-white rounded-xl border border-gray-200 shadow-2xs">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-700 text-sm shrink-0">
+                        {verificationResult.student.photoURL ? (
+                          <img 
+                            src={verificationResult.student.photoURL} 
+                            alt={verificationResult.student.name} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          verificationResult.student.name?.charAt(0).toUpperCase() || 'S'
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-gray-400 block text-[10px] uppercase font-semibold">Verified Student</span>
+                        <h4 className="font-bold text-gray-900 truncate leading-tight">
+                          {verificationResult.student.name}
+                        </h4>
+                        <p className="text-[11px] font-medium text-gray-500 tabular-nums truncate">
+                          ID: {verificationResult.student.collegeId || verificationResult.student.enrollment || '—'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-2xs">
-                      <span className="text-gray-400 block text-[11px]">ID / Enrollment</span>
-                      <span className="font-semibold text-gray-900 truncate block mt-0.5">{verificationResult.student.collegeId || verificationResult.student.enrollment}</span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-2xs">
-                      <span className="text-gray-400 block text-[11px]">Assigned Route</span>
-                      <span className="font-semibold text-gray-900 truncate block mt-0.5">{verificationResult.student.busRoute || 'Campus Route'}</span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-2xs">
-                      <span className="text-gray-400 block text-[11px]">Validity</span>
-                      <span className="font-semibold text-gray-900 truncate block mt-0.5">{verificationResult.student.passValidity || 'Active'}</span>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                      <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-2xs">
+                        <span className="text-gray-400 block text-[11px]">Assigned Stop</span>
+                        <span className="font-semibold text-gray-900 truncate block mt-0.5">
+                          {verificationResult.student.pickupStop || verificationResult.student.stop || 'Campus Stop'}
+                        </span>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-2xs">
+                        <span className="text-gray-400 block text-[11px]">Assigned Route</span>
+                        <span className="font-semibold text-gray-900 truncate block mt-0.5">
+                          {verificationResult.student.busRoute || 'Campus Route'}
+                        </span>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-lg border border-gray-200 shadow-2xs col-span-2 sm:col-span-1">
+                        <span className="text-gray-400 block text-[11px]">Validity</span>
+                        <span className="font-semibold text-gray-900 truncate block mt-0.5">
+                          {verificationResult.student.passValidity || 'Active'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -864,7 +865,7 @@ export function AdminScanPass() {
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="e.g. nayan@indoreinstitute.com"
+                    placeholder="e.g. 0827CS211001 or student@institution.edu"
                     value={manualInput}
                     onChange={(e) => setManualInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && executeVerify(manualInput)}
@@ -879,17 +880,6 @@ export function AdminScanPass() {
                     Verify
                   </Button>
                 </div>
-              </div>
-
-              <div className="pt-2 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={handleQuickDemoScan}
-                  className="w-full py-2 px-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Run Demo Student Verification</span>
-                </button>
               </div>
             </CardBody>
           </Card>

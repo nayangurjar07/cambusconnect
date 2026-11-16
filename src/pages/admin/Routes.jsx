@@ -20,6 +20,14 @@ import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
 import { useToast } from '../../contexts/ToastContext';
 
+function formatShiftLabel(shiftId, shifts = []) {
+  const match = shifts.find(s => s.id === shiftId);
+  if (match?.name) return match.name;
+  if (shiftId === 'shift_1') return 'Morning Pickup (Shift 1)';
+  if (shiftId === 'shift_2') return 'Evening Drop (Shift 2)';
+  return shiftId ? shiftId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Default Shift';
+}
+
 export function AdminRoutes() {
   const { showSuccess, showError } = useToast();
   const [routes, setRoutes] = useState([]);
@@ -172,12 +180,14 @@ export function AdminRoutes() {
     <div className="space-y-4">
       <PageHeader
         title="Transit Routes"
-        subtitle={`${routes.length} defined campus routes with structured pickup waypoints`}
+        subtitle={`${routes.length} defined campus ${routes.length === 1 ? 'route' : 'routes'} with structured pickup waypoints`}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={handleSeedDefaults}>
-              Seed Defaults
-            </Button>
+            {!import.meta.env.PROD && (
+              <Button variant="ghost" size="sm" onClick={handleSeedDefaults}>
+                Seed Defaults
+              </Button>
+            )}
             <Button variant="primary" size="sm" icon={Plus} onClick={() => openModal()}>
               Add Route
             </Button>
@@ -220,14 +230,11 @@ export function AdminRoutes() {
                         <div className="flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5 text-gray-400" />
                           <span>Shifts: </span>
-                          {route.assignedShiftIds.map(sId => {
-                            const shiftObj = shifts.find(s => s.id === sId);
-                            return (
-                              <span key={sId} className="bg-gray-100 text-gray-700 px-1.5 py-0.2 rounded text-[11px]">
-                                {shiftObj?.name || sId}
-                              </span>
-                            );
-                          })}
+                          {route.assignedShiftIds.map(sId => (
+                            <span key={sId} className="bg-gray-100 text-gray-700 px-1.5 py-0.2 rounded text-[11px] font-medium">
+                              {formatShiftLabel(sId, shifts)}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>

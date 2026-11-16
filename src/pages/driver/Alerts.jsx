@@ -21,7 +21,7 @@ const QUICK_INCIDENTS = [
 ];
 
 export function DriverAlerts() {
-  const { user } = useAuth();
+  const { user, profile, currentUser } = useAuth();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
@@ -42,12 +42,13 @@ export function DriverAlerts() {
     };
   }, []);
 
-  const userEmail = user?.email?.toLowerCase().trim();
+  const userEmail = (profile?.email || currentUser?.email || user?.email || '').toLowerCase().trim();
+  const displayName = profile?.name || currentUser?.displayName || user?.name || 'Driver Staff';
   const assignedBus =
     buses.find(
       (b) =>
-        String(b.number) === String(user?.assignedBus) ||
-        b.id === user?.assignedBusId ||
+        String(b.number) === String(profile?.assignedBusNumber || user?.assignedBus) ||
+        b.id === (profile?.assignedBusId || user?.assignedBusId) ||
         b.primaryDriver?.email === userEmail ||
         b.secondaryDriver?.email === userEmail ||
         b.primaryConductor?.email === userEmail ||

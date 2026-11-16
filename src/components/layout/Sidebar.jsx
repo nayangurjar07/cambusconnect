@@ -30,8 +30,13 @@ export function Sidebar({ isOpen, onClose }) {
 
   const handleLogout = async () => {
     if (window.confirm("Sign out of Cambus Connect?")) {
+      if (typeof window !== 'undefined' && window.CambusCache && typeof window.CambusCache.clearAll === 'function') {
+        window.CambusCache.clearAll();
+      }
       await logout();
-      navigate('/login');
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.replace('/login');
     }
   };
 
@@ -154,9 +159,7 @@ export function Sidebar({ isOpen, onClose }) {
           </div>
           <div className="min-w-0">
             <span className="text-sm font-bold text-slate-800 block leading-tight">Cambus Connect</span>
-            {branding?.shortName && (
-              <span className="text-[11px] font-medium text-slate-500 block leading-tight truncate">{branding.shortName}</span>
-            )}
+            <span className="text-[11px] font-medium text-slate-500 block leading-tight truncate">Campus Mobility</span>
           </div>
         </div>
 
@@ -174,6 +177,7 @@ export function Sidebar({ isOpen, onClose }) {
                     <NavLink
                       key={item.path}
                       to={item.path}
+                      end={true}
                       onClick={onClose}
                       className={({ isActive }) => `
                         flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 relative

@@ -207,28 +207,37 @@ export function StudentDashboard() {
 
           <div className="mt-4 pt-3 border-t border-white/15 flex items-center justify-between text-xs text-blue-100 relative z-10">
             <span>Valid Until: <strong className="text-white font-semibold">{profile?.passValidity || "31 Dec 2026"}</strong></span>
-            <span>Bus Assigned: <strong className="text-white font-semibold">Bus {assignedBus?.number || profile?.assignedBusNumber || "14"}</strong></span>
+            <span>Bus Assigned: <strong className="text-white font-semibold">{assignedBus?.number || profile?.assignedBusNumber ? `Bus ${assignedBus?.number || profile?.assignedBusNumber}` : 'Unassigned'}</strong></span>
           </div>
         </div>
       </div>
 
-      {/* Ongoing Transit Card (Matching Middle Screen from Reference) */}
+      {/* Ongoing Transit Run */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-sm font-bold text-slate-900 tracking-tight">Ongoing Transit Run</h2>
-          <Link to="/student/track" className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-0.5">
-            Full Map <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
+          {assignedBus && (
+            <Link to="/student/track" className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-0.5">
+              Full Map <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          )}
         </div>
 
-        <TransitTimelineCard
-          bus={assignedBus}
-          fromStop={profile?.pickupStop || "Sector 3 Pickup Point"}
-          toStop={`${branding?.name || "Campus"} Main Gate`}
-          eta={assignedBus?.eta || "8-12 min"}
-          status={assignedBus?.status === 'Breakdown' ? 'Service Disrupted' : assignedBus?.status === 'Delayed' ? 'Traffic Delay' : 'Bus On Route'}
-          trackUrl="/student/track"
-        />
+        {assignedBus ? (
+          <TransitTimelineCard
+            bus={assignedBus}
+            fromStop={profile?.pickupStop || "Designated Stop"}
+            toStop={`${branding?.name || "Campus"} Main Gate`}
+            eta={assignedBus?.eta || (assignedBus?.isLive ? "Calculating..." : "Standby")}
+            status={assignedBus?.status === 'Breakdown' ? 'Service Disrupted' : assignedBus?.status === 'Delayed' ? 'Traffic Delay' : (assignedBus?.isLive ? 'Bus On Route' : 'Vehicle Standby')}
+            trackUrl="/student/track"
+          />
+        ) : (
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 text-center text-xs text-slate-500 shadow-2xs">
+            <p className="font-semibold text-slate-700">No Active Vehicle Run Assigned</p>
+            <p className="text-slate-400 mt-1">When your route begins or an assigned bus goes on duty, live arrival updates will appear here.</p>
+          </div>
+        )}
       </div>
 
       {/* Impact Stats Pills */}

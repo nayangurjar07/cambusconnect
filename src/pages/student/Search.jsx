@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Search as SearchIcon, Bus, MapPin, ChevronRight, Users } from 'lucide-react';
-import { subscribeToBuses } from '../../services/transit';
+import { subscribeToBuses, getBusTrackingHealth } from '../../services/transit';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Input } from '../../components/ui/Input';
 import { StatusIndicator } from '../../components/ui/StatusIndicator';
@@ -54,7 +54,13 @@ export function StudentSearch() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-slate-900">Bus {bus.number}</h3>
-                    <StatusIndicator status={bus.status} />
+                    {(() => {
+                      const health = getBusTrackingHealth(bus);
+                      const effectiveStatus = bus.status === 'Breakdown'
+                        ? 'Breakdown'
+                        : (bus.status === 'Delayed' ? 'Delayed' : (health.isLive ? 'On Time' : 'Off Duty'));
+                      return <StatusIndicator status={effectiveStatus} />;
+                    })()}
                   </div>
                   <div className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-slate-400" />

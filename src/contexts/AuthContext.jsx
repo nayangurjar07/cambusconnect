@@ -171,6 +171,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{
+      user: currentUser ? { ...currentUser, ...profile } : null,
       currentUser,
       profile,
       role,

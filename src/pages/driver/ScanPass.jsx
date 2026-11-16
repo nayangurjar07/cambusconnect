@@ -27,9 +27,8 @@ import {
   logBoarding
 } from '../../services/transit';
 import { getStudentProfile } from '../../services/students';
-import { decodeQrFromImageFile } from '../../services/qrDecoder';
 import { verifyTotp } from '../../utils/crypto';
-import { db, collection, doc, onSnapshot, setDoc, serverTimestamp } from '../../config/firebase';
+import { db, collection, doc, getDoc, onSnapshot, setDoc, serverTimestamp } from '../../config/firebase';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -37,7 +36,7 @@ import { Badge } from '../../components/ui/Badge';
 import { ValidateBusPassScanner } from '../../components/domain/ValidateBusPassScanner';
 
 export function DriverScanPass() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { tenantKey } = useTenant();
   const { showSuccess, showError, showWarning } = useToast();
   const navigate = useNavigate();
@@ -48,12 +47,10 @@ export function DriverScanPass() {
   // Policies & Controls
   const [fastMode, setFastMode] = useState(true);
   const [sameBusScanLock, setSameBusScanLock] = useState(true);
-  const [lockoutMinutes, setLockoutMinutes] = useState(240);
+  const [lockoutMinutes, setLockoutMinutes] = useState(180);
 
-  // Manual & Image Upload State
+  // Manual Input State
   const [manualInput, setManualInput] = useState('');
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef(null);
 
   // Camera & Scanner State
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -290,22 +287,7 @@ export function DriverScanPass() {
     }
   };
 
-  // 5. File Upload QR Scanner
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingImage(true);
-    try {
-      const decodedText = await decodeQrFromImageFile(file);
-      showSuccess('QR Code successfully decoded from image!');
-      await handleScannedData(decodedText);
-    } catch (err) {
-      showError(err.message || 'Could not read a QR code from this image.');
-    } finally {
-      setUploadingImage(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
+
 
   const handleScannedData = async (rawInput) => {
     if (scanLockActive) return;
@@ -452,28 +434,45 @@ export function DriverScanPass() {
         return;
       }
 
-      // Anti-Passback / Same Bus Lock
+      // Layer 4: Atomic Firestore Anti-Passback Shift Lock (3-Hour Shift Lockout)
       const sId = student.collegeId || student.enrollment || student.id || student.email;
-      const now = Date.now();
-      const lastScannedTime = localScanLogs.current[sId] || 0;
-      const lockoutMs = lockoutMinutes * 60 * 1000;
+      const cleanStudentKey = String(sId).replace(/[/.]/g, '_');
+      const dateStr = new Date().toISOString().split('T')[0];
+      const shiftId = 'shift_1';
+      const antiPassbackDocId = `${dateStr}_${shiftId}_${cleanStudentKey}`;
+      const antiPassbackRef = doc(db, 'boarding_logs', antiPassbackDocId);
 
-      if (sameBusScanLock && now - lastScannedTime < lockoutMs) {
-        const remainingMinutes = Math.ceil((lockoutMs - (now - lastScannedTime)) / (60 * 1000));
-        playTone('error');
-        setVerificationResult({
-          status: 'rejected',
-          student,
-          reason: `Anti-Passback: Scanned ${Math.round((now - lastScannedTime) / 60000)}m ago on this vehicle.`,
-          recommendation: `Duplicate scan blocked for ${remainingMinutes} more minutes.`
-        });
-        showError(`Duplicate scan blocked (${remainingMinutes}m remaining)`);
-        return;
+      if (sameBusScanLock) {
+        try {
+          const passbackSnap = await getDoc(antiPassbackRef);
+          if (passbackSnap.exists()) {
+            const pbData = passbackSnap.data();
+            const loggedTime = pbData.timestamp?.toDate ? pbData.timestamp.toDate().getTime() : (pbData.createdAt || 0);
+            const diffMs = Date.now() - loggedTime;
+            const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+
+            if (diffMs < THREE_HOURS_MS) {
+              const minsAgo = Math.max(1, Math.round(diffMs / 60000));
+              const prevBus = pbData.busNumber || 'Fleet Vehicle';
+              playTone('error');
+              setVerificationResult({
+                status: 'rejected',
+                student,
+                reason: `ANTI-PASSBACK VIOLATION: Pass already scanned ${minsAgo}m ago on Bus #${prevBus}. Duplicate boarding is locked for this shift.`,
+                recommendation: 'Pass sharing violation. Do not permit passenger to board.'
+              });
+              showError(`Pass Already Used! Scanned ${minsAgo}m ago on Bus #${prevBus}`);
+              return;
+            }
+          }
+        } catch (pbErr) {
+          console.warn("[AntiPassback] Firestore check notice:", pbErr);
+        }
       }
 
       // Approved!
       playTone('success');
-      localScanLogs.current[sId] = now;
+      localScanLogs.current[sId] = Date.now();
 
       setVerificationResult({
         status: 'approved',
@@ -485,8 +484,23 @@ export function DriverScanPass() {
         await handleHeadcountChange(1);
       }
 
-      const dateStr = new Date().toISOString().split('T')[0];
-      const logId = `${sId}_${dateStr}_${Date.now()}`;
+      // 1. Atomic shift anti-passback write
+      await setDoc(antiPassbackRef, {
+        studentId: sId,
+        studentName: student.name || 'Student',
+        studentEmail: student.email || '',
+        busId: selectedBus.id,
+        busNumber: selectedBus.number || '',
+        driverEmail: user?.email || profile?.email || '',
+        driverName: profile?.name || user?.displayName || 'Driver Staff',
+        shiftId: shiftId,
+        stopName: student.pickupStop || student.stop || '',
+        timestamp: serverTimestamp(),
+        createdAt: Date.now()
+      }, { merge: true });
+
+      // 2. Bus specific boarding entry
+      const logId = `${cleanStudentKey}_${dateStr}_${Date.now()}`;
       const logRef = doc(db, `buses/${selectedBus.id}/boardings`, logId);
 
       await setDoc(
@@ -500,7 +514,7 @@ export function DriverScanPass() {
           routeName: selectedBus.route || student.busRoute || '',
           checkInTime: serverTimestamp(),
           date: dateStr,
-          method: tokenPayload ? 'QR Scanner' : 'Manual Entry'
+          method: tokenPayload ? 'Dynamic QR Scanner' : 'Manual Entry'
         },
         { merge: true }
       );
@@ -524,19 +538,8 @@ export function DriverScanPass() {
     }
   };
 
-  const handleQuickDemoScan = () => {
-    executeVerify('nayan@indoreinstitute.com');
-  };
-
   return (
     <div className="max-w-5xl mx-auto px-4 py-5 space-y-5 font-sans text-slate-900">
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileUpload}
-        accept="image/*"
-        className="hidden"
-      />
 
       {/* Page Header */}
       <PageHeader
@@ -661,19 +664,6 @@ export function DriverScanPass() {
                 compact={false}
               />
 
-              <div className="text-center pt-1 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImage}
-                  className="text-xs text-slate-500 hover:text-blue-600 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Upload className="w-3.5 h-3.5 text-blue-600" />
-                  <span>
-                    Or <strong className="font-semibold underline">upload QR screenshot / image</strong>
-                  </span>
-                </button>
-              </div>
             </CardBody>
 
             {/* Verification Result Feedback with Auto-Reset */}
@@ -704,36 +694,55 @@ export function DriverScanPass() {
                 </div>
 
                 {verificationResult.student && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mt-2.5">
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">Student</span>
-                      <span className="font-bold text-slate-900 truncate block mt-0.5">
-                        {verificationResult.student.name}
-                      </span>
+                  <div className="space-y-2 mt-2.5">
+                    <div className="flex items-center gap-3 p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-700 text-sm shrink-0">
+                        {verificationResult.student.photoURL ? (
+                          <img 
+                            src={verificationResult.student.photoURL} 
+                            alt={verificationResult.student.name} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          verificationResult.student.name?.charAt(0).toUpperCase() || 'S'
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Verified Student</span>
+                        <h4 className="font-bold text-slate-900 truncate leading-tight">
+                          {verificationResult.student.name}
+                        </h4>
+                        <p className="text-[11px] font-medium text-slate-500 tabular-nums truncate">
+                          ID: {verificationResult.student.collegeId || verificationResult.student.enrollment || '—'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">ID / Roll No</span>
-                      <span className="font-bold text-slate-900 truncate block mt-0.5 tabular-nums">
-                        {verificationResult.student.collegeId || verificationResult.student.enrollment || '—'}
-                      </span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">Assigned Route</span>
-                      <span className="font-bold text-slate-900 truncate block mt-0.5">
-                        {verificationResult.student.busRoute || selectedBus?.route || 'Campus Route'}
-                      </span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">Validity</span>
-                      <span className="font-bold text-slate-900 truncate block mt-0.5">
-                        {verificationResult.student.passValidity || 'Active'}
-                      </span>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Assigned Stop</span>
+                        <span className="font-bold text-slate-900 truncate block mt-0.5">
+                          {verificationResult.student.pickupStop || verificationResult.student.stop || 'Campus Stop'}
+                        </span>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Assigned Route</span>
+                        <span className="font-bold text-slate-900 truncate block mt-0.5">
+                          {verificationResult.student.busRoute || selectedBus?.route || 'Campus Route'}
+                        </span>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs col-span-2 sm:col-span-1">
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Validity</span>
+                        <span className="font-bold text-slate-900 truncate block mt-0.5">
+                          {verificationResult.student.passValidity || 'Active'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {verificationResult.reason && (
-                  <p className="mt-2 text-slate-600">
+                  <p className="mt-2 text-slate-600 font-medium">
                     <strong>Detail:</strong> {verificationResult.reason}
                   </p>
                 )}
@@ -765,11 +774,11 @@ export function DriverScanPass() {
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="e.g. nayan@indoreinstitute.com"
+                    placeholder="e.g. 0827CS211001 or student@institution.edu"
                     value={manualInput}
                     onChange={(e) => setManualInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && executeVerify(manualInput)}
-                    className="flex-1 px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 placeholder:text-slate-400"
+                    className="flex-1 px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 placeholder:text-slate-400 font-medium"
                   />
                   <Button
                     variant="primary"
@@ -780,17 +789,6 @@ export function DriverScanPass() {
                     Verify
                   </Button>
                 </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={handleQuickDemoScan}
-                  className="w-full py-2 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Simulate Test Student Verification</span>
-                </button>
               </div>
             </CardBody>
           </Card>

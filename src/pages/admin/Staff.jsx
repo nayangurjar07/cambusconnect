@@ -151,6 +151,10 @@ export function AdminStaff() {
       showError('Name and Email are required.');
       return;
     }
+    if (formData.phone && !/^[6-9]\d{9}$/.test(formData.phone.trim())) {
+      showError('Please enter a valid 10-digit phone number (starts with 6, 7, 8, or 9).');
+      return;
+    }
     if (conflictCheck.hasConflict) {
       showError(conflictCheck.message);
       return;
@@ -184,6 +188,8 @@ export function AdminStaff() {
   };
 
   const filteredStaff = staff.filter((s) => {
+    const roleLower = (s.role || '').toLowerCase();
+    if (roleLower === 'admin' || roleLower === 'superadmin' || roleLower === 'owner') return false;
     if (s.status === 'Terminated' || s.role === 'revoked') return false;
     if (roleFilter !== 'all' && s.role !== roleFilter) return false;
     if (!searchQuery.trim()) return true;

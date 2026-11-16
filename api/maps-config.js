@@ -54,7 +54,9 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
   'https://cambusconnect.web.app',
-  'https://cambus-connect-iist.firebaseapp.com'
+  'https://cambus-connect-iist.firebaseapp.com',
+  'https://cambusconnect.in',
+  'https://www.cambusconnect.in'
 ];
 
 export default async function handler(req, res) {

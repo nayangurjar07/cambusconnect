@@ -64,7 +64,34 @@ export async function getPaginatedStudents(pageSize = 25, lastVisible = null, ro
 
   try {
     const snap = await getDocs(q);
-    const students = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let students = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Dual-Collection Sync: Also check users collection for role === 'student' to ensure no registered student is missed
+    if (students.length === 0 || students.length < pageSize) {
+      try {
+        const usersCol = collection(db, 'users');
+        const userConditions = [where('role', '==', 'student')];
+        if (routeFilter !== 'ALL') {
+          userConditions.push(where('busRoute', '==', routeFilter));
+        }
+        const userSnap = await getDocs(query(usersCol, ...userConditions, limit(pageSize)));
+        const existingEmails = new Set(students.map(s => (s.email || s.id || '').toLowerCase()));
+        
+        userSnap.docs.forEach(d => {
+          const uData = d.data();
+          const email = (uData.email || d.id).toLowerCase();
+          if (!existingEmails.has(email)) {
+            students.push({ id: d.id, ...uData });
+            existingEmails.add(email);
+            // Self-healing auto-mirror to students collection
+            setDoc(doc(db, 'students', email), { ...uData, email }, { merge: true }).catch(() => {});
+          }
+        });
+      } catch (userErr) {
+        console.warn("[Students] Notice querying users collection fallback:", userErr);
+      }
+    }
+
     const newLastVisible = snap.docs[snap.docs.length - 1];
 
     // Get total count for pagination math with 1-minute caching
@@ -76,7 +103,7 @@ export async function getPaginatedStudents(pageSize = 25, lastVisible = null, ro
     } else {
       const countQuery = query(studentsCol, ...conditions);
       const countSnapshot = await getCountFromServer(countQuery);
-      totalCount = countSnapshot.data().count;
+      totalCount = Math.max(countSnapshot.data().count, students.length);
       totalCountCache = { key: countKey, count: totalCount, timestamp: Date.now() };
     }
 

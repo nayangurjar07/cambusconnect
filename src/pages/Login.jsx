@@ -34,15 +34,23 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const getDestination = (resProfile, chosenRole) => {
+    const r = (resProfile?.role || chosenRole || '').toLowerCase();
+    if (r === 'owner' || r === 'superadmin') return '/owner/dashboard';
+    if (r === 'admin') return '/admin/dashboard';
+    if (r === 'driver' || r === 'conductor') return '/driver/dashboard';
+    return '/student/home';
+  };
+
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      await loginGoogle(selectedRole);
-      showSuccess(`Signed in with Google as ${selectedRole}`);
-      const destination = roles.find(r => r.id === selectedRole)?.path || '/';
-      const from = location.state?.from?.pathname || destination;
-      navigate(from, { replace: true });
+      const res = await loginGoogle(selectedRole);
+      showSuccess(`Signed in successfully`);
+      const destination = getDestination(res?.profile, selectedRole);
+      const from = location.state?.from?.pathname;
+      navigate(from && from !== '/login' ? from : destination, { replace: true });
     } catch (err) {
       const msg = err.message || "Google sign-in failed.";
       setErrorMessage(msg);
@@ -56,7 +64,6 @@ export function LoginPage() {
     { id: 'student', label: 'Student', icon: User, path: '/student/home' },
     { id: 'driver', label: 'Driver', icon: Bus, path: '/driver/dashboard' },
     { id: 'admin', label: 'Admin', icon: Briefcase, path: '/admin/dashboard' },
-    { id: 'owner', label: 'Owner', icon: Shield, path: '/owner/dashboard' },
   ];
 
   const handleLoginSubmit = async (e) => {
@@ -73,12 +80,12 @@ export function LoginPage() {
     setErrorMessage('');
 
     try {
-      await login(cleanEmail, cleanPassword, selectedRole);
-      showSuccess(`Signed in successfully as ${selectedRole}`);
+      const res = await login(cleanEmail, cleanPassword, selectedRole);
+      showSuccess(`Signed in successfully`);
 
-      const destination = roles.find(r => r.id === selectedRole)?.path || '/';
-      const from = location.state?.from?.pathname || destination;
-      navigate(from, { replace: true });
+      const destination = getDestination(res?.profile, selectedRole);
+      const from = location.state?.from?.pathname;
+      navigate(from && from !== '/login' ? from : destination, { replace: true });
     } catch (err) {
       let msg = err.message || "Invalid credentials or unauthorized access.";
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
@@ -100,19 +107,16 @@ export function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-50/60 text-slate-900 flex flex-col justify-between font-sans">
       {/* Top Simple Nav */}
-      <header className="px-6 py-4 flex items-center justify-between border-b border-slate-200/70 bg-white/80 backdrop-blur-md sticky top-0 z-20">
+      <header className="px-6 py-4 flex items-center justify-between border-b border-slate-200/70 bg-white sticky top-0 z-20">
         <Link to="/" className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/25">
             <Bus className="w-5 h-5" />
           </div>
           <div>
             <span className="font-bold text-sm text-slate-900 block leading-tight">Cambus Connect</span>
-            <span className="text-[10px] text-slate-400 font-medium">Smart Transit</span>
+            <span className="text-[10px] text-slate-400 font-medium">Campus Mobility</span>
           </div>
         </Link>
-        <span className="px-3 py-1 rounded-full bg-slate-100 border border-slate-200/60 text-xs font-medium text-slate-700">
-          Campus: <strong className="text-slate-900 font-semibold">{tenant.branding?.shortName || "IIST"}</strong>
-        </span>
       </header>
 
       {/* Main Login Card */}
@@ -128,7 +132,7 @@ export function LoginPage() {
           </div>
 
           {/* Role Tab Selector */}
-          <div className="grid grid-cols-4 gap-1 p-1.5 bg-slate-100 rounded-2xl border border-slate-200/60">
+          <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-100 rounded-2xl border border-slate-200/60">
             {roles.map((r) => {
               const Icon = r.icon;
               const isSelected = selectedRole === r.id;

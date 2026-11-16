@@ -86,6 +86,7 @@ export default defineConfig(({ mode }) => {
       backendMapsPlugin(env),
     ],
     build: {
+      sourcemap: false,
       rollupOptions: {
         output: {
           manualChunks(id) {
@@ -99,7 +100,7 @@ export default defineConfig(({ mode }) => {
               if (id.includes('lucide-react')) {
                 return 'vendor-icons';
               }
-              if (id.includes('html5-qrcode') || id.includes('jsqr') || id.includes('pngjs')) {
+              if (id.includes('html5-qrcode') || id.includes('jsqr') || id.includes('pngjs') || id.includes('qrcode')) {
                 return 'vendor-scanner';
               }
               return 'vendor-utils';
@@ -108,6 +109,9 @@ export default defineConfig(({ mode }) => {
         },
       },
       chunkSizeWarningLimit: 600,
+    },
+    oxc: {
+      drop: mode === 'production' ? ['console', 'debugger'] : [],
     },
     server: {
       port: 5173,

@@ -95,7 +95,24 @@ service cloud.firestore {
         isAdmin() ||
         isDriverOrConductor()
       );
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() && (
+          isOwnerOf(studentId) || 
+          request.auth.token.email.lower() == studentId.lower()
+        ) &&
+        (!('role' in request.resource.data) || request.resource.data.role == resource.data.role) &&
+        (!('passValidity' in request.resource.data) || request.resource.data.passValidity == resource.data.passValidity) &&
+        (!('status' in request.resource.data) || request.resource.data.status == resource.data.status)
+      );
+    }
+
+    // =========================================================================
+    // BOARDING LOGS (Atomic Anti-Passback Shift Locks)
+    // =========================================================================
+    match /boarding_logs/{logId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (isAdmin() || isDriverOrConductor());
     }
 
     // =========================================================================

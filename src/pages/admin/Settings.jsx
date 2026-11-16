@@ -95,8 +95,7 @@ export function AdminSettings() {
         tabs={[
           { id: 'general', label: 'General & Branding' },
           { id: 'fleet', label: 'Fleet & Policy Parameters' },
-          { id: 'schema', label: 'Student CSV Schema' },
-          { id: 'diagnostics', label: 'System Diagnostics' }
+          { id: 'schema', label: 'Student CSV Schema' }
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
@@ -299,6 +298,23 @@ export function AdminSettings() {
             </div>
           </div>
 
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div>
+              <h4 className="text-xs font-bold text-slate-800">Clear Local Application Cache</h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">Resets cached routes, stops, and localized storage tokens without affecting cloud records.</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              icon={RefreshCw}
+              onClick={handleClearCache}
+              className="rounded-2xl"
+            >
+              Clear Cache
+            </Button>
+          </div>
+
           <div className="flex justify-end pt-1">
             <Button
               type="submit"
@@ -317,60 +333,6 @@ export function AdminSettings() {
       {/* ─── TAB 3: Student CSV Schema ─── */}
       {activeTab === 'schema' && (
         <StudentSchemaEditor />
-      )}
-
-      {/* ─── TAB 4: System Diagnostics ─── */}
-      {activeTab === 'diagnostics' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-slate-200/80 space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Database className="w-5 h-5 text-blue-600" />
-                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest">
-                  System Diagnostics & Environment
-                </h3>
-              </div>
-              <Badge variant="success" dot>Healthy</Badge>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-150">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Database Provider</span>
-                <span className="text-sm font-bold text-slate-900 block mt-1">Firebase Firestore</span>
-                <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">● Connected</span>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-150">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Campus Tenant Partition</span>
-                <span className="text-sm font-bold text-blue-600 block mt-1">{tenantKey?.toUpperCase()}</span>
-                <span className="text-[10px] text-slate-500 font-semibold mt-0.5 block">Multi-Tenant Isolation Enforced</span>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-150">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Security Mode</span>
-                <span className="text-sm font-bold text-slate-900 block mt-1">RBAC + Tenant Gated</span>
-                <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">Zero Trust Enforced</span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-              <div>
-                <h4 className="text-xs font-bold text-slate-800">Clear Local Application Cache</h4>
-                <p className="text-[11px] text-slate-400 mt-0.5">Resets cached routes, stops, and simulated passes without affecting cloud data.</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                icon={RefreshCw}
-                onClick={handleClearCache}
-                className="rounded-2xl"
-              >
-                Clear Cache
-              </Button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

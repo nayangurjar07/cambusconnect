@@ -94,8 +94,8 @@ export function AdminNotifications() {
               onChange={(e) => setTitle(e.target.value)}
             />
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="flex flex-col gap-1 sm:col-span-1">
                 <label className="text-xs font-medium text-gray-700">Type</label>
                 <select
                   className="w-full bg-white border border-gray-200 rounded-md px-2.5 py-1.5 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
@@ -109,10 +109,10 @@ export function AdminNotifications() {
                 </select>
               </div>
 
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 sm:col-span-2">
                 <label className="text-xs font-medium text-gray-700">Target Route</label>
                 <select
-                  className="w-full bg-white border border-gray-200 rounded-md px-2.5 py-1.5 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                  className="w-full bg-white border border-gray-200 rounded-md px-2.5 py-1.5 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 truncate"
                   value={targetRouteId}
                   onChange={(e) => setTargetRouteId(e.target.value)}
                 >

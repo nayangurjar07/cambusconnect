@@ -375,9 +375,9 @@ export function FleetMap({
         </span>
       </div>
 
-      {/* Overlay when selected bus has never broadcasted coordinates yet */}
+      {/* Overlay when selected bus has never broadcasted coordinates yet (Centered so it does not block Google logo or zoom controls) */}
       {focusedBus && focusedMissingCoords && (
-        <div className="absolute inset-x-4 bottom-4 z-30 bg-white/95 backdrop-blur-md text-slate-800 p-3.5 rounded-xl border border-rose-200/80 flex items-center justify-between gap-3 shadow-lg">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-12 z-30 max-w-md w-[90%] bg-white/95 backdrop-blur-md text-slate-800 p-3 rounded-xl border border-rose-200/80 flex items-center justify-between gap-3 shadow-lg">
           <div>
             <span className="text-[10px] uppercase font-bold tracking-wider text-rose-600 block">
               No GPS Coordinates Broadcasted

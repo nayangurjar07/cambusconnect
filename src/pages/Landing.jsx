@@ -104,7 +104,7 @@ export function LandingPage() {
               <div className="text-xs text-gray-500 mt-0.5">Campus Data Isolation</div>
             </div>
             <div className="p-2">
-              <div className="text-xl font-semibold text-gray-900">Anti-Passback</div>
+              <div className="text-xl font-semibold text-gray-900 whitespace-nowrap">Anti-Passback</div>
               <div className="text-xs text-gray-500 mt-0.5">Fraud Prevention Lock</div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 // src/utils/crypto.js
 
-const TIME_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+export const TIME_STEP_MS = 15 * 1000; // 15-second rotating TOTP window
 
 /**
  * Generates a random cryptographic secret for a new student.
@@ -25,36 +25,43 @@ async function generateHash(secret, timeIndex) {
 
 /**
  * Generates the current TOTP payload for a student.
+ * Rotates every 15 seconds and includes persistent deviceSessionId for single-device binding.
  */
-export async function generateTotpPayload(email, secret) {
-  const timeIndex = Math.floor(Date.now() / TIME_WINDOW_MS);
+export async function generateTotpPayload(email, secret, deviceSessionId = null) {
+  const timeIndex = Math.floor(Date.now() / TIME_STEP_MS);
   const hash = await generateHash(secret, timeIndex);
   
-  return JSON.stringify({
+  const payload = {
     email,
     totp: hash,
     t: timeIndex
-  });
+  };
+
+  if (deviceSessionId) {
+    payload.d = String(deviceSessionId).slice(0, 12);
+  }
+  
+  return JSON.stringify(payload);
 }
 
 /**
  * Verifies a scanned TOTP payload against the student's secret in the database.
- * Allows a 1-window grace period (previous 15 mins) to account for clock skew/edge scanning.
+ * Accepts a ±1 time step window (30-second window) to accommodate device clock drift.
  */
 export async function verifyTotp(scannedTotp, secret) {
   if (!scannedTotp || !secret || typeof secret !== 'string' || secret.trim().length === 0) {
     return false;
   }
 
-  const currentTimeIndex = Math.floor(Date.now() / TIME_WINDOW_MS);
+  const currentTimeIndex = Math.floor(Date.now() / TIME_STEP_MS);
   
-  // Check current time window
-  const expectedHashCurrent = await generateHash(secret, currentTimeIndex);
-  if (scannedTotp === expectedHashCurrent) return true;
-  
-  // Check previous time window (grace period for edge cases)
-  const expectedHashPrevious = await generateHash(secret, currentTimeIndex - 1);
-  if (scannedTotp === expectedHashPrevious) return true;
+  // Check current and adjacent steps (±1 step grace period for clock skew)
+  for (let offset = -1; offset <= 1; offset++) {
+    const expectedHash = await generateHash(secret, currentTimeIndex + offset);
+    if (scannedTotp === expectedHash) {
+      return true;
+    }
+  }
   
   return false;
 }

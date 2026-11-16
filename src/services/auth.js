@@ -64,8 +64,28 @@ export async function loginUser(rawEmailOrId, password, expectedRole = null) {
   userData.email = email;
 
   // Validate role if expectedRole specified
-  if (expectedRole && resolvedRole !== expectedRole.toLowerCase()) {
-    throw new Error(`Role mismatch: Account is registered as "${resolvedRole}", but attempting to access ${expectedRole} portal.`);
+  const normExpected = (expectedRole || '').toLowerCase();
+  const isRoleCompatible = (expected, actual) => {
+    if (!expected) return true;
+    if (expected === actual) return true;
+    if (expected === 'admin' && (actual === 'owner' || actual === 'superadmin')) return true;
+    if (expected === 'driver' && actual === 'conductor') return true;
+    return false;
+  };
+
+  if (normExpected && !isRoleCompatible(normExpected, resolvedRole)) {
+    await firebaseSignOut(auth).catch(() => {});
+    localStorage.clear();
+    sessionStorage.clear();
+    if (normExpected === 'admin') {
+      throw new Error("Access Denied: Your account does not have Admin privileges.");
+    } else if (normExpected === 'driver') {
+      throw new Error("Access Denied: Your account does not have Driver/Conductor privileges.");
+    } else if (normExpected === 'student') {
+      throw new Error("Access Denied: This portal is restricted to registered students.");
+    } else {
+      throw new Error(`Access Denied: Account registered as "${resolvedRole}", unauthorized for ${expectedRole} portal.`);
+    }
   }
 
   // Check pass validity if student
@@ -142,8 +162,28 @@ export async function loginWithGoogle(expectedRole = null) {
   userData.role = resolvedRole;
   userData.email = email;
 
-  if (expectedRole && resolvedRole !== expectedRole.toLowerCase()) {
-    throw new Error(`Role mismatch: Account is registered as "${resolvedRole}", but attempting to access ${expectedRole} portal.`);
+  const normExpected = (expectedRole || '').toLowerCase();
+  const isRoleCompatible = (expected, actual) => {
+    if (!expected) return true;
+    if (expected === actual) return true;
+    if (expected === 'admin' && (actual === 'owner' || actual === 'superadmin')) return true;
+    if (expected === 'driver' && actual === 'conductor') return true;
+    return false;
+  };
+
+  if (normExpected && !isRoleCompatible(normExpected, resolvedRole)) {
+    await firebaseSignOut(auth).catch(() => {});
+    localStorage.clear();
+    sessionStorage.clear();
+    if (normExpected === 'admin') {
+      throw new Error("Access Denied: Your account does not have Admin privileges.");
+    } else if (normExpected === 'driver') {
+      throw new Error("Access Denied: Your account does not have Driver/Conductor privileges.");
+    } else if (normExpected === 'student') {
+      throw new Error("Access Denied: This portal is restricted to registered students.");
+    } else {
+      throw new Error(`Access Denied: Account registered as "${resolvedRole}", unauthorized for ${expectedRole} portal.`);
+    }
   }
 
   if (resolvedRole === 'student' && userData.passValidity) {

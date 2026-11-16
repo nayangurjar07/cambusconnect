@@ -31,7 +31,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 
 export function DriverDashboard() {
-  const { user } = useAuth();
+  const { user, profile, currentUser } = useAuth();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
@@ -43,7 +43,7 @@ export function DriverDashboard() {
   const [simulationMode, setSimulationMode] = useState(false);
 
   // Live Hardware Telemetry State
-  const [coords, setCoords] = useState({ lat: null, lng: null, speed: 0, accuracy: null });
+  const [coords, setCoords] = useState({ lat: null, lng: null, speed: null, accuracy: null });
   const [gpsError, setGpsError] = useState('');
   const [activeWatchers, setActiveWatchers] = useState(0);
   const [syncMode, setSyncMode] = useState('OFFLINE'); // 'HIGH_FREQ_WATCHED' | 'ECO_IDLE' | 'OFFLINE'
@@ -55,16 +55,18 @@ export function DriverDashboard() {
   const latestCoordsRef = useRef({ lat: null, lng: null, speed: 0, accuracy: 10 });
   const wakeLockRef = useRef(null);
 
+  const displayName = profile?.name || currentUser?.displayName || user?.name || 'Driver Staff';
+  const userEmail = (profile?.email || currentUser?.email || user?.email || '').toLowerCase().trim();
+
   // Load Fleet & Auto-Select Assigned Bus
   useEffect(() => {
     const unsub = subscribeToBuses((fleet) => {
       setBuses(fleet);
       if (!selectedBusId && fleet.length > 0) {
-        const userEmail = user?.email?.toLowerCase().trim();
         const assigned = fleet.find(
           (b) =>
-            String(b.number) === String(user?.assignedBus) ||
-            b.id === user?.assignedBusId ||
+            String(b.number) === String(profile?.assignedBusNumber || user?.assignedBus) ||
+            b.id === (profile?.assignedBusId || user?.assignedBusId) ||
             b.primaryDriver?.email === userEmail ||
             b.secondaryDriver?.email === userEmail ||
             b.primaryConductor?.email === userEmail ||
@@ -78,10 +80,10 @@ export function DriverDashboard() {
       }
     });
     return () => unsub();
-  }, [user, selectedBusId]);
+  }, [profile, user, userEmail, selectedBusId]);
 
   const currentBus = buses.find((b) => b.id === selectedBusId) || null;
-  const roleLabel = getStaffRoleLabel(user?.role || 'driver', user?.roleTier || 'primary');
+  const roleLabel = getStaffRoleLabel(profile?.role || user?.role || 'driver', profile?.roleTier || user?.roleTier || 'primary');
 
   // Request Screen WakeLock while broadcasting
   const acquireWakeLock = async () => {
@@ -224,6 +226,7 @@ export function DriverDashboard() {
     setIsBroadcasting(false);
     setIsStandby(false);
     setSyncMode('OFFLINE');
+    setCoords({ lat: null, lng: null, speed: null, accuracy: null });
     latestCoordsRef.current = { lat: null, lng: null, speed: 0, accuracy: null };
     if (selectedBusId) {
       await releaseBusLiveStream(selectedBusId, user?.email);
@@ -277,7 +280,7 @@ export function DriverDashboard() {
       {/* Page Header */}
       <PageHeader
         title="Onboard Telemetry Cockpit"
-        subtitle={`Logged in as ${user?.name || user?.email} (${roleLabel})`}
+        subtitle={`Logged in as ${displayName} (${roleLabel})`}
         badge={
           <Badge variant="primary" dot>
             Active Crew
@@ -354,7 +357,7 @@ export function DriverDashboard() {
               </div>
             </div>
 
-            {!isBroadcasting && (
+            {!isBroadcasting && !import.meta.env.PROD && (
               <label className="flex items-center gap-2 text-xs font-semibold bg-slate-50 hover:bg-slate-100 px-3.5 py-2 rounded-xl cursor-pointer select-none border border-slate-200 transition-colors">
                 <input
                   type="checkbox"
