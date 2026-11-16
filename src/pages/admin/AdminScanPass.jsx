@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   QrCode, Search, CheckCircle2, XCircle, Plus, Minus, RotateCcw, 
-  ShieldCheck, Clock, Trash2, Lock, Sparkles, Upload, Download 
+  ShieldCheck, Clock, Trash2, Lock, Download 
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { subscribeToBuses, updateBusHeadcount, incrementBusHeadcount } from '../../services/transit';
@@ -614,9 +614,9 @@ export function AdminScanPass() {
             </select>
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 pt-1">
-              <span>Driver: <strong className="font-medium text-gray-800">{selectedBus?.driver || 'Mahesh'}</strong></span>
+              <span>Driver: <strong className="font-medium text-gray-800">{selectedBus?.driver || selectedBus?.driverName || 'Unassigned'}</strong></span>
               <span>•</span>
-              <span>Conductor: <strong className="font-medium text-gray-800">{selectedBus?.conductor || 'Amit'}</strong></span>
+              <span>Conductor: <strong className="font-medium text-gray-800">{selectedBus?.conductor || selectedBus?.conductorName || 'Unassigned'}</strong></span>
               <span>•</span>
               <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -744,8 +744,6 @@ export function AdminScanPass() {
             {/* Viewfinder Area - Minimalist, Compact & Light Surface (No harsh black or green) */}
             <div 
               className="p-5 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/30 flex flex-col items-center justify-center border-b border-slate-100"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleDrop}
             >
               <ValidateBusPassScanner
                 elementId="admin-qr-viewfinder"

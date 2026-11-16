@@ -300,8 +300,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updateHeadcountUI();
 
         if (!newBusId) {
-            telemetryDriver.textContent = '--';
-            telemetryConductor.textContent = '--';
+            if (telemetryDriver) telemetryDriver.textContent = '--';
+            if (telemetryConductor) telemetryConductor.textContent = '--';
             if (headcountDisplay) headcountDisplay.value = 0;
             if (headerHeadcountBadge) headerHeadcountBadge.textContent = '0';
             if (boardingsList) boardingsList.innerHTML = '<p class="text-center py-12 text-slate-400 text-xs font-semibold" id="log-empty-state"><span class="material-symbols-outlined text-2xl text-slate-300 block mb-1">history_toggle_off</span><span>No passengers boarded yet.</span></p>';
@@ -317,14 +317,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedBusData = { id: doc.id, ...doc.data() };
             } else {
                 selectedBusData = null;
-                telemetryDriver.textContent = '--';
-                telemetryConductor.textContent = '--';
+                if (telemetryDriver) telemetryDriver.textContent = '--';
+                if (telemetryConductor) telemetryConductor.textContent = '--';
                 return;
             }
 
             // Sync UI Telemetry Fields
-            telemetryDriver.textContent = selectedBusData.driver || 'No Driver';
-            telemetryConductor.textContent = selectedBusData.conductor || 'No Conductor';
+            if (telemetryDriver) telemetryDriver.textContent = selectedBusData.driver || 'No Driver';
+            if (telemetryConductor) telemetryConductor.textContent = selectedBusData.conductor || 'No Conductor';
             
             if (headcountDisplay) {
                 headcountDisplay.value = selectedBusData.headcount || 0;
@@ -1204,8 +1204,10 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `).join('');
 
-        modalStudentMoreInfo.classList.add('flex');
-        modalStudentMoreInfo.classList.remove('hidden');
+        if (modalStudentMoreInfo) {
+            modalStudentMoreInfo.classList.add('flex');
+            modalStudentMoreInfo.classList.remove('hidden');
+        }
     }
 
     function closeMoreInfoModal() {

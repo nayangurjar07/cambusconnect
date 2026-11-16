@@ -11,6 +11,7 @@ import {
   deleteBus,
   getBusTrackingHealth
 } from '../../services/transit';
+import { subscribeToStaff, updateStaffMember } from '../../services/workforce';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -22,7 +23,9 @@ const INITIAL_BUS_FORM = {
   route: '',
   routeId: '',
   capacity: 45,
-  status: 'On Time'
+  status: 'On Time',
+  driverEmail: '',
+  conductorEmail: ''
 };
 
 export function AdminBuses() {
@@ -30,6 +33,7 @@ export function AdminBuses() {
   const navigate = useNavigate();
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
+  const [staff, setStaff] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBusId, setEditingBusId] = useState(null);
   const [formData, setFormData] = useState(INITIAL_BUS_FORM);
@@ -38,11 +42,16 @@ export function AdminBuses() {
   useEffect(() => {
     const unsubBuses = subscribeToBuses(setBuses);
     const unsubRoutes = subscribeToRoutes(setRoutes);
+    const unsubStaff = subscribeToStaff(setStaff);
     return () => {
       unsubBuses();
       unsubRoutes();
+      unsubStaff();
     };
   }, []);
+
+  const drivers = staff.filter(s => s.role === 'driver' && s.status !== 'Terminated');
+  const conductors = staff.filter(s => s.role === 'conductor' && s.status !== 'Terminated');
 
   const openCreateModal = () => {
     setEditingBusId(null);
@@ -52,13 +61,17 @@ export function AdminBuses() {
 
   const openEditModal = (bus) => {
     setEditingBusId(bus.id);
+    const activeDriverEmail = bus.primaryDriver?.email || bus.driverEmail || '';
+    const activeConductorEmail = bus.primaryConductor?.email || bus.conductorEmail || '';
     setFormData({
       number: bus.number || '',
       registrationNumber: bus.registrationNumber || '',
       route: bus.route || '',
       routeId: bus.routeId || '',
       capacity: bus.capacity || 45,
-      status: bus.status || 'On Time'
+      status: bus.status || 'On Time',
+      driverEmail: activeDriverEmail,
+      conductorEmail: activeConductorEmail
     });
     setIsModalOpen(true);
   };
@@ -80,11 +93,72 @@ export function AdminBuses() {
     }
     setSaving(true);
     try {
+      const selectedDriver = drivers.find(d => d.email.toLowerCase() === (formData.driverEmail || '').toLowerCase());
+      const selectedConductor = conductors.find(c => c.email.toLowerCase() === (formData.conductorEmail || '').toLowerCase());
+
+      const busPayload = {
+        number: formData.number.trim(),
+        registrationNumber: formData.registrationNumber.trim(),
+        route: formData.route,
+        routeId: formData.routeId,
+        capacity: Number(formData.capacity) || 45,
+        status: formData.status,
+        driver: selectedDriver?.name || '',
+        driverName: selectedDriver?.name || '',
+        driverEmail: selectedDriver?.email || '',
+        driverId: selectedDriver?.email || '',
+        phone: selectedDriver?.phone || '',
+        driverEmails: selectedDriver?.email ? [selectedDriver.email] : [],
+        primaryDriver: selectedDriver ? {
+          name: selectedDriver.name,
+          email: selectedDriver.email,
+          phone: selectedDriver.phone || ''
+        } : null,
+        conductor: selectedConductor?.name || '',
+        conductorName: selectedConductor?.name || '',
+        conductorEmail: selectedConductor?.email || '',
+        conductorPhone: selectedConductor?.phone || '',
+        conductorEmails: selectedConductor?.email ? [selectedConductor.email] : [],
+        primaryConductor: selectedConductor ? {
+          name: selectedConductor.name,
+          email: selectedConductor.email,
+          phone: selectedConductor.phone || ''
+        } : null
+      };
+
       if (editingBusId) {
-        await updateBus(editingBusId, formData);
+        await updateBus(editingBusId, busPayload);
+        if (selectedDriver) {
+          await updateStaffMember(selectedDriver.email, {
+            assignedBus: formData.number.trim(),
+            assignedBusId: editingBusId,
+            roleTier: 'primary'
+          });
+        }
+        if (selectedConductor) {
+          await updateStaffMember(selectedConductor.email, {
+            assignedBus: formData.number.trim(),
+            assignedBusId: editingBusId,
+            roleTier: 'primary'
+          });
+        }
         showSuccess(`Updated Bus #${formData.number}`);
       } else {
-        await createBus(formData);
+        const newBusId = await createBus(busPayload);
+        if (selectedDriver) {
+          await updateStaffMember(selectedDriver.email, {
+            assignedBus: formData.number.trim(),
+            assignedBusId: newBusId,
+            roleTier: 'primary'
+          });
+        }
+        if (selectedConductor) {
+          await updateStaffMember(selectedConductor.email, {
+            assignedBus: formData.number.trim(),
+            assignedBusId: newBusId,
+            roleTier: 'primary'
+          });
+        }
         showSuccess(`Registered Bus #${formData.number}`);
       }
       setIsModalOpen(false);
@@ -354,6 +428,45 @@ export function AdminBuses() {
                     <option value="Delayed">Delayed</option>
                     <option value="Breakdown">Breakdown</option>
                     <option value="Maintenance">Maintenance</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Assigned Crew (Driver & Conductor) */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Primary Driver
+                  </label>
+                  <select
+                    value={formData.driverEmail || ''}
+                    onChange={(e) => setFormData({ ...formData, driverEmail: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
+                  >
+                    <option value="">— Unassigned —</option>
+                    {drivers.map((d) => (
+                      <option key={d.email} value={d.email}>
+                        {d.name} ({d.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Primary Conductor
+                  </label>
+                  <select
+                    value={formData.conductorEmail || ''}
+                    onChange={(e) => setFormData({ ...formData, conductorEmail: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
+                  >
+                    <option value="">— Unassigned —</option>
+                    {conductors.map((c) => (
+                      <option key={c.email} value={c.email}>
+                        {c.name} ({c.email})
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

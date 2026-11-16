@@ -48,6 +48,7 @@ export function MobileNav() {
           <NavLink
             key={item.path}
             to={item.path}
+            end={true}
             className={({ isActive }) => `
               flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl text-[10px] font-semibold transition-all min-w-[54px] active:scale-95
               ${isActive 

@@ -29,15 +29,36 @@ export function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    if (window.confirm("Sign out of Cambus Connect?")) {
-      if (typeof window !== 'undefined' && window.CambusCache && typeof window.CambusCache.clearAll === 'function') {
-        window.CambusCache.clearAll();
-      }
-      await logout();
-      localStorage.clear();
-      sessionStorage.clear();
-      window.location.replace('/login');
+    if (typeof window !== 'undefined' && window.CambusCache && typeof window.CambusCache.clearAll === 'function') {
+      window.CambusCache.clearAll();
     }
+    await logout();
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.replace('/login');
+  };
+
+  const handleNavClick = (e) => {
+    const nav = e.currentTarget.closest('nav');
+    if (nav) {
+      nav.querySelectorAll('a').forEach((link) => {
+        link.classList.remove('bg-blue-600/10', 'text-blue-700', 'font-semibold');
+        link.classList.add('text-slate-600');
+        const icon = link.querySelector('svg');
+        if (icon) {
+          icon.classList.remove('text-blue-600');
+          icon.classList.add('text-slate-400');
+        }
+      });
+      e.currentTarget.classList.add('bg-blue-600/10', 'text-blue-700', 'font-semibold');
+      e.currentTarget.classList.remove('text-slate-600');
+      const curIcon = e.currentTarget.querySelector('svg');
+      if (curIcon) {
+        curIcon.classList.add('text-blue-600');
+        curIcon.classList.remove('text-slate-400');
+      }
+    }
+    if (onClose) onClose();
   };
 
   const getNavGroups = () => {
@@ -178,7 +199,7 @@ export function Sidebar({ isOpen, onClose }) {
                       key={item.path}
                       to={item.path}
                       end={true}
-                      onClick={onClose}
+                      onClick={handleNavClick}
                       className={({ isActive }) => `
                         flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 relative
                         ${isActive

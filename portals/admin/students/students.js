@@ -1,4 +1,21 @@
 // students.js - Student Management Logic for Cambus Connect
+function formatPassDatePortal(rawVal) {
+    if (!rawVal) return 'Not Set';
+    try {
+        const d = new Date(rawVal);
+        if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+    } catch (_) {}
+    if (typeof rawVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(rawVal)) {
+        const parts = rawVal.slice(0, 10).split('-');
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const monthName = months[parseInt(parts[1], 10) - 1] || parts[1];
+        return `${parts[2]} ${monthName} ${parts[0]}`;
+    }
+    return String(rawVal);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const authGuard = window.waitForFirebaseAuth || window.waitForFirebase;
@@ -600,7 +617,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="px-6 py-4 text-slate-700 text-sm font-semibold break-words-safe max-w-[180px]">${busInfo}</td>
                 <td class="px-6 py-4">
                     <div class="flex flex-col gap-1">
-                        <span class="text-sm text-slate-700 font-semibold">${student.passValidity || 'Not Set'}</span>
+                        <span class="text-sm text-slate-700 font-semibold">${formatPassDatePortal(student.passValidity)}</span>
                         ${passStatus}
                     </div>
                 </td>
@@ -789,7 +806,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                         <div class="p-4 bg-white rounded-xl border-2 border-slate-200 min-w-0">
                             <p class="text-xs font-bold text-slate-500 mb-1">Pass Validity</p>
-                            <p class="text-sm font-semibold text-slate-800 break-words-safe">${student.passValidity || 'Not Set'}</p>
+                            <p class="text-sm font-semibold text-slate-800 break-words-safe">${formatPassDatePortal(student.passValidity)}</p>
                         </div>
                         <div class="p-4 bg-white rounded-xl border-2 border-slate-200 min-w-0">
                             <p class="text-xs font-bold text-slate-500 mb-1">Sub-Institute</p>

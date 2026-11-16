@@ -79,10 +79,59 @@ export function validateStaffRoleConflict(staffList, busNumber, role, roleTier, 
   return { hasConflict: false };
 }
 
-export async function syncStaffToBus(busNumber, staffData) {
-  if (!busNumber) return;
+export async function syncStaffToBus(busNumber, staffData, oldBusNumber = null) {
   try {
     const busesCol = collection(db, 'buses');
+    const cleanEmail = staffData.email?.toLowerCase().trim() || '';
+
+    // If staff was previously on a different bus, remove them from that bus
+    if (oldBusNumber && String(oldBusNumber).trim() !== String(busNumber || '').trim()) {
+      const oldQ = query(busesCol, where('number', '==', String(oldBusNumber).trim()));
+      const oldSnap = await getDocs(oldQ);
+      if (!oldSnap.empty) {
+        const oldBusDoc = oldSnap.docs[0];
+        const oldBusRef = doc(db, 'buses', oldBusDoc.id);
+        const oldData = oldBusDoc.data();
+        const oldUpdate = {};
+
+        if (staffData.role === 'driver') {
+          if (oldData.primaryDriver?.email?.toLowerCase() === cleanEmail || oldData.driverEmail?.toLowerCase() === cleanEmail) {
+            oldUpdate.primaryDriver = null;
+            oldUpdate.driver = '';
+            oldUpdate.driverName = '';
+            oldUpdate.driverEmail = '';
+            oldUpdate.driverId = '';
+            oldUpdate.phone = '';
+          }
+          if (oldData.secondaryDriver?.email?.toLowerCase() === cleanEmail) {
+            oldUpdate.secondaryDriver = null;
+          }
+          if (Array.isArray(oldData.driverEmails)) {
+            oldUpdate.driverEmails = oldData.driverEmails.filter(e => e.toLowerCase() !== cleanEmail);
+          }
+        } else if (staffData.role === 'conductor') {
+          if (oldData.primaryConductor?.email?.toLowerCase() === cleanEmail || oldData.conductorEmail?.toLowerCase() === cleanEmail) {
+            oldUpdate.primaryConductor = null;
+            oldUpdate.conductor = '';
+            oldUpdate.conductorName = '';
+            oldUpdate.conductorEmail = '';
+            oldUpdate.conductorPhone = '';
+          }
+          if (oldData.secondaryConductor?.email?.toLowerCase() === cleanEmail) {
+            oldUpdate.secondaryConductor = null;
+          }
+          if (Array.isArray(oldData.conductorEmails)) {
+            oldUpdate.conductorEmails = oldData.conductorEmails.filter(e => e.toLowerCase() !== cleanEmail);
+          }
+        }
+        if (Object.keys(oldUpdate).length > 0) {
+          await updateDoc(oldBusRef, { ...oldUpdate, updatedAt: serverTimestamp() });
+        }
+      }
+    }
+
+    if (!busNumber) return;
+
     const q = query(busesCol, where('number', '==', String(busNumber).trim()));
     const snap = await getDocs(q);
     if (!snap.empty) {
@@ -93,7 +142,7 @@ export async function syncStaffToBus(busNumber, staffData) {
       const tier = staffData.roleTier || 'primary';
       const staffObj = {
         name: staffData.name || '',
-        email: staffData.email?.toLowerCase().trim() || '',
+        email: cleanEmail,
         phone: staffData.phone || ''
       };
 
@@ -102,12 +151,15 @@ export async function syncStaffToBus(busNumber, staffData) {
         if (tier === 'primary') {
           busUpdate.primaryDriver = staffObj;
           busUpdate.driver = staffObj.name;
+          busUpdate.driverName = staffObj.name;
+          busUpdate.driverEmail = staffObj.email;
+          busUpdate.driverId = staffObj.email;
           busUpdate.phone = staffObj.phone;
         } else {
           busUpdate.secondaryDriver = staffObj;
         }
         const existingEmails = Array.isArray(busData.driverEmails) ? [...busData.driverEmails] : [];
-        if (staffObj.email && !existingEmails.includes(staffObj.email)) {
+        if (staffObj.email && !existingEmails.some(e => e.toLowerCase() === staffObj.email)) {
           existingEmails.push(staffObj.email);
         }
         busUpdate.driverEmails = existingEmails;
@@ -115,12 +167,14 @@ export async function syncStaffToBus(busNumber, staffData) {
         if (tier === 'primary') {
           busUpdate.primaryConductor = staffObj;
           busUpdate.conductor = staffObj.name;
+          busUpdate.conductorName = staffObj.name;
+          busUpdate.conductorEmail = staffObj.email;
           busUpdate.conductorPhone = staffObj.phone;
         } else {
           busUpdate.secondaryConductor = staffObj;
         }
         const existingEmails = Array.isArray(busData.conductorEmails) ? [...busData.conductorEmails] : [];
-        if (staffObj.email && !existingEmails.includes(staffObj.email)) {
+        if (staffObj.email && !existingEmails.some(e => e.toLowerCase() === staffObj.email)) {
           existingEmails.push(staffObj.email);
         }
         busUpdate.conductorEmails = existingEmails;
@@ -184,6 +238,14 @@ export async function updateStaffMember(email, data) {
   const cleanEmail = email.toLowerCase().trim();
   const docRef = doc(db, 'users', cleanEmail);
 
+  let oldBusNumber = null;
+  try {
+    const existingSnap = await getDoc(docRef);
+    if (existingSnap.exists()) {
+      oldBusNumber = existingSnap.data()?.assignedBus || null;
+    }
+  } catch (_) {}
+
   const role = data.role || 'driver';
   const roleTier = (role === 'driver' || role === 'conductor') ? (data.roleTier || 'primary') : null;
   const staffRoleLabel = getStaffRoleLabel(role, roleTier);
@@ -196,27 +258,42 @@ export async function updateStaffMember(email, data) {
     updatedAt: serverTimestamp()
   });
 
-  if (data.assignedBus) {
-    await syncStaffToBus(data.assignedBus, {
-      name: data.name,
-      email: cleanEmail,
-      role,
-      roleTier,
-      phone: data.phone
-    });
-  }
+  await syncStaffToBus(data.assignedBus || '', {
+    name: data.name,
+    email: cleanEmail,
+    role,
+    roleTier,
+    phone: data.phone
+  }, oldBusNumber);
 }
 
 export async function deleteStaffMember(email) {
   const cleanEmail = email.toLowerCase().trim();
   const docRef = doc(db, 'users', cleanEmail);
+
+  let oldBusNumber = null;
+  let role = 'driver';
+  try {
+    const existingSnap = await getDoc(docRef);
+    if (existingSnap.exists()) {
+      const d = existingSnap.data();
+      oldBusNumber = d?.assignedBus || null;
+      role = d?.role || 'driver';
+    }
+  } catch (_) {}
+
   // Soft-delete: Revoke all administrative and operational privileges
-  // Prevents the account from accessing fleet data while preserving audit trails
   await updateDoc(docRef, {
     status: 'Terminated',
     role: 'revoked',
+    assignedBus: '',
+    assignedBusId: '',
     terminatedAt: serverTimestamp()
   });
+
+  if (oldBusNumber) {
+    await syncStaffToBus('', { email: cleanEmail, role }, oldBusNumber);
+  }
 }
 
 // ==========================================

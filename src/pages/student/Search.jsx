@@ -72,7 +72,9 @@ export function StudentSearch() {
               <div className="flex items-center gap-3">
                 <div className="text-right hidden sm:block">
                   <div className="text-xs font-semibold text-slate-700">{bus.driver || 'Assigned Driver'}</div>
-                  <div className="text-[11px] text-slate-400 font-medium">{bus.headcount || 0} riders onboard</div>
+                  <div className="text-[11px] text-slate-400 font-medium">
+                    {bus.headcount || 0} {(bus.headcount || 0) === 1 ? 'rider' : 'riders'} onboard
+                  </div>
                 </div>
                 <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-blue-50 group-hover:text-blue-600 flex items-center justify-center transition-colors">
                   <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />

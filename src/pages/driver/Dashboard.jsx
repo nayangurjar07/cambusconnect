@@ -63,14 +63,19 @@ export function DriverDashboard() {
     const unsub = subscribeToBuses((fleet) => {
       setBuses(fleet);
       if (!selectedBusId && fleet.length > 0) {
+        const uEmail = (userEmail || '').toLowerCase();
         const assigned = fleet.find(
           (b) =>
+            (b.primaryDriver?.email && b.primaryDriver.email.toLowerCase() === uEmail) ||
+            (b.driverEmail && b.driverEmail.toLowerCase() === uEmail) ||
+            (Array.isArray(b.driverEmails) && b.driverEmails.some(e => e.toLowerCase() === uEmail)) ||
+            (b.secondaryDriver?.email && b.secondaryDriver.email.toLowerCase() === uEmail) ||
+            (b.primaryConductor?.email && b.primaryConductor.email.toLowerCase() === uEmail) ||
+            (b.conductorEmail && b.conductorEmail.toLowerCase() === uEmail) ||
+            (Array.isArray(b.conductorEmails) && b.conductorEmails.some(e => e.toLowerCase() === uEmail)) ||
+            (b.secondaryConductor?.email && b.secondaryConductor.email.toLowerCase() === uEmail) ||
             String(b.number) === String(profile?.assignedBusNumber || user?.assignedBus) ||
-            b.id === (profile?.assignedBusId || user?.assignedBusId) ||
-            b.primaryDriver?.email === userEmail ||
-            b.secondaryDriver?.email === userEmail ||
-            b.primaryConductor?.email === userEmail ||
-            b.secondaryConductor?.email === userEmail
+            b.id === (profile?.assignedBusId || user?.assignedBusId)
         );
         if (assigned) {
           setSelectedBusId(assigned.id);

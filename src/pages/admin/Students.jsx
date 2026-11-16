@@ -27,6 +27,27 @@ import { Badge } from '../../components/ui/Badge';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { useToast } from '../../contexts/ToastContext';
 
+export function formatPassDate(rawVal) {
+  if (!rawVal) return '—';
+  try {
+    const d = new Date(rawVal);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    }
+  } catch (_) {}
+  if (typeof rawVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(rawVal)) {
+    const parts = rawVal.slice(0, 10).split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthName = months[parseInt(parts[1], 10) - 1] || parts[1];
+    return `${parts[2]} ${monthName} ${parts[0]}`;
+  }
+  return String(rawVal);
+}
+
 export function AdminStudents() {
   const { showSuccess, showError } = useToast();
   const [students, setStudents] = useState([]);
@@ -135,9 +156,20 @@ export function AdminStudents() {
       return { label: 'Active', variant: 'success', code: 'ACTIVE' };
     }
 
-    // End of validity day
-    const validUntil = new Date(`${student.passValidity}T23:59:59`);
-    if (isNaN(validUntil.getTime()) || validUntil < new Date()) {
+    let validUntil = null;
+    try {
+      if (typeof student.passValidity === 'string') {
+        if (student.passValidity.includes('T')) {
+          validUntil = new Date(student.passValidity);
+        } else {
+          validUntil = new Date(`${student.passValidity}T23:59:59`);
+        }
+      } else if (student.passValidity instanceof Date) {
+        validUntil = student.passValidity;
+      }
+    } catch (_) {}
+
+    if (!validUntil || isNaN(validUntil.getTime()) || validUntil < new Date()) {
       return { label: 'Expired', variant: 'danger', code: 'EXPIRED' };
     }
 
@@ -569,8 +601,8 @@ export function AdminStudents() {
                       {student.pickupStop || '—'}
                     </td>
 
-                    <td className="px-4 py-2.5 text-xs font-mono text-gray-600">
-                      {student.passValidity || '—'}
+                    <td className="px-4 py-2.5 text-xs text-gray-700 whitespace-nowrap">
+                      {formatPassDate(student.passValidity)}
                     </td>
 
                     <td className="px-4 py-2.5">
