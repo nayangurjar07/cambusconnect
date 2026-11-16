@@ -1,6 +1,6 @@
 // src/components/layout/Sidebar.jsx
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   Bus,
   Map,
@@ -27,6 +27,12 @@ export function Sidebar({ isOpen, onClose }) {
   const { role, profile, logout } = useAuth();
   const { branding } = useTenant();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [pendingPath, setPendingPath] = useState(null);
+
+  useEffect(() => {
+    setPendingPath(null);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     if (typeof window !== 'undefined' && window.CambusCache && typeof window.CambusCache.clearAll === 'function') {
@@ -38,26 +44,8 @@ export function Sidebar({ isOpen, onClose }) {
     window.location.replace('/login');
   };
 
-  const handleNavClick = (e) => {
-    const nav = e.currentTarget.closest('nav');
-    if (nav) {
-      nav.querySelectorAll('a').forEach((link) => {
-        link.classList.remove('bg-blue-600/10', 'text-blue-700', 'font-semibold');
-        link.classList.add('text-slate-600');
-        const icon = link.querySelector('svg');
-        if (icon) {
-          icon.classList.remove('text-blue-600');
-          icon.classList.add('text-slate-400');
-        }
-      });
-      e.currentTarget.classList.add('bg-blue-600/10', 'text-blue-700', 'font-semibold');
-      e.currentTarget.classList.remove('text-slate-600');
-      const curIcon = e.currentTarget.querySelector('svg');
-      if (curIcon) {
-        curIcon.classList.add('text-blue-600');
-        curIcon.classList.remove('text-slate-400');
-      }
-    }
+  const handleNavClick = (path) => {
+    setPendingPath(path);
     if (onClose) onClose();
   };
 
@@ -194,25 +182,23 @@ export function Sidebar({ isOpen, onClose }) {
               <div className="space-y-1">
                 {group.items.map((item) => {
                   const Icon = item.icon;
+                  const isItemActive = pendingPath !== null ? pendingPath === item.path : location.pathname === item.path;
+
                   return (
                     <NavLink
                       key={item.path}
                       to={item.path}
                       end={true}
-                      onClick={handleNavClick}
-                      className={({ isActive }) => `
-                        flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 relative
-                        ${isActive
+                      onClick={() => handleNavClick(item.path)}
+                      className={`
+                        flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 relative cursor-pointer
+                        ${isItemActive
                           ? 'bg-blue-600/10 text-blue-700 font-semibold'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'}
                       `}
                     >
-                      {({ isActive }) => (
-                        <>
-                          <Icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-                          <span className="truncate">{item.label}</span>
-                        </>
-                      )}
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isItemActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                      <span className="truncate">{item.label}</span>
                     </NavLink>
                   );
                 })}

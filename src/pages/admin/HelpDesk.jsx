@@ -176,9 +176,11 @@ function LostFoundTab() {
     return () => unsub();
   }, []);
 
+  const isOpenStatus = (status) => status === 'Open' || status === 'Lost';
+
   const filtered = filter === 'all'
     ? items
-    : items.filter(i => i.status === filter);
+    : items.filter(i => filter === 'Open' ? isOpenStatus(i.status) : i.status === filter);
 
   const handleStatus = async (id, status) => {
     try {
@@ -206,19 +208,25 @@ function LostFoundTab() {
   return (
     <div className="space-y-4 mt-4">
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-        {['all', 'Open', 'Found', 'Claimed'].map(s => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
-              filter === s 
-                ? 'bg-gray-900 text-white' 
-                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            {s === 'all' ? `All (${items.length})` : `${s} (${items.filter(i => i.status === s).length})`}
-          </button>
-        ))}
+        {['all', 'Open', 'Found', 'Claimed'].map(s => {
+          const count = s === 'all' 
+            ? items.length 
+            : items.filter(i => s === 'Open' ? isOpenStatus(i.status) : i.status === s).length;
+
+          return (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                filter === s 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {s === 'all' ? `All (${count})` : `${s} (${count})`}
+            </button>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

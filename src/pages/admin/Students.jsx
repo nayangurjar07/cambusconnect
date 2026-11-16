@@ -1,5 +1,5 @@
 // src/pages/admin/Students.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Plus, Search, Trash2, Edit2, ShieldCheck, Mail, Phone, 
   Upload, Download, CheckSquare, Square, ChevronLeft, ChevronRight, 
@@ -179,11 +179,32 @@ export function AdminStudents() {
     return { label: 'Active', variant: 'success', code: 'ACTIVE' };
   };
 
-  const filteredStudents = students; // Filtering is now handled server-side
+  // Immediate and responsive client-side filtering by name, email, enrollment ID, route, and bus number
+  const filteredStudents = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) {
+      return students;
+    }
+    const q = searchQuery.toLowerCase().trim();
+    return students.filter(s => {
+      const name = (s.name || '').toLowerCase();
+      const email = (s.email || '').toLowerCase();
+      const enrollment = (s.collegeId || s.enrollment || s.enrollmentId || '').toLowerCase();
+      const route = (s.busRoute || s.route || '').toLowerCase();
+      const busNum = String(s.assignedBusNumber || s.busNumber || '').toLowerCase();
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        enrollment.includes(q) ||
+        route.includes(q) ||
+        busNum.includes(q)
+      );
+    });
+  }, [students, searchQuery]);
 
-  // Pagination slices
-  const totalPages = Math.max(1, Math.ceil(totalStudents / PAGE_SIZE));
-  const pagedStudents = students;
+  // Effective count and pagination
+  const effectiveTotal = searchQuery.trim() ? filteredStudents.length : totalStudents;
+  const totalPages = Math.max(1, Math.ceil(effectiveTotal / PAGE_SIZE));
+  const pagedStudents = filteredStudents;
 
   // Selection handlers
   const handleSelectAll = (e) => {
@@ -683,8 +704,8 @@ export function AdminStudents() {
         {filteredStudents.length > 0 && (
           <div className="p-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
             <div>
-              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, totalStudents)} to{' '}
-              {Math.min(currentPage * PAGE_SIZE, totalStudents)} of {totalStudents} students
+              Showing {filteredStudents.length === 0 ? 0 : Math.min((currentPage - 1) * PAGE_SIZE + 1, effectiveTotal)} to{' '}
+              {Math.min(currentPage * PAGE_SIZE, effectiveTotal)} of {effectiveTotal} students
             </div>
             <div className="flex items-center gap-2">
               <Button

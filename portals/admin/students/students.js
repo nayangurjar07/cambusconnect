@@ -645,10 +645,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             let filteredStudents = students;
 
             if (searchStudent && searchStudent.value) {
-                const searchTerm = searchStudent.value.toLowerCase();
+                const searchTerm = searchStudent.value.toLowerCase().trim();
                 filteredStudents = filteredStudents.filter(s =>
                     s.name?.toLowerCase().includes(searchTerm) ||
-                    s.enrollment?.toLowerCase().includes(searchTerm)
+                    s.email?.toLowerCase().includes(searchTerm) ||
+                    s.enrollment?.toLowerCase().includes(searchTerm) ||
+                    s.collegeId?.toLowerCase().includes(searchTerm) ||
+                    s.enrollmentId?.toLowerCase().includes(searchTerm) ||
+                    s.busRoute?.toLowerCase().includes(searchTerm) ||
+                    s.route?.toLowerCase().includes(searchTerm) ||
+                    String(s.assignedBusNumber || s.busNumber || '').toLowerCase().includes(searchTerm)
                 );
             }
 

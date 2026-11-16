@@ -244,8 +244,8 @@ export function ValidateBusPassScanner({
       if (assignedBus?.id) {
         await incrementBusHeadcount(assignedBus.id, 1, assignedBus.capacity || 45);
         await logBoarding({
-          studentId: studentData.id || studentData.email,
-          studentName: studentData.name || studentData.email,
+          studentId: studentData.studentId || studentData.enrollmentId || studentData.enrollment || studentData.collegeId || studentData.id || studentData.email || 'unknown',
+          studentName: studentData.name || studentData.email || 'Student',
           busId: assignedBus.id,
           busNumber: assignedBus.number,
           routeName: assignedBus.route || ''

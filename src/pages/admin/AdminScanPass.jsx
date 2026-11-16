@@ -543,11 +543,12 @@ export function AdminScanPass() {
         }, { merge: true });
 
         await logBoarding({
-          studentEmail: student.email,
-          studentName: student.name,
+          studentId: student.studentId || student.enrollmentId || student.enrollment || student.collegeId || student.id || student.email || sId || String(manualInput || ''),
+          studentEmail: student.email || '',
+          studentName: student.name || 'Student',
           busId: selectedBus?.id || '',
           busNumber: selectedBus?.number || '',
-          route: selectedBus?.route || student.busRoute || '',
+          routeName: selectedBus?.route || student.busRoute || '',
           timestamp: new Date().toISOString()
         });
 

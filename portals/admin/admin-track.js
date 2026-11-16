@@ -178,8 +178,14 @@ function evaluateBusHealth(bus, staleThresholdSeconds = 60) {
 
 // Update or create bus marker
 function updateBusMarker(bus) {
-    if (!bus.location || !bus.location.lat || !bus.location.lng) {
-        // If no location, remove marker if exists
+    const rawLat = bus.location?.lat;
+    const rawLng = bus.location?.lng;
+    const lat = typeof rawLat === 'number' ? rawLat : parseFloat(rawLat);
+    const lng = typeof rawLng === 'number' ? rawLng : parseFloat(rawLng);
+    const hasCoords = typeof lat === 'number' && !isNaN(lat) && lat !== 0 && typeof lng === 'number' && !isNaN(lng) && lng !== 0 && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+
+    if (!hasCoords) {
+        // If no valid numeric location coordinates, remove marker if exists
         if (markers[bus.id]) {
             markers[bus.id].setMap(null);
             delete markers[bus.id];
@@ -191,10 +197,7 @@ function updateBusMarker(bus) {
         return;
     }
     
-    const position = {
-        lat: bus.location.lat,
-        lng: bus.location.lng
-    };
+    const position = { lat, lng };
     
     if (markers[bus.id]) {
         // Update existing marker
@@ -206,8 +209,9 @@ function updateBusMarker(bus) {
         
         // Update info window
         const content = createInfoWindowContent(bus);
-        infoWindows[bus.id].setContent(content);
-        
+        if (infoWindows[bus.id] && content && content.trim() !== '') {
+            infoWindows[bus.id].setContent(content);
+        }
     } else {
         // Create new marker
         const icon = createBusIcon(bus);
@@ -223,14 +227,16 @@ function updateBusMarker(bus) {
         // Create info window
         const content = createInfoWindowContent(bus);
         const infoWindow = new google.maps.InfoWindow({
-            content: content,
+            content: content || '<div>Loading vehicle details...</div>',
             maxWidth: 250
         });
         
         // Click listener
         marker.addListener('click', () => {
             Object.values(infoWindows).forEach(iw => iw.close());
-            infoWindow.open(map, marker);
+            if (content && content.trim() !== '') {
+                infoWindow.open(map, marker);
+            }
         });
         
         markers[bus.id] = marker;

@@ -353,14 +353,25 @@ function startBusTracking() {
 // 4. UPDATE/CREATE BUS MARKERS
 // ========================================
 function updateBusMarker(bus) {
-    if (!bus.location || !bus.location.lat || !bus.location.lng) {
+    const rawLat = bus.location?.lat;
+    const rawLng = bus.location?.lng;
+    const lat = typeof rawLat === 'number' ? rawLat : parseFloat(rawLat);
+    const lng = typeof rawLng === 'number' ? rawLng : parseFloat(rawLng);
+    const hasCoords = typeof lat === 'number' && !isNaN(lat) && lat !== 0 && typeof lng === 'number' && !isNaN(lng) && lng !== 0 && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+
+    if (!hasCoords) {
+        if (markers[bus.id]) {
+            markers[bus.id].setMap(null);
+            delete markers[bus.id];
+            if (infoWindows[bus.id]) {
+                infoWindows[bus.id].close();
+                delete infoWindows[bus.id];
+            }
+        }
         return;
     }
 
-    const position = {
-        lat: bus.location.lat,
-        lng: bus.location.lng
-    };
+    const position = { lat, lng };
 
     if (markers[bus.id]) {
         markers[bus.id].setPosition(position);
@@ -379,7 +390,9 @@ function updateBusMarker(bus) {
         markers[bus.id].setZIndex(isTrackedBus ? 1000 : 1);
 
         const content = createInfoWindowContent(bus);
-        infoWindows[bus.id].setContent(content);
+        if (infoWindows[bus.id] && content && content.trim() !== '') {
+            infoWindows[bus.id].setContent(content);
+        }
     } else {
         const isTrackedBus = getTrackedBusId() === bus.id;
 
@@ -404,13 +417,15 @@ function updateBusMarker(bus) {
 
         const content = createInfoWindowContent(bus);
         const infoWindow = new google.maps.InfoWindow({
-            content,
+            content: content || '<div>Loading vehicle details...</div>',
             maxWidth: 300
         });
 
         marker.addListener('click', () => {
             Object.values(infoWindows).forEach(iw => iw.close());
-            infoWindow.open(map, marker);
+            if (content && content.trim() !== '') {
+                infoWindow.open(map, marker);
+            }
         });
 
         markers[bus.id] = marker;
@@ -418,7 +433,9 @@ function updateBusMarker(bus) {
 
         if (isTrackedBus) {
             setTimeout(() => {
-                infoWindow.open(map, marker);
+                if (content && content.trim() !== '') {
+                    infoWindow.open(map, marker);
+                }
                 map.setCenter(position);
                 map.setZoom(15);
             }, 500);

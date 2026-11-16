@@ -1,5 +1,5 @@
 // src/pages/driver/Schedule.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, MapPin, CheckCircle2, Circle, ArrowRight, Bus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -52,6 +52,62 @@ export function DriverSchedule() {
 
   const stops = Array.isArray(assignedRoute?.stops) ? assignedRoute.stops : [];
   const hasStops = stops.length > 0;
+
+  // Reads shifts configured on the driver's assigned route or institutional settings
+  const routeShiftIds = assignedRoute?.assignedShiftIds || (Array.isArray(assignedRoute?.shifts) ? assignedRoute.shifts.map(s => s.id || s) : []);
+
+  const displayedShifts = useMemo(() => {
+    // 1. If institutional shifts configured in settings/shiftConfig
+    if (shifts && shifts.length > 0) {
+      if (routeShiftIds.length > 0) {
+        const matched = shifts.filter(s => routeShiftIds.includes(s.id));
+        if (matched.length > 0) return matched;
+      }
+      return shifts;
+    }
+
+    // 2. Generate from assigned route shift IDs
+    if (routeShiftIds.length > 0) {
+      return routeShiftIds.map(sId => {
+        if (sId === 'shift_1') {
+          return {
+            id: 'shift_1',
+            name: 'Morning Pickup (Shift 1)',
+            startTime: assignedRoute?.stops?.[0]?.pickupTime || '08:00 AM',
+            endTime: '10:30 AM',
+            enabled: true
+          };
+        }
+        if (sId === 'shift_2') {
+          return {
+            id: 'shift_2',
+            name: 'Evening Drop (Shift 2)',
+            startTime: '04:30 PM',
+            endTime: '06:30 PM',
+            enabled: true
+          };
+        }
+        return {
+          id: sId,
+          name: sId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          startTime: '08:00 AM',
+          endTime: '05:00 PM',
+          enabled: true
+        };
+      });
+    }
+
+    // 3. Fallback default institutional shift
+    return [
+      {
+        id: 'shift_1',
+        name: 'Morning Pickup (Shift 1)',
+        startTime: assignedRoute?.stops?.[0]?.pickupTime || '08:00 AM',
+        endTime: '10:30 AM',
+        enabled: true
+      }
+    ];
+  }, [shifts, routeShiftIds, assignedRoute]);
 
   const toggleStop = (idx) => {
     setCompletedStops((prev) => ({ ...prev, [idx]: !prev[idx] }));
@@ -125,7 +181,7 @@ export function DriverSchedule() {
           </h2>
         </div>
 
-        {shifts.length === 0 ? (
+        {displayedShifts.length === 0 ? (
           <Card>
             <CardBody className="py-6 text-center text-xs text-slate-400">
               No institutional shift schedules configured yet.
@@ -133,7 +189,7 @@ export function DriverSchedule() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {shifts.map((shift) => (
+            {displayedShifts.map((shift) => (
               <Card key={shift.id} className="hover:border-blue-200 transition-colors">
                 <CardBody className="p-4 flex items-center justify-between">
                   <div>

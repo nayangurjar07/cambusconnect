@@ -81,6 +81,15 @@ export async function getPaginatedStudents(pageSize = 25, lastVisible = null, ro
           const uData = d.data();
           const email = (uData.email || d.id).toLowerCase();
           if (!existingEmails.has(email)) {
+            if (searchQuery && searchQuery.trim()) {
+              const q = searchQuery.toLowerCase().trim();
+              const name = (uData.name || '').toLowerCase();
+              const enrollment = (uData.collegeId || uData.enrollment || uData.enrollmentId || '').toLowerCase();
+              const route = (uData.busRoute || uData.route || '').toLowerCase();
+              const busNum = String(uData.assignedBusNumber || uData.busNumber || '').toLowerCase();
+              const matches = name.includes(q) || email.includes(q) || enrollment.includes(q) || route.includes(q) || busNum.includes(q);
+              if (!matches) return;
+            }
             students.push({ id: d.id, ...uData });
             existingEmails.add(email);
             // Self-healing auto-mirror to students collection

@@ -45,9 +45,9 @@ export function FleetMap({
   const googleCampusMarkerRef = useRef(null);
   const googleInfoWindowRef = useRef(null);
 
-  // Default campus center coordinates
+  // Default campus center coordinates (Indore Campus default)
   const defaultCenter = useMemo(() => {
-    return tenant?.campusCenter || { lat: 22.8225, lng: 75.8370 }; // IIST Indore default
+    return tenant?.campusCenter || { lat: 22.7196, lng: 75.8577 };
   }, [tenant]);
 
   // Load Google Maps JavaScript API via secure backend key
@@ -75,7 +75,7 @@ export function FleetMap({
     };
   }, []);
 
-  // Initialize Google Maps instance
+  // Initialize Google Maps instance with robust resize observer to prevent grey canvas
   useEffect(() => {
     if (!googleReady || !googleContainerRef.current) return;
     if (googleMapRef.current) return;
@@ -105,6 +105,14 @@ export function FleetMap({
       googleMapRef.current = gMap;
       googleInfoWindowRef.current = new window.google.maps.InfoWindow();
 
+      // Trigger resize when container settles to ensure map tiles render immediately
+      const resizeObserver = new ResizeObserver(() => {
+        if (googleMapRef.current && window.google?.maps) {
+          window.google.maps.event.trigger(googleMapRef.current, 'resize');
+        }
+      });
+      resizeObserver.observe(googleContainerRef.current);
+
       // Campus Gateway pin
       googleCampusMarkerRef.current = new window.google.maps.Marker({
         position: { lat: defaultCenter.lat, lng: defaultCenter.lng },
@@ -119,11 +127,41 @@ export function FleetMap({
           strokeWeight: 2
         }
       });
+
+      return () => {
+        resizeObserver.disconnect();
+      };
     } catch (err) {
       console.error('Failed to instantiate Google Maps:', err);
       setLoadError(err.message);
     }
   }, [googleReady, defaultCenter, tenant]);
+
+  // Helper: Generates InfoWindow HTML content safely
+  const createInfoWindowHTML = (bus, health) => {
+    if (!bus) return '';
+    const liveBadge = health?.isLive
+      ? `<span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; display:inline-flex; align-items:center; gap:4px;">● LIVE</span>`
+      : `<span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3;">OFFLINE</span>`;
+
+    return `
+      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; min-width: 220px; padding: 4px; color: #0f172a;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px;">
+          <span style="font-weight: 700; font-size: 14px; color: #0f172a;">Bus #${bus.number || '—'}</span>
+          ${liveBadge}
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; color: #475569; font-size: 12px;">
+          <div><strong style="color: #334155;">Route:</strong> ${bus.route || 'Campus Route'}</div>
+          <div><strong style="color: #334155;">Broadcaster:</strong> ${health?.broadcasterLabel || 'Unassigned'}</div>
+          <div><strong style="color: #334155;">Speed:</strong> ${bus.speed || 0} km/h</div>
+          <div><strong style="color: #334155;">Occupancy:</strong> ${bus.headcount || 0} / ${bus.capacity || 45}</div>
+          <div style="padding-top: 4px; border-top: 1px solid #f1f5f9; font-size: 11px; color: #64748b;">
+            Updated: ${health?.lastSeenText || 'Unknown'}
+          </div>
+        </div>
+      </div>
+    `;
+  };
 
   // Synchronize Google Maps bus markers
   useEffect(() => {
@@ -132,10 +170,12 @@ export function FleetMap({
     const currentIds = new Set();
 
     buses.forEach((bus) => {
-      const lat = Number(bus.location?.lat);
-      const lng = Number(bus.location?.lng);
-      const hasCoords = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
-      if (!hasCoords || lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+      const rawLat = bus.location?.lat;
+      const rawLng = bus.location?.lng;
+      const lat = typeof rawLat === 'number' ? rawLat : parseFloat(rawLat);
+      const lng = typeof rawLng === 'number' ? rawLng : parseFloat(rawLng);
+      const hasCoords = typeof lat === 'number' && !isNaN(lat) && lat !== 0 && typeof lng === 'number' && !isNaN(lng) && lng !== 0 && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+      if (!hasCoords) return;
 
       currentIds.add(bus.id);
       const isSelected = bus.id === activeSelectedBusId;
@@ -189,28 +229,11 @@ export function FleetMap({
             onSelectBus(bus.id);
           }
           if (googleInfoWindowRef.current) {
-            const liveBadge = health.isLive
-              ? `<span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; display:inline-flex; align-items:center; gap:4px;">● LIVE</span>`
-              : `<span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3;">OFFLINE</span>`;
-
-            googleInfoWindowRef.current.setContent(`
-              <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; min-width: 220px; padding: 4px; color: #0f172a;">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px;">
-                  <span style="font-weight: 700; font-size: 14px; color: #0f172a;">Bus #${bus.number}</span>
-                  ${liveBadge}
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 4px; color: #475569; font-size: 12px;">
-                  <div><strong style="color: #334155;">Route:</strong> ${bus.route || 'Campus Route'}</div>
-                  <div><strong style="color: #334155;">Broadcaster:</strong> ${health.broadcasterLabel}</div>
-                  <div><strong style="color: #334155;">Speed:</strong> ${bus.speed || 0} km/h</div>
-                  <div><strong style="color: #334155;">Occupancy:</strong> ${bus.headcount || 0} / ${bus.capacity || 45}</div>
-                  <div style="padding-top: 4px; border-top: 1px solid #f1f5f9; font-size: 11px; color: #64748b;">
-                    Updated: ${health.lastSeenText}
-                  </div>
-                </div>
-              </div>
-            `);
-            googleInfoWindowRef.current.open(gMap, marker);
+            const html = createInfoWindowHTML(bus, health);
+            if (html) {
+              googleInfoWindowRef.current.setContent(html);
+              googleInfoWindowRef.current.open(gMap, marker);
+            }
           }
         });
 
@@ -229,21 +252,42 @@ export function FleetMap({
 
   // Pan & Zoom on bus selection
   useEffect(() => {
-    if (!googleMapRef.current || !activeSelectedBus) return;
-    const lat = Number(activeSelectedBus.location?.lat);
-    const lng = Number(activeSelectedBus.location?.lng);
-    const hasCoords = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+    if (!googleMapRef.current) return;
+    if (!activeSelectedBus) {
+      if (googleInfoWindowRef.current) googleInfoWindowRef.current.close();
+      googleMapRef.current.panTo({ lat: defaultCenter.lat, lng: defaultCenter.lng });
+      return;
+    }
+
+    const rawLat = activeSelectedBus.location?.lat;
+    const rawLng = activeSelectedBus.location?.lng;
+    const lat = typeof rawLat === 'number' ? rawLat : parseFloat(rawLat);
+    const lng = typeof rawLng === 'number' ? rawLng : parseFloat(rawLng);
+    const hasCoords = typeof lat === 'number' && !isNaN(lat) && lat !== 0 && typeof lng === 'number' && !isNaN(lng) && lng !== 0 && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 
     if (hasCoords) {
       googleMapRef.current.panTo({ lat, lng });
       if (singleBusMode) {
         googleMapRef.current.setZoom(15);
       }
-      if (googleMarkersRef.current[activeSelectedBus.id] && googleInfoWindowRef.current) {
-        googleInfoWindowRef.current.open(googleMapRef.current, googleMarkersRef.current[activeSelectedBus.id]);
+      const marker = googleMarkersRef.current[activeSelectedBus.id];
+      if (marker && googleInfoWindowRef.current) {
+        const health = activeSelectedBus.trackingHealth || getBusTrackingHealth(activeSelectedBus, 110);
+        const html = createInfoWindowHTML(activeSelectedBus, health);
+        if (html) {
+          googleInfoWindowRef.current.setContent(html);
+          googleInfoWindowRef.current.open(googleMapRef.current, marker);
+        }
       }
+    } else {
+      // Offline / No Coordinates: Close InfoWindow and center on campus coordinates
+      if (googleInfoWindowRef.current) {
+        googleInfoWindowRef.current.close();
+      }
+      googleMapRef.current.panTo({ lat: defaultCenter.lat, lng: defaultCenter.lng });
+      googleMapRef.current.setZoom(13);
     }
-  }, [activeSelectedBus, singleBusMode]);
+  }, [activeSelectedBus, singleBusMode, defaultCenter]);
 
   // Actions Toolbar
   const fitAllBuses = () => {
@@ -362,8 +406,8 @@ export function FleetMap({
         )}
       </div>
 
-      {/* Map Legend Bottom-Left */}
-      <div className="absolute bottom-3 left-3 z-20 hidden sm:flex items-center gap-3 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] text-slate-600 shadow-xs">
+      {/* Map Legend Bottom-Left: 36px clearance from bottom so it never overlaps the Google logo */}
+      <div className="absolute bottom-9 left-3 z-20 hidden sm:flex items-center gap-3 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] text-slate-600 shadow-xs">
         <span className="flex items-center gap-1.5 font-medium">
           <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Live (&lt;60s)
         </span>

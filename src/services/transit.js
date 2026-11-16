@@ -739,16 +739,33 @@ export async function seedDefaultRoutesIfEmpty() {
 // TRIPS / BOARDINGS
 // ==========================================
 
-export async function logBoarding({ studentId, studentName, busId, busNumber, routeName }) {
-  const col = collection(db, 'trips');
-  const docRef = await addDoc(col, {
+export async function logBoarding(data = {}) {
+  const studentId = String(
+    data.studentId ||
+    data.enrollmentId ||
+    data.enrollment ||
+    data.collegeId ||
+    data.id ||
+    data.studentEmail ||
+    data.email ||
+    'unknown'
+  );
+  const studentName = String(data.studentName || data.name || data.studentEmail || data.email || 'Student');
+  const busId = String(data.busId || '');
+  const busNumber = String(data.busNumber || '');
+  const routeName = String(data.routeName || data.route || '');
+
+  const payload = {
     studentId,
     studentName,
     busId,
     busNumber,
     routeName,
     timestamp: serverTimestamp()
-  });
+  };
+
+  const col = collection(db, 'trips');
+  const docRef = await addDoc(col, payload);
 
   try {
     const dailyCol = collection(db, 'daily_boardings');
@@ -757,6 +774,7 @@ export async function logBoarding({ studentId, studentName, busId, busNumber, ro
       studentName,
       busId,
       busNumber,
+      routeName,
       date: new Date().toISOString().split('T')[0],
       timestamp: serverTimestamp()
     });
