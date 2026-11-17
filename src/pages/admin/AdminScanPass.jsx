@@ -9,7 +9,7 @@ import { subscribeToBuses, updateBusHeadcount, incrementBusHeadcount } from '../
 import { getStudentProfile } from '../../services/students';
 import { logBoarding } from '../../services/transit';
 import { verifyTotp } from '../../utils/crypto';
-import { db, collection, doc, getDoc, onSnapshot, setDoc, deleteDoc, serverTimestamp } from '../../config/firebase';
+import { db, collection, doc, getDoc, getDocs, onSnapshot, setDoc, deleteDoc, writeBatch, serverTimestamp } from '../../config/firebase';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -260,7 +260,28 @@ export function AdminScanPass() {
     setIsResetting(true);
     try {
       await updateBusHeadcount(selectedBus.id, 0, Number(selectedBus.capacity) || 45);
-      showSuccess(`Headcount reset to 0 for Bus ${selectedBus.number}`);
+
+      // ── Clear all scan-state so previously scanned passes become scannable again ──
+      // 1. Wipe in-memory scan cache
+      localScanLogs.current = {};
+      // 2. Clear the last-scanned payload cooldown
+      lastScannedPayloadRef.current = { text: '', time: 0 };
+      lastWarningTimeRef.current = 0;
+
+      // 3. Batch-delete ALL boarding sub-documents for this bus (today's run)
+      try {
+        const boardingsColRef = collection(db, `buses/${selectedBus.id}/boardings`);
+        const snap = await getDocs(boardingsColRef);
+        if (!snap.empty) {
+          const batch = writeBatch(db);
+          snap.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+        }
+      } catch (cleanupErr) {
+        console.warn('[AdminScanPass] Boarding cleanup notice:', cleanupErr);
+      }
+
+      showSuccess(`Headcount reset to 0 for Bus ${selectedBus.number} — scan list cleared`);
       setIsResetConfirmOpen(false);
     } catch (err) {
       showError("Failed to reset headcount: " + err.message);
@@ -1155,7 +1176,7 @@ export function AdminScanPass() {
         onConfirm={confirmHeadcountReset}
         isLoading={isResetting}
         title="Reset Passenger Count"
-        message={`Are you sure you want to reset the onboard passenger count for Bus ${selectedBus?.number} to 0?`}
+        message={`Are you sure you want to reset the onboard passenger count for Bus ${selectedBus?.number} to 0? This will also clear today's boarding list so all passes can be scanned fresh.`}
         confirmText="Reset to 0"
         variant="danger"
       />
