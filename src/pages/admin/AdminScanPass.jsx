@@ -56,6 +56,9 @@ export function AdminScanPass() {
   const html5QrScannerRef = useRef(null);
   const localScanLogs = useRef({});
   const autoResetTimerRef = useRef(null);
+  const scanLockRef = useRef(false);
+  const lastScannedPayloadRef = useRef({ text: '', time: 0 });
+  const lastWarningTimeRef = useRef(0);
 
   // Auto-refresh: Automatically reset verification result after 2.8s for rapid continuous scanning
   useEffect(() => {
@@ -270,11 +273,31 @@ export function AdminScanPass() {
 
 
   const handleScannedData = async (rawInput) => {
-    if (scanLockActive) return;
-    setScanLockActive(true);
-    setTimeout(() => setScanLockActive(false), 2000);
+    const text = String(rawInput || '').trim();
+    if (!text) return;
 
-    await executeVerify(rawInput);
+    const now = Date.now();
+    // 1. If scan is currently locked or in progress, ignore incoming camera frames
+    if (scanLockRef.current) return;
+
+    // 2. Cooldown for duplicate frames: if same code seen within 3.5s, drop it completely
+    if (lastScannedPayloadRef.current.text === text && (now - lastScannedPayloadRef.current.time < 3500)) {
+      return;
+    }
+
+    scanLockRef.current = true;
+    lastScannedPayloadRef.current = { text, time: now };
+    setScanLockActive(true);
+
+    try {
+      await executeVerify(text);
+    } finally {
+      // Keep lock for 2.5s cooldown so continuous camera scanning does not spam frames
+      setTimeout(() => {
+        scanLockRef.current = false;
+        setScanLockActive(false);
+      }, 2500);
+    }
   };
 
   const executeVerify = async (rawQuery) => {
@@ -475,14 +498,19 @@ export function AdminScanPass() {
         }
 
         if (isAlreadyScanned) {
-          playTone('error');
+          lastScannedPayloadRef.current = { text: query, time: Date.now() };
+          const warnNow = Date.now();
+          if (warnNow - lastWarningTimeRef.current > 2000) {
+            playTone('error');
+            showWarning('Bus pass is already scanned');
+            lastWarningTimeRef.current = warnNow;
+          }
           setVerificationResult({
             status: 'rejected',
             student,
             reason: 'Bus pass is already scanned',
             recommendation: 'Passenger has already boarded this bus run.'
           });
-          showWarning('Bus pass is already scanned');
           return; // STOP! Headcount will NOT be incremented, no duplicate boarding logged!
         }
       }
@@ -717,7 +745,7 @@ export function AdminScanPass() {
             </div>
 
             {/* Stepper Controls */}
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -767,19 +795,19 @@ export function AdminScanPass() {
         <div className="lg:col-span-8 space-y-5">
           <Card className="overflow-hidden backdrop-blur-xl bg-white/80 border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-gray-900/5 transition-all">
             {/* Card Header with Mode Switcher */}
-            <div className="px-5 py-3.5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+            <div className="px-4 sm:px-5 py-3.5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
               <div className="flex items-center gap-2">
                 <QrCode className="w-4 h-4 text-blue-600" />
                 <h3 className="text-sm font-semibold text-gray-900">QR Code Scanner</h3>
               </div>
 
               {/* Mode Selector Tabs */}
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+              <div className="w-full sm:w-auto">
+                <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-gray-100 p-1 rounded-xl sm:rounded-lg">
                   <button
                     type="button"
                     onClick={() => setScanMode('checkin')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                    className={`px-2.5 sm:px-3 py-1.5 sm:py-1 text-center text-xs font-medium rounded-lg sm:rounded-md transition-all cursor-pointer ${
                       scanMode === 'checkin'
                         ? 'bg-white text-gray-900 shadow-xs'
                         : 'text-gray-600 hover:text-gray-900'
@@ -790,7 +818,7 @@ export function AdminScanPass() {
                   <button
                     type="button"
                     onClick={() => setScanMode('checkout')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                    className={`px-2.5 sm:px-3 py-1.5 sm:py-1 text-center text-xs font-medium rounded-lg sm:rounded-md transition-all cursor-pointer ${
                       scanMode === 'checkout'
                         ? 'bg-white text-gray-900 shadow-xs'
                         : 'text-gray-600 hover:text-gray-900'
@@ -801,7 +829,7 @@ export function AdminScanPass() {
                   <button
                     type="button"
                     onClick={() => setScanMode('verify')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                    className={`px-2.5 sm:px-3 py-1.5 sm:py-1 text-center text-xs font-medium rounded-lg sm:rounded-md transition-all cursor-pointer ${
                       scanMode === 'verify'
                         ? 'bg-white text-gray-900 shadow-xs'
                         : 'text-gray-600 hover:text-gray-900'
@@ -815,7 +843,7 @@ export function AdminScanPass() {
 
             {/* Viewfinder Area - Minimalist, Compact & Light Surface (No harsh black or green) */}
             <div 
-              className="p-5 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/30 flex flex-col items-center justify-center border-b border-slate-100"
+              className="p-3 sm:p-5 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/30 flex flex-col items-center justify-center border-b border-slate-100"
             >
               <ValidateBusPassScanner
                 elementId="admin-qr-viewfinder"
@@ -939,7 +967,7 @@ export function AdminScanPass() {
                     value={manualInput}
                     onChange={(e) => setManualInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && executeVerify(manualInput)}
-                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-colors bg-white"
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm sm:text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-colors bg-white"
                   />
                   <Button
                     variant="primary"

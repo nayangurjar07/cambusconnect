@@ -585,13 +585,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         html5QrScanner = new Html5Qrcode("qr-reader");
+        let lastPortalScannedText = '';
+        let lastPortalScanTime = 0;
 
         html5QrScanner.start(
             { facingMode: "environment" },
             config,
             (decodedText) => {
+                const now = Date.now();
+                if (decodedText === lastPortalScannedText && (now - lastPortalScanTime < 3500)) {
+                    return; // Drop duplicate camera frame spam
+                }
+                lastPortalScannedText = decodedText;
+                lastPortalScanTime = now;
                 console.log(`Admin Scanned QR: ${decodedText}`);
-                        handlePassScanInput(decodedText, true).catch(err => console.error("Scan error:", err));
+                handlePassScanInput(decodedText, true).catch(err => console.error("Scan error:", err));
             },
             (err) => {
                 // Ignore verbose QR scanner logs

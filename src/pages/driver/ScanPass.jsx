@@ -84,6 +84,9 @@ export function DriverScanPass() {
   const html5QrScannerRef = useRef(null);
   const localScanLogs = useRef({});
   const autoResetTimerRef = useRef(null);
+  const scanLockRef = useRef(false);
+  const lastScannedPayloadRef = useRef({ text: '', time: 0 });
+  const lastWarningTimeRef = useRef(0);
 
   // Subtle clean audio feedback
   const playTone = (type) => {
@@ -315,11 +318,31 @@ export function DriverScanPass() {
 
 
   const handleScannedData = async (rawInput) => {
-    if (scanLockActive) return;
-    setScanLockActive(true);
-    setTimeout(() => setScanLockActive(false), 2000);
+    const text = String(rawInput || '').trim();
+    if (!text) return;
 
-    await executeVerify(rawInput);
+    const now = Date.now();
+    // 1. If scan is currently locked or in progress, ignore incoming camera frames
+    if (scanLockRef.current) return;
+
+    // 2. Cooldown for duplicate frames: if same code seen within 3.5s, drop it completely
+    if (lastScannedPayloadRef.current.text === text && (now - lastScannedPayloadRef.current.time < 3500)) {
+      return;
+    }
+
+    scanLockRef.current = true;
+    lastScannedPayloadRef.current = { text, time: now };
+    setScanLockActive(true);
+
+    try {
+      await executeVerify(text);
+    } finally {
+      // Keep lock for 2.5s cooldown so continuous camera scanning does not spam frames
+      setTimeout(() => {
+        scanLockRef.current = false;
+        setScanLockActive(false);
+      }, 2500);
+    }
   };
 
   // 6. Comprehensive Verification Core (Identical to AdminScanPass)
@@ -524,14 +547,19 @@ export function DriverScanPass() {
         }
 
         if (isAlreadyScanned) {
-          playTone('error');
+          lastScannedPayloadRef.current = { text: query, time: Date.now() };
+          const warnNow = Date.now();
+          if (warnNow - lastWarningTimeRef.current > 2000) {
+            playTone('error');
+            showWarning('Bus pass is already scanned');
+            lastWarningTimeRef.current = warnNow;
+          }
           setVerificationResult({
             status: 'rejected',
             student,
             reason: 'Bus pass is already scanned',
             recommendation: 'Passenger has already boarded this bus run.'
           });
-          showWarning('Bus pass is already scanned');
           return; // STOP! Headcount will NOT be incremented, no duplicate boarding logged!
         }
       }
@@ -934,7 +962,7 @@ export function DriverScanPass() {
                     value={manualInput}
                     onChange={(e) => setManualInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && executeVerify(manualInput)}
-                    className="flex-1 px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 placeholder:text-slate-400 font-medium"
+                    className="flex-1 px-3.5 py-2.5 text-sm sm:text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 placeholder:text-slate-400 font-medium"
                   />
                   <Button
                     variant="primary"

@@ -1328,11 +1328,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         html5QrScanner = new Html5Qrcode("qr-reader");
+        let lastDriverScannedText = '';
+        let lastDriverScanTime = 0;
 
         html5QrScanner.start(
             { facingMode: "environment" },
             config,
             (decodedText) => {
+                const now = Date.now();
+                if (decodedText === lastDriverScannedText && (now - lastDriverScanTime < 3500)) {
+                    return; // Drop duplicate camera frame spam
+                }
+                lastDriverScannedText = decodedText;
+                lastDriverScanTime = now;
                 console.log(`Driver Scanned QR: ${decodedText}`);
                 handlePassScanInput(decodedText, true).catch(err => console.error("Scan error:", err));
             },

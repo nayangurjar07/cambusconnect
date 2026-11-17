@@ -49,7 +49,7 @@ export function MobileNav() {
   if (navItems.length === 0) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200/80 px-3 py-1.5 flex items-center justify-around lg:hidden shadow-[0_-4px_25px_rgba(0,0,0,0.04)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200/80 px-2 sm:px-3 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-around lg:hidden shadow-[0_-4px_25px_rgba(0,0,0,0.04)] select-none">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isRootTab = item.path.endsWith('/dashboard') || item.path.endsWith('/home');
@@ -59,15 +59,15 @@ export function MobileNav() {
             to={item.path}
             end={isRootTab}
             className={({ isActive }) => `
-              flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl text-[10px] font-semibold transition-all min-w-[54px] active:scale-95
+              flex flex-col items-center justify-center py-1.5 px-2.5 rounded-xl text-[10px] font-semibold transition-all min-w-[50px] active:scale-95 touch-manipulation
               ${isActive 
-                ? 'text-blue-600 bg-blue-50/80 font-bold shadow-2xs' 
+                ? 'text-blue-600 bg-blue-50/90 font-bold shadow-2xs' 
                 : 'text-slate-400 hover:text-slate-700'
               }
             `}
           >
-            <Icon className="w-5 h-5 mb-1" />
-            <span>{item.label}</span>
+            <Icon className="w-5 h-5 mb-0.5" />
+            <span className="truncate max-w-[60px] text-center">{item.label}</span>
           </NavLink>
         );
       })}
